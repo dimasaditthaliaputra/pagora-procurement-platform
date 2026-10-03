@@ -1,0 +1,231 @@
+{
+  "navLinks": [
+    {
+      "title": "Masalah",
+      "href": "#problems"
+    },
+    {
+      "title": "Fitur Unggulan",
+      "href": "#features"
+    },
+    {
+      "title": "Alur Kerja",
+      "href": "#workflow"
+    },
+    {
+      "title": "Peran Pengguna",
+      "href": "#roles"
+    },
+    {
+      "title": "Simulasi",
+      "href": "#calculator"
+    }
+  ],
+  "problems": [
+    {
+      "id": "p1",
+      "number": "01",
+      "tag": "Ketimpangan Pasar",
+      "title": "Ketimpangan Informasi & Kartel Harga",
+      "description": "Bagian purchasing sering terjebak tawar-menawar sepihak tanpa data pembanding pasar yang valid, memicu kerentanan mark-up anggaran belanja.",
+      "impact": "Potensi Pembengkakan Biaya 12% - 20%",
+      "accentColor": "bg-coral-pop",
+      "borderColor": "border-coral-pop/40",
+      "quote": "\"Sulit membuktikan apakah penawaran vendor benar-benar harga wajar pasar atau kesepakatan sepihak.\""
+    },
+    {
+      "id": "p2",
+      "number": "02",
+      "tag": "Silo Operasional",
+      "title": "Fragmentasi Dokumen (Silo Antar-Divisi)",
+      "description": "Koordinasi terpisah antara tim Purchasing, Vendor, dan QC Gudang menyebabkan dokumen PO, surat jalan kertas, dan tagihan fisik tercecer.",
+      "impact": "Audit Lambat & Dokumen Fisik Hilang",
+      "accentColor": "bg-sky-pop",
+      "borderColor": "border-sky-pop/40",
+      "quote": "\"Lembar PO di purchasing berbeda versi dengan surat jalan di gudang dan tagihan di finance.\""
+    },
+    {
+      "id": "p3",
+      "number": "03",
+      "tag": "Kebocoran Kas",
+      "title": "Sengketa Penerimaan Barang di Gudang",
+      "description": "Penolakan barang rusak di dermaga gudang menemui jalan buntu akibat bukti fisik tidak tercatat terpusat dan tagihan terlanjur diproses bayar.",
+      "impact": "Rugi Bahan Baku & Konflik Vendor",
+      "accentColor": "bg-sunshine-pop",
+      "borderColor": "border-sunshine-pop/80",
+      "quote": "\"Barang tidak sesuai spesifikasi tetap ditagihkan karena tidak ada sistem pembekuan otomatis.\""
+    }
+  ],
+  "features": [
+    {
+      "id": "pagu-intel",
+      "title": "Intelijen Harga Pagu (DSS)",
+      "badge": "Decision Support System",
+      "description": "Penarikan data historis berkala dari API Bank Indonesia yang diproses regresi linier prediktif untuk menentukan batas atas harga wajar (Harga Pagu) sebelum PO dirilis.",
+      "highlights": [
+        "Koneksi Langsung API Bank Indonesia",
+        "Prediksi Tren Regresi Linier",
+        "Batas Toleransi Tawar Terkunci"
+      ],
+      "tagColor": "green"
+    },
+    {
+      "id": "negotiation-chat",
+      "title": "Smart Negotiation Chat",
+      "badge": "Guided Bidding",
+      "description": "Ruang negosiasi tertutup dengan efek anchoring berbasis Harga Pagu referensi. Begitu kesepakatan tercapai, sistem secara otomatis mengunci data final PO tanpa celah manipulasi.",
+      "highlights": [
+        "Ruang Bidding Tertutup",
+        "Anchoring Efek Harga Wajar",
+        "Auto-Lock Data PO Final"
+      ],
+      "tagColor": "sky"
+    },
+    {
+      "id": "3way-matching",
+      "title": "Otomasi 3-Way Matching",
+      "badge": "Zero Fraud Verification",
+      "description": "Pencocokan silang otomatis antara Dokumen PO, Laporan Penerimaan Gudang (GRN), dan Invoice Tagihan sebelum gerbang pembayaran dapat dibuka oleh finance.",
+      "highlights": [
+        "Validasi 3 Berkas Otomatis",
+        "Pencegahan Double Invoice",
+        "Audit Trail Terverifikasi"
+      ],
+      "tagColor": "coral"
+    },
+    {
+      "id": "qc-inspection",
+      "title": "Inspeksi QC & Dispute Freezing",
+      "badge": "Quality Guard",
+      "description": "Verifikasi kondisi fisik bahan baku secara real-time di docking area. Wajib unggah foto bukti ketidaksesuaian yang seketika membekukan status dokumen di Log Sengketa.",
+      "highlights": [
+        "Formulir Digital Dock Gudang",
+        "Bukti Foto Bukti Penolakan",
+        "Pembekuan Pembayaran Otomatis"
+      ],
+      "tagColor": "yellow"
+    },
+    {
+      "id": "self-logistics",
+      "title": "Self-Reporting Logistics",
+      "badge": "Fleet Transparency",
+      "description": "Pembaruan mandiri status armada pengiriman dan estimasi waktu tiba (ETA) langsung oleh vendor tanpa perlu perantara telepon atau birokrasi manual.",
+      "highlights": [
+        "Update Status Armada Mandiri",
+        "Estimasi ETA Real-time",
+        "Notifikasi Kesiapan Dock Gudang"
+      ],
+      "tagColor": "green"
+    }
+  ],
+  "workflowSteps": [
+    {
+      "step": "01",
+      "title": "Analisis Tren & Rilis PO",
+      "desc": "Purchasing memantau tren harga acuan komoditas Bank Indonesia, menetapkan batas Harga Pagu rekomendasi, lalu merilis dokumen PO terkendali ke portal.",
+      "pillBg": "bg-fresh-grass",
+      "badge": "Langkah Pembelian"
+    },
+    {
+      "step": "02",
+      "title": "Negosiasi & Pelaporan Pengiriman",
+      "desc": "Vendor meninjau penawaran secara terstruktur di portal, menyepakati nilai PO terkunci, dan memperbarui jadwal armada pengiriman secara mandiri.",
+      "pillBg": "bg-sky-pop",
+      "badge": "Langkah Pemasok"
+    },
+    {
+      "step": "03",
+      "title": "Pemeriksaan Mutu Gudang",
+      "desc": "Tim QC memeriksa armada dan fisik bahan baku di dermaga bongkar muat, mengunggah foto verifikasi langsung ke sistem sebelum barang diterima.",
+      "pillBg": "bg-coral-pop",
+      "badge": "Langkah Kendali Mutu"
+    },
+    {
+      "step": "04",
+      "title": "Validasi 3-Way Matching & Bayar",
+      "desc": "Sistem mencocokkan dokumen PO, GRN gudang, dan Invoice. Jika 100% klop, pembayaran dibuka aman; bila terjadi selisih, pembayaran otomatis dibekukan.",
+      "pillBg": "bg-sunshine-pop",
+      "badge": "Langkah Rekonsiliasi"
+    }
+  ],
+  "roleBenefits": [
+    {
+      "role": "Tim Purchasing (Buyer)",
+      "title": "Pengadaan Terkendali Tanpa Cemas Mark-Up",
+      "tagline": "Negosiasi cepat berlandaskan data pasar obyektif, bukan intuisi semata.",
+      "bulletPoints": [
+        "Batas Harga Pagu otomatis berbasis API Bank Indonesia sebelum rilis PO",
+        "Ruang tawar-menawar tertutup yang mencegah kolusi vendor internal",
+        "Penguncian parameter PO otomatis segera setelah negosiasi disepakati",
+        "Penghematan belanja bahan baku hingga 8% - 15% setiap siklus pengadaan"
+      ],
+      "metric": "14.2%",
+      "metricLabel": "Rata-rata Penghematan Anggaran",
+      "actionText": "Jelajahi Portal Buyer"
+    },
+    {
+      "role": "Vendor / Pemasok Bahan Baku",
+      "title": "Kepastian Pesanan & Pembayaran Tepat Waktu",
+      "tagline": "Proses penagihan transparan dengan alur verifikasi dokumen yang terstandar.",
+      "bulletPoints": [
+        "Akses pesanan bahan baku manufaktur berulang dengan spesifikasi jelas",
+        "Fitur Self-Reporting Logistics untuk pembaruan armada tanpa perantara",
+        "Validasi invoice otomatis via 3-Way Matching tanpa tagihan menggantung",
+        "Jadwal pembayaran transparan dan terikat komitmen sistem"
+      ],
+      "metric": "99.4%",
+      "metricLabel": "Ketepatan Waktu Pelunasan",
+      "actionText": "Daftar Vendor Mitra"
+    },
+    {
+      "role": "Tim QC & Operasional Gudang",
+      "title": "Inspeksi Praktis di Dock Bongkar Muat",
+      "tagline": "Dokumentasi penerimaan digital yang mengakhiri sengketa bahan baku cacat.",
+      "bulletPoints": [
+        "Formulir penerimaan digital ramah ponsel di dermaga penerimaan",
+        "Wajib unggah bukti foto kondisi fisik dan nomor pelat armada",
+        "Fitur Dispute Freezing otomatis untuk menahan dokumen barang cacat",
+        "Laporan Penerimaan Barang (GRN) instan terhubung langsung ke Finance"
+      ],
+      "metric": "0 Menit",
+      "metricLabel": "Waktu Tunggu Pembuatan GRN",
+      "actionText": "Lihat Alur Inspeksi"
+    },
+    {
+      "role": "Manajemen & Tim Auditor",
+      "title": "Audit Trail Menyeluruh & Good Corporate Governance",
+      "tagline": "Visibilitas mutlak atas setiap rupiah yang dikeluarkan untuk bahan baku manufaktur.",
+      "bulletPoints": [
+        "Rekonsiliasi otomatis PO, Laporan Gudang, dan Faktur Pajak/Invoice",
+        "Riwayat jejak audit (audit trail) tidak dapat diubah (tamper-proof)",
+        "Dashboard analitik tren harga bahan baku dan performa vendor",
+        "Kepatuhan standar audit operasional manufaktur terakreditasi"
+      ],
+      "metric": "100%",
+      "metricLabel": "Integritas Berkas Tervalidasi",
+      "actionText": "Pelajari Sistem Audit"
+    }
+  ],
+  "footerSolutions": [
+    {
+      "title": "Masalah Pengadaan",
+      "href": "#problems"
+    },
+    {
+      "title": "Intelijen Harga Pagu",
+      "href": "#features"
+    },
+    {
+      "title": "Alur 3-Way Matching",
+      "href": "#workflow"
+    },
+    {
+      "title": "Nilai Manfaat Peran",
+      "href": "#roles"
+    },
+    {
+      "title": "Kalkulator Efisiensi",
+      "href": "#calculator"
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand Core Tokens (MindMarket Design System) */
+  --color-fresh-grass: #8ed462;
+  --color-cream-paper: #f5f1e4;
+  --color-ink-black: #2c2e2a;
+  --color-pure-white: #ffffff;
+  --color-sandstone: #e0dbce;
+  --color-stone-gray: #80827f;
+  --color-hairline-mist: #d5d5d4;
+  --color-pure-ink: #000000;
+  --color-sky-pop: #2ba0ff;
+  --color-coral-pop: #ff705d;
+  --color-sunshine-pop: #f5e211;
+  --color-cream-light: #faf7ee;
+
+  /* Global Semantic Color Aliases for Scalability */
+  --canvas-bg: var(--color-cream-paper);
+  --card-bg: var(--color-pure-white);
+  --surface-sandstone: var(--color-sandstone);
+  --text-primary: var(--color-ink-black);
+  --text-muted: var(--color-stone-gray);
+  --border-primary: var(--color-ink-black);
+  --border-muted: var(--color-hairline-mist);
+  --brand-primary: var(--color-fresh-grass);
+  --accent-sky: var(--color-sky-pop);
+  --accent-coral: var(--color-coral-pop);
+  --accent-sunshine: var(--color-sunshine-pop);
+}
+
+@theme {
+  --color-fresh-grass: #8ed462;
+  --color-cream-paper: #f5f1e4;
+  --color-cream-light: #faf7ee;
+  --color-ink-black: #2c2e2a;
+  --color-pure-white: #ffffff;
+  --color-sandstone: #e0dbce;
+  --color-stone-gray: #80827f;
+  --color-hairline-mist: #d5d5d4;
+  --color-pure-ink: #000000;
+  --color-sky-pop: #2ba0ff;
+  --color-coral-pop: #ff705d;
+  --color-sunshine-pop: #f5e211;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-inter: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  --text-body-sm: 15px;
+  --leading-body-sm: 1.5;
+  --text-body-lg: 18px;
+  --leading-body-lg: 1.5;
+  --text-subheading: 20px;
+  --leading-subheading: 1.25;
+  --text-heading-sm: 30px;
+  --leading-heading-sm: 1.2;
+  --text-heading: 53px;
+  --leading-heading: 1.15;
+  --tracking-heading: -2.12px;
+  --text-heading-lg: 81px;
+  --leading-heading-lg: 1.2;
+  --tracking-heading-lg: -4.86px;
+  --text-display: 140px;
+  --leading-display: 0.95;
+  --tracking-display: -8.4px;
+  --text-display-lg: 144px;
+  --leading-display-lg: 0.95;
+  --tracking-display-lg: -8.64px;
+
+  --radius-pill: 50px;
+  --radius-card: 50px;
+  --radius-illustration: 63.75px;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-family: var(--font-inter);
+}
+
+body {
+  background-color: var(--color-cream-paper);
+  color: var(--color-ink-black);
+}
+
+section[id] {
+  scroll-margin-top: 5.5rem;
+}

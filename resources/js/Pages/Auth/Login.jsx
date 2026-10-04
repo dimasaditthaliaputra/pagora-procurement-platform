@@ -7,7 +7,7 @@ export default function Login() {
             
             <div className="max-w-4xl mx-auto w-full flex items-center justify-between py-4">
                 <Link href="/" className="inline-flex items-center gap-3 group">
-                    <div className="w-10 h-10 rounded-[12px] bg-fresh-grass border border-ink-black flex items-center justify-center font-bold text-ink-black text-lg">
+                    <div className="w-10 h-10 rounded-xl bg-fresh-grass border border-ink-black flex items-center justify-center font-bold text-ink-black text-lg">
                         P
                     </div>
                     <span className="font-semibold tracking-tight text-xl text-ink-black">PAGORA</span>

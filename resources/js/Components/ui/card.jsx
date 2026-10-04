@@ -31,7 +31,7 @@ export function CardTitle({ children, className = '', ...props }) {
 }
 
 export function CardDescription({ children, className = '', ...props }) {
-    return <p className={`text-[15px] sm:text-[16px] leading-[1.5] text-stone-gray ${className}`} {...props}>{children}</p>;
+    return <p className={`text-body-sm sm:text-[16px] leading-[1.5] text-stone-gray ${className}`} {...props}>{children}</p>;
 }
 
 export function CardContent({ children, className = '', ...props }) {

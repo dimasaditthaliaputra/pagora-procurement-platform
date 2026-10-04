@@ -1,15 +1,15 @@
 import React, { useRef, useEffect, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { 
-    ShieldCheck, 
-    AlertTriangle, 
-    Check, 
-    TrendingUp, 
-    Lock, 
-    Truck, 
-    Sparkles, 
-    ArrowRight 
+import {
+    ShieldCheck,
+    AlertTriangle,
+    Check,
+    TrendingUp,
+    Lock,
+    Truck,
+    Sparkles,
+    ArrowRight
 } from 'lucide-react';
 import { Badge } from '@/Components/ui/badge';
 
@@ -46,10 +46,10 @@ export default function StackedFeaturesSection({ features = [] }) {
 
             cards.forEach((card, i) => {
                 if (i > 0) {
-                    gsap.set(card, { 
-                        yPercent: 120, 
-                        opacity: 0, 
-                        scale: 0.9 
+                    gsap.set(card, {
+                        yPercent: 120,
+                        opacity: 0,
+                        scale: 0.9
                     });
 
                     tl.to(card, {
@@ -93,7 +93,7 @@ export default function StackedFeaturesSection({ features = [] }) {
                             Arsitektur Sistem: Cerdas, Objektif, & Terotomasi
                         </h2>
 
-                        <p className="text-[15px] sm:text-[18px] text-stone-gray leading-relaxed max-w-lg mx-auto font-normal">
+                        <p className="text-body-sm sm:text-body-lg text-stone-gray leading-relaxed max-w-lg mx-auto font-normal">
                             Scroll ke bawah untuk membuka lapisan kapabilitas PAGORA yang melindungi anggaran pengadaan bahan baku pabrik Anda.
                         </p>
 
@@ -101,33 +101,32 @@ export default function StackedFeaturesSection({ features = [] }) {
                             {features.map((_, i) => (
                                 <span
                                     key={i}
-                                    className={`h-2 rounded-full transition-all duration-300 ${
-                                        activeCardIndex === i
+                                    className={`h-2 rounded-full transition-all duration-300 ${activeCardIndex === i
                                             ? 'w-8 bg-fresh-grass'
                                             : 'w-2 bg-hairline-mist'
-                                    }`}
+                                        }`}
                                 />
                             ))}
                         </div>
                     </div>
 
-                    <div className="lg:col-span-7 relative w-full h-[490px] sm:h-[540px] lg:h-[560px] flex items-center justify-center">
+                    <div className="lg:col-span-7 relative w-full h-122.5 sm:h-135 lg:h-140 flex items-center justify-center">
                         {features.map((feature, idx) => (
                             <div
                                 key={feature.id}
-                                className="stacked-feature-card absolute inset-0 bg-pure-white rounded-[32px] sm:rounded-[44px] lg:rounded-[50px] border border-hairline-mist p-5 sm:p-8 lg:p-10 flex flex-col justify-between select-none"
+                                className="stacked-feature-card absolute inset-0 bg-pure-white rounded-4xl sm:rounded-[44px] lg:rounded-[50px] border border-hairline-mist p-5 sm:p-8 lg:p-10 flex flex-col justify-between select-none"
                                 style={{ zIndex: idx + 10 }}
                             >
                                 <div>
                                     <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                                        <Badge 
-                                            variant={feature.tagColor || 'green'} 
-                                            pill 
+                                        <Badge
+                                            variant={feature.tagColor || 'green'}
+                                            pill
                                             dotColor={
                                                 feature.tagColor === 'coral' ? 'bg-coral-pop' :
-                                                feature.tagColor === 'sky' ? 'bg-sky-pop' :
-                                                feature.tagColor === 'yellow' ? 'bg-sunshine-pop' :
-                                                'bg-fresh-grass'
+                                                    feature.tagColor === 'sky' ? 'bg-sky-pop' :
+                                                        feature.tagColor === 'yellow' ? 'bg-sunshine-pop' :
+                                                            'bg-fresh-grass'
                                             }
                                         >
                                             {feature.badge}
@@ -141,13 +140,13 @@ export default function StackedFeaturesSection({ features = [] }) {
                                         {feature.title}
                                     </h3>
 
-                                    <p className="text-[15px] sm:text-[16px] text-stone-gray leading-relaxed mb-6">
+                                    <p className="text-body-sm sm:text-[16px] text-stone-gray leading-relaxed mb-6">
                                         {feature.description}
                                     </p>
                                 </div>
 
                                 {idx === 0 && (
-                                    <div className="bg-cream-paper rounded-[32px] p-5 border border-sandstone space-y-3">
+                                    <div className="bg-cream-paper rounded-4xl p-5 border border-sandstone space-y-3">
                                         <div className="flex justify-between items-center text-xs text-ink-black font-semibold">
                                             <span>Prediksi Regresi Linier Pagu</span>
                                             <span className="bg-pure-white px-3 py-1 rounded-[50px] border border-hairline-mist text-fresh-grass">

@@ -180,7 +180,7 @@ export default function LoadingScreen({ onStartReveal, onComplete }) {
     return (
         <div 
             ref={containerRef}
-            className="fixed inset-0 z-[100] bg-cream-paper flex flex-col items-center justify-center select-none overflow-hidden will-change-transform"
+            className="fixed inset-0 z-100 bg-cream-paper flex flex-col items-center justify-center select-none overflow-hidden will-change-transform"
             style={{ backgroundColor: '#f5f1e4' }}
             aria-label="Loading PAGORA"
         >

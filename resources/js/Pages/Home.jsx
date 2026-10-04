@@ -186,7 +186,7 @@ export default function Home() {
 
                     <p 
                         ref={descRef}
-                        className="hero-anim-desc text-[17px] sm:text-[20px] text-stone-gray leading-relaxed max-w-3xl mx-auto font-normal"
+                        className="hero-anim-desc text-[17px] sm:text-subheading text-stone-gray leading-relaxed max-w-3xl mx-auto font-normal"
                     >
                         Platform portal terintegrasi untuk industri manufaktur dan pemasok bahan baku. Lindungi anggaran pengadaan dengan rekomendasi <strong className="text-ink-black font-medium">Harga Pagu cerdas</strong> dan otomasi validasi dokumen <strong className="text-ink-black font-medium">3-Way Matching</strong>.
                     </p>
@@ -209,7 +209,7 @@ export default function Home() {
                 </div>
 
                 <div className="hero-mock-panel mt-14 max-w-5xl mx-auto will-change-transform">
-                    <div className="bg-pure-white rounded-[44px] sm:rounded-[63.75px] border border-hairline-mist p-6 sm:p-10 relative overflow-hidden">
+                    <div className="bg-pure-white rounded-[44px] sm:rounded-illustration border border-hairline-mist p-6 sm:p-10 relative overflow-hidden">
                         <div className="flex items-center justify-between mb-8 pb-6 border-b border-cream-paper">
                             <div className="flex items-center gap-3">
                                 <span className="w-3.5 h-3.5 rounded-full bg-fresh-grass" />
@@ -236,7 +236,7 @@ export default function Home() {
                                 </div>
 
                                 <div className="space-y-3">
-                                    <div className="bg-pure-white rounded-[24px] p-4 border border-hairline-mist/60">
+                                    <div className="bg-pure-white rounded-3xl p-4 border border-hairline-mist/60">
                                         <div className="flex justify-between items-center text-xs text-stone-gray mb-1">
                                             <span>Rata-Rata Penawaran Pasar Bebas</span>
                                             <span className="text-coral-pop font-semibold">Tinggi / Mark-up Risk</span>
@@ -246,7 +246,7 @@ export default function Home() {
                                         </div>
                                     </div>
 
-                                    <div className="bg-pure-white rounded-[24px] p-4 border-2 border-fresh-grass">
+                                    <div className="bg-pure-white rounded-3xl p-4 border-2 border-fresh-grass">
                                         <div className="flex justify-between items-center text-xs text-stone-gray mb-1">
                                             <span className="font-semibold text-ink-black flex items-center gap-1.5">
                                                 <span className="w-2 h-2 rounded-full bg-fresh-grass" />
@@ -294,7 +294,7 @@ export default function Home() {
                                     </div>
                                 </div>
 
-                                <div className="bg-pure-white rounded-[32px] p-4 border border-hairline-mist flex items-center gap-3">
+                                <div className="bg-pure-white rounded-4xl p-4 border border-hairline-mist flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-full bg-fresh-grass flex items-center justify-center shrink-0">
                                         <ShieldCheck className="w-5 h-5 text-ink-black" />
                                     </div>
@@ -329,7 +329,7 @@ export default function Home() {
                         <h2 className="text-[32px] sm:text-[48px] font-medium text-ink-black tracking-tight leading-[1.1]">
                             Celah Operasional yang Menguras Anggaran Manufaktur
                         </h2>
-                        <p className="text-[16px] sm:text-[18px] text-ink-black/85 leading-relaxed font-normal">
+                        <p className="text-[16px] sm:text-body-lg text-ink-black/85 leading-relaxed font-normal">
                             Pengadaan bahan baku secara manual dan berbasis kepercayaan sepihak membuka ruang mark-up, ketidaksesuaian mutu, serta kerugian finansial yang tak terdeteksi.
                         </p>
                     </motion.div>
@@ -356,11 +356,11 @@ export default function Home() {
                                             </span>
                                         </div>
 
-                                        <CardTitle className="mb-3 sm:mb-4 text-[20px] sm:text-[22px] lg:text-[24px] text-ink-black font-medium leading-[1.2] min-h-[48px] sm:min-h-[54px] lg:min-h-[58px] flex items-start">
+                                        <CardTitle className="mb-3 sm:mb-4 text-subheading sm:text-[22px] lg:text-[24px] text-ink-black font-medium leading-[1.2] min-h-12 sm:min-h-13.5 lg:min-h-14.5 flex items-start">
                                             {problem.title}
                                         </CardTitle>
 
-                                        <CardDescription className="text-stone-gray leading-relaxed text-[14px] sm:text-[15px] min-h-[66px] sm:min-h-[80px] lg:min-h-[86px] xl:min-h-[72px]">
+                                        <CardDescription className="text-stone-gray leading-relaxed text-[14px] sm:text-body-sm min-h-16.5 sm:min-h-20 lg:min-h-21.5 xl:min-h-18">
                                             {problem.description}
                                         </CardDescription>
                                     </div>
@@ -370,7 +370,7 @@ export default function Home() {
                                             <span className="w-2 h-2 rounded-full bg-coral-pop shrink-0" />
                                             <span className="truncate">{problem.impact}</span>
                                         </div>
-                                        <div className="text-xs italic text-stone-gray bg-cream-paper p-3 sm:p-3.5 rounded-[20px] border border-sandstone min-h-[74px] sm:min-h-[82px] lg:min-h-[78px] flex items-center">
+                                        <div className="text-xs italic text-stone-gray bg-cream-paper p-3 sm:p-3.5 rounded-[20px] border border-sandstone min-h-18.5 sm:min-h-20.5 lg:min-h-19.5 flex items-center">
                                             <p className="leading-relaxed">
                                                 {problem.quote}
                                             </p>
@@ -398,11 +398,11 @@ export default function Home() {
                                 Alur Kerja Transparan: Dari Analisis hingga Bayar
                             </h2>
 
-                            <p className="text-[16px] sm:text-[18px] text-ink-black/85 leading-relaxed font-normal">
+                            <p className="text-[16px] sm:text-body-lg text-ink-black/85 leading-relaxed font-normal">
                                 Proses empat langkah yang memastikan efisiensi waktu, kepatuhan harga, dan keamanan rekonsiliasi pembayaran tanpa celah sengketa dokumen.
                             </p>
 
-                            <div className="bg-pure-white rounded-[32px] border-2 border-ink-black p-6 shadow-sm space-y-4">
+                            <div className="bg-pure-white rounded-4xl border-2 border-ink-black p-6 shadow-sm space-y-4">
                                 <div className="text-xs uppercase font-mono font-bold tracking-wider text-stone-gray">
                                     Tahapan Eksekusi Pengadaan
                                 </div>
@@ -441,7 +441,7 @@ export default function Home() {
                             {workflowSteps.map((item, index) => (
                                 <div 
                                     key={index}
-                                    className="bg-pure-white rounded-[40px] sm:rounded-[50px] border-2 border-ink-black p-7 sm:p-9 shadow-sm transition-all hover:translate-y-[-4px]"
+                                    className="bg-pure-white rounded-[40px] sm:rounded-[50px] border-2 border-ink-black p-7 sm:p-9 shadow-sm transition-all hover:-translate-y-1"
                                 >
                                     <div className="flex items-center justify-between mb-6">
                                         <div className="flex items-center gap-3">
@@ -461,7 +461,7 @@ export default function Home() {
                                         {item.title}
                                     </h3>
 
-                                    <p className="text-[15px] sm:text-[16px] text-stone-gray leading-relaxed mb-6">
+                                    <p className="text-body-sm sm:text-[16px] text-stone-gray leading-relaxed mb-6">
                                         {item.desc}
                                     </p>
 
@@ -543,10 +543,10 @@ export default function Home() {
                     <Badge variant="coral" pill dotColor="bg-coral-pop">
                         Multi-Role Collaboration
                     </Badge>
-                    <h2 className="text-[32px] sm:text-[53px] font-medium text-ink-black tracking-tight leading-[1.1]">
+                    <h2 className="text-[32px] sm:text-heading font-medium text-ink-black tracking-tight leading-[1.1]">
                         Satu Platform, Nilai Manfaat Bagi Seluruh Peran
                     </h2>
-                    <p className="text-[16px] sm:text-[18px] text-stone-gray leading-relaxed">
+                    <p className="text-[16px] sm:text-body-lg text-stone-gray leading-relaxed">
                         Dirancang untuk mengikis sekat komunikasi dan menyatukan kepentingan bisnis dalam rantai pasok pengadaan manufaktur.
                     </p>
                 </motion.div>
@@ -557,7 +557,7 @@ export default function Home() {
                             key={index}
                             type="button"
                             onClick={() => setActiveRoleIndex(index)}
-                            className={`px-5 py-3 rounded-[50px] text-[14px] sm:text-[15px] font-medium transition-all cursor-pointer ${
+                            className={`px-5 py-3 rounded-[50px] text-[14px] sm:text-body-sm font-medium transition-all cursor-pointer ${
                                 activeRoleIndex === index
                                     ? 'bg-ink-black text-pure-white shadow-sm'
                                     : 'bg-pure-white text-ink-black border border-hairline-mist hover:bg-cream-paper'
@@ -582,7 +582,7 @@ export default function Home() {
                                 <div className="inline-block px-3 py-1 rounded-[50px] bg-cream-paper text-xs font-semibold text-ink-black border border-hairline-mist">
                                     Fokus Peran: {roleBenefits[activeRoleIndex].role}
                                 </div>
-                                <h3 className="text-[28px] sm:text-[38px] font-medium text-ink-black tracking-tight leading-[1.15]">
+                                <h3 className="text-[28px] sm:text-[38px] font-medium text-ink-black tracking-tight leading-heading">
                                     {roleBenefits[activeRoleIndex].title}
                                 </h3>
                                 <p className="text-[17px] text-stone-gray leading-relaxed">
@@ -591,7 +591,7 @@ export default function Home() {
 
                                 <ul className="space-y-3 pt-2">
                                     {roleBenefits[activeRoleIndex].bulletPoints.map((point, i) => (
-                                        <li key={i} className="flex items-start gap-3 text-[15px] text-ink-black">
+                                        <li key={i} className="flex items-start gap-3 text-body-sm text-ink-black">
                                             <div className="w-5 h-5 rounded-full bg-fresh-grass flex items-center justify-center shrink-0 mt-0.5 text-ink-black">
                                                 <Check className="w-3.5 h-3.5" />
                                             </div>
@@ -603,14 +603,14 @@ export default function Home() {
                                 <div className="pt-4 flex flex-wrap gap-4">
                                     <Link
                                         href={activeRoleIndex === 1 ? "/register-vendor" : "/login"}
-                                        className="inline-flex items-center gap-2 px-6 py-3 rounded-[50px] bg-coral-pop text-pure-white text-[15px] font-medium hover:opacity-90 transition-opacity"
+                                        className="inline-flex items-center gap-2 px-6 py-3 rounded-[50px] bg-coral-pop text-pure-white text-body-sm font-medium hover:opacity-90 transition-opacity"
                                     >
                                         <span>{roleBenefits[activeRoleIndex].actionText}</span>
                                         <span className="w-2 h-2 rounded-full bg-pure-white" />
                                     </Link>
                                     <a
                                         href="#workflow"
-                                        className="inline-flex items-center gap-2 px-6 py-3 rounded-[50px] bg-cream-paper text-ink-black text-[15px] font-medium border border-hairline-mist hover:bg-sandstone transition-colors"
+                                        className="inline-flex items-center gap-2 px-6 py-3 rounded-[50px] bg-cream-paper text-ink-black text-body-sm font-medium border border-hairline-mist hover:bg-sandstone transition-colors"
                                     >
                                         Lihat Hubungan Antar-Peran
                                     </a>
@@ -629,7 +629,7 @@ export default function Home() {
                                         {roleBenefits[activeRoleIndex].metricLabel}
                                     </div>
                                 </div>
-                                <div className="text-xs text-stone-gray bg-pure-white p-4 rounded-[24px] border border-hairline-mist/70">
+                                <div className="text-xs text-stone-gray bg-pure-white p-4 rounded-3xl border border-hairline-mist/70">
                                     Berdasarkan benchmarking implementasi pengadaan bahan baku manufaktur berulang.
                                 </div>
                             </div>
@@ -644,7 +644,7 @@ export default function Home() {
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.55 }}
-                    className="bg-ink-black text-pure-white rounded-[44px] sm:rounded-[63.75px] p-8 sm:p-14 relative overflow-hidden"
+                    className="bg-ink-black text-pure-white rounded-[44px] sm:rounded-illustration p-8 sm:p-14 relative overflow-hidden"
                 >
                     <div className="flex items-center gap-2 mb-8">
                         <span className="w-3 h-3 rounded-full bg-fresh-grass" />
@@ -664,7 +664,7 @@ export default function Home() {
                                 Geser nilai belanja bulanan bahan baku pabrik Anda untuk melihat estimasi nominal mark-up yang dapat dihemat melalui penetapan Harga Pagu cerdas.
                             </p>
 
-                            <div className="bg-white/10 p-6 rounded-[32px] border border-white/15 space-y-4">
+                            <div className="bg-white/10 p-6 rounded-4xl border border-white/15 space-y-4">
                                 <div className="flex justify-between items-center">
                                     <label className="text-xs font-semibold uppercase tracking-wider text-hairline-mist">
                                         Anggaran Belanja Bahan Baku / Bulan
@@ -691,7 +691,7 @@ export default function Home() {
                         </div>
 
                         <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="bg-pure-white text-ink-black p-6 rounded-[32px] border border-white/20">
+                            <div className="bg-pure-white text-ink-black p-6 rounded-4xl border border-white/20">
                                 <span className="text-xs font-semibold text-stone-gray uppercase block mb-1">
                                     Estimasi Hemat Mark-Up (11.8%)
                                 </span>
@@ -703,7 +703,7 @@ export default function Home() {
                                 </span>
                             </div>
 
-                            <div className="bg-pure-white text-ink-black p-6 rounded-[32px] border border-white/20">
+                            <div className="bg-pure-white text-ink-black p-6 rounded-4xl border border-white/20">
                                 <span className="text-xs font-semibold text-stone-gray uppercase block mb-1">
                                     Jam Rekonsiliasi Terpangkas
                                 </span>
@@ -715,7 +715,7 @@ export default function Home() {
                                 </span>
                             </div>
 
-                            <div className="sm:col-span-2 bg-fresh-grass text-ink-black p-6 rounded-[32px] flex items-center justify-between">
+                            <div className="sm:col-span-2 bg-fresh-grass text-ink-black p-6 rounded-4xl flex items-center justify-between">
                                 <div>
                                     <div className="text-xs font-bold uppercase tracking-wider">
                                         Kepatuhan Audit Dokumen

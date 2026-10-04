@@ -76,7 +76,7 @@ export default function Footer() {
             </div>
 
             <div className="w-full bg-sunshine-pop text-ink-black py-6 sm:py-8 px-4 text-center font-medium border-t-2 border-ink-black">
-                <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm sm:text-[15px]">
+                <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm sm:text-body-sm">
                     <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-ink-black" />
                         <span className="font-bold tracking-tight">PAGORA B2B ECOSYSTEM</span>

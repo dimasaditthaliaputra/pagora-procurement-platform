@@ -9,7 +9,7 @@ export function Button({
     as: Component = 'button',
     ...props
 }) {
-    const baseStyles = "inline-flex items-center justify-center font-medium transition-all duration-200 focus-visible:outline-none cursor-pointer disabled:pointer-events-none disabled:opacity-50 select-none text-[15px]";
+    const baseStyles = "inline-flex items-center justify-center font-medium transition-all duration-200 focus-visible:outline-none cursor-pointer disabled:pointer-events-none disabled:opacity-50 select-none text-body-sm";
 
     const variants = {
         default: "bg-pure-white text-ink-black border border-hairline-mist hover:border-ink-black hover:bg-cream-paper/40 shadow-none",
@@ -35,10 +35,9 @@ export function Button({
             <span className="flex items-center gap-2">
                 {children}
                 {iconDot && (
-                    <span 
-                        className={`w-2.5 h-2.5 rounded-full inline-block shrink-0 ${
-                            typeof iconDot === 'string' ? iconDot : 'bg-sky-pop'
-                        }`} 
+                    <span
+                        className={`w-2.5 h-2.5 rounded-full inline-block shrink-0 ${typeof iconDot === 'string' ? iconDot : 'bg-sky-pop'
+                            }`}
                     />
                 )}
             </span>

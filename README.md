@@ -1,58 +1,203 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# PAGORA — B2B Raw Material Procurement Platform
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+![PHP Version](https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=flat-square&logo=php&logoColor=white)
+![Laravel](https://img.shields.io/badge/Laravel-13.x-FF2D20?style=flat-square&logo=laravel&logoColor=white)
+![Inertia.js](https://img.shields.io/badge/Inertia.js-v3-9553E9?style=flat-square&logo=inertia&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
 
-## About Laravel
+**PAGORA** adalah platform ekosistem pengadaan bahan baku B2B (*B2B Raw Material Procurement Platform*) yang dirancang untuk mengatasi inefisiensi transaksi pengadaan, asimetri pasar, serta fragmentasi operasional antara Purchasing, Vendor, Gudang (QC), dan Finance.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Dengan mengintegrasikan **Decision Support System (DSS)** berbasis harga acuan pasar, **ruang negosiasi terpandu**, otomasi **3-Way Matching**, serta mekanisme **Dispute Freezing**, PAGORA meminimalisir risiko kebocoran kas, mark-up anggaran belanja, dan sengketa mutu barang.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 🎯 Masalah yang Diselesaikan
 
-## Learning Laravel
+1. **Ketimpangan Pasar & Resiko Mark-Up**: Tim purchasing sering menghadapi asimetri informasi tanpa data pembanding pasar yang valid. PAGORA menyediakan batas Harga Pagu objektif sebelum Purchase Order (PO) diterbitkan.
+2. **Silo Operasional Antar-Divisi**: Mencegah dokumen terpisah antara lembar PO (purchasing), surat jalan fisik (gudang), dan tagihan/faktur (finance) melalui integrasi data tersentralisasi.
+3. **Sengketa Mutu Bahan Baku di Dock Gudang**: Mencegah tagihan barang cacat terproses bayar dengan fitur pembekuan pembayaran otomatis (*Dispute Freezing*) berbasis bukti inspeksi visual real-time.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+---
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 🚀 Fitur Unggulan
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+- **Intelijen Harga Pagu (DSS)**: Penentuan batas atas harga wajar pengadaan berbasis data acuan historis dan tren regresi prediktif sebelum rilis PO.
+- **Smart Negotiation Chat**: Ruang negosiasi tertutup (*closed bidding*) dengan efek anchoring berbasis Harga Pagu, dilengkapi penguncian parameter PO final (*auto-lock*) saat kesepakatan tercapai.
+- **Otomasi 3-Way Matching**: Rekonsiliasi silang otomatis antara dokumen **Purchase Order (PO)**, **Good Receipt Note (GRN)** gudang, dan **Invoice Tagihan** vendor untuk memastikan kepatuhan audit dan mencegah penagihan ganda (*zero fraud verification*).
+- **Inspeksi QC & Dispute Freezing**: Validasi fisik di dock bongkar muat gudang dengan kewajiban unggah foto bukti ketidaksesuaian yang secara otomatis menahan (*freeze*) pembayaran di finance.
+- **Self-Reporting Logistics**: Pembaruan mandiri nomor armada dan estimasi kedatangan (ETA) langsung oleh vendor guna optimalisasi antrean dermaga gudang.
+- **Tamper-Proof Audit Trail**: Riwayat aktivitas menyeluruh yang memfasilitasi kebutuhan audit operasional dan *Good Corporate Governance* (GCG).
 
-## Agentic Development
+---
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## 🛠️ Tech Stack
 
+| Layer | Teknologi |
+| :--- | :--- |
+| **Backend Framework** | [Laravel 13.x](https://laravel.com) (PHP ^8.3 / PHP 8.5) |
+| **Monolith SPA Layer** | [Inertia.js v3](https://inertiajs.com) |
+| **Frontend Framework** | [React 19](https://react.dev) |
+| **Styling & Design System** | [Tailwind CSS v4](https://tailwindcss.com) |
+| **UI Motion & Interaction** | [Framer Motion](https://www.framer.com/motion/), [GSAP](https://gsap.com), [Lenis](https://lenis.darkroom.engineering) |
+| **Icons** | [Lucide React](https://lucide.dev) |
+| **Build Tool** | [Vite 8](https://vitejs.dev) |
+| **Quality & Testing** | [PHPUnit 12](https://phpunit.de), [Laravel Pint](https://laravel.com/docs/pint) |
+
+---
+
+## 📋 Prasyarat Sistem
+
+Pastikan environment lokal telah memenuhi spesifikasi berikut:
+
+- **PHP** `>= 8.3` (Rekomendasi: PHP 8.4+)
+  - Ekstensi yang diperlukan: `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `json`, `mbstring`, `openssl`, `pdo_mysql` (atau `pdo_sqlite`), `tokenizer`, `xml`
+- **Composer** `>= 2.7`
+- **Node.js** `>= 20.x` & **npm** `>= 10.x`
+- **Database Engine**: MySQL `>= 8.0` / MariaDB `>= 10.4` / SQLite (untuk testing lokal)
+
+---
+
+## ⚙️ Panduan Instalasi
+
+### 1. Kloning Repositori
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone https://github.com/dimasaditthaliaputra/pagora-procurement-platform.git pagora-website
+cd pagora-website
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. Konfigurasi Environment
+Salin berkas konfigurasi template `.env.example` menjadi `.env`:
+```bash
+cp .env.example .env
+```
+Sesuaikan konfigurasi database dan kredensial aplikasi pada berkas `.env`:
+```dotenv
+APP_NAME=PAGORA
+APP_ENV=local
+APP_URL=http://localhost:8000
 
-## Contributing
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=pagora_db
+DB_USERNAME=root
+DB_PASSWORD=secret
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 3. Instalasi Dependensi Backend
+```bash
+composer install
+```
 
-## Code of Conduct
+### 4. Generate Application Key
+```bash
+php artisan key:generate
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 5. Migrasi & Seeding Database
+Jalankan migrasi database:
+```bash
+php artisan migrate
+```
+*(Opsional: Tambahkan `--seed` jika Anda telah mendefinisikan seeder dummy)*
 
-## Security Vulnerabilities
+### 6. Instalasi Dependensi Frontend
+```bash
+npm install
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+> **Alternatif Cepat (Automated Setup Script):**
+> Anda juga dapat menjalankan seluruh alur persiapan awal dalam satu perintah:
+> ```bash
+> composer run setup
+> ```
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## 💻 Menjalankan Aplikasi
+
+### Mode Pengembangan (Development)
+
+Untuk menjalankan server backend Laravel dan server Vite frontend secara terintegrasi:
+
+```bash
+composer run dev
+```
+*(Perintah ini memanfaatkan fitur proses konkuren bawaan `@php artisan dev`)*
+
+Atau jalankan pada dua sesi terminal terpisah:
+
+**Terminal 1 — Backend Server:**
+```bash
+php artisan serve
+```
+
+**Terminal 2 — Vite Dev Server:**
+```bash
+npm run dev
+```
+
+Akses aplikasi pada peramban melalui alamat: **`http://localhost:8000`**
+
+---
+
+### Mode Produksi (Production Build)
+
+Kompilasi asset frontend untuk rilis produksi:
+```bash
+npm run build
+```
+
+Optimalisasi cache backend:
+```bash
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+---
+
+## 🧪 Testing & Code Quality
+
+### Menjalankan Unit & Feature Tests
+```bash
+composer test
+# atau
+php artisan test
+```
+
+### Pemformatan Kode (Code Style)
+Standardisasi kode PHP menggunakan Laravel Pint:
+```bash
+vendor/bin/pint --format agent
+```
+
+---
+
+## 📁 Struktur Direktori Penting
+
+```text
+pagora-website/
+├── app/
+│   ├── Http/Controllers/    # Controller aplikasi & endpoint Inertia
+│   └── Models/              # Eloquent Model & relasi domain bisnis
+├── config/                  # Konfigurasi sistem Laravel
+├── database/
+│   ├── factories/           # Factory data model
+│   ├── migrations/          # Skema migrasi basis data
+│   └── seeders/             # Database seeders
+├── resources/
+│   ├── css/                 # Stylesheet Tailwind CSS v4
+│   └── js/
+│       ├── Components/      # Komponen UI React reusable
+│       ├── Pages/           # Tampilan antarmuka Inertia (Home, Auth, Portal)
+│       ├── data/            # Mock dataset & struktur data portal
+│       └── app.jsx          # Entry point aplikasi React & Inertia
+├── routes/
+│   ├── web.php              # Rute aplikasi web & otentikasi
+│   └── console.php          # Perintah CLI Artisan kustom
+└── tests/                   # Test suite (Unit & Feature)
+```
+
+---

@@ -18,6 +18,8 @@ export function Badge({
         coral: "bg-coral-pop/15 text-ink-black border border-coral-pop/40",
         sky: "bg-sky-pop/15 text-ink-black border border-sky-pop/40",
         yellow: "bg-sunshine-pop/25 text-ink-black border border-sunshine-pop/60",
+        outline: "text-foreground border border-border bg-transparent",
+        secondary: "bg-secondary text-secondary-foreground border-transparent",
         dark: "bg-ink-black text-pure-white",
     };
 

@@ -2,7 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 
 export default function RegisterVendor() {
     return (
-        <div className="min-h-screen bg-cream-paper text-ink-black flex flex-col justify-between p-4 sm:p-8 font-sans selection:bg-fresh-grass">
+        <div className="landing-page min-h-screen bg-cream-paper text-ink-black flex flex-col justify-between p-4 sm:p-8 font-inter selection:bg-fresh-grass">
             <Head title="Registrasi Vendor Mitra — PAGORA" />
             
             <div className="max-w-4xl mx-auto w-full flex items-center justify-between py-4">

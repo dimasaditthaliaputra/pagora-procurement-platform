@@ -17,7 +17,9 @@ return new class extends Migration
             $table->uuid('uuid')->unique();
             $table->string('nama_lengkap', 150);
             $table->string('email', 150);
-            $table->string('password', 255);
+            $table->string('password', 255)->nullable();
+            $table->string('google_id')->nullable()->index();
+            $table->string('avatar', 500)->nullable();
             $table->unsignedBigInteger('role_id');
             $table->unsignedBigInteger('vendor_id')->nullable();
             $table->boolean('status_aktif')->default(true);

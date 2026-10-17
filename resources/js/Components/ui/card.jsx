@@ -1,43 +1,120 @@
-import React from 'react';
+import * as React from "react"
+import { cn } from "cn"
 
-export function Card({
-    children,
-    className = '',
-    surface = 'white',
-    ...props
+function Card({
+  className,
+  size = "default",
+  ...props
 }) {
-    const surfaces = {
-        white: "bg-pure-white border border-hairline-mist/70",
-        sandstone: "bg-sandstone border border-hairline-mist",
-        cream: "bg-cream-paper border border-hairline-mist",
-    };
-
-    return (
-        <div
-            className={`rounded-[36px] sm:rounded-[50px] p-6 sm:p-8 transition-all ${surfaces[surface] || surfaces.white} ${className}`}
-            {...props}
-        >
-            {children}
-        </div>
-    );
+  return (
+    <div
+      data-slot="card"
+      data-size={size}
+      className={cn(
+        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-export function CardHeader({ children, className = '', ...props }) {
-    return <div className={`flex flex-col space-y-2 mb-4 ${className}`} {...props}>{children}</div>;
+function CardHeader({
+  className,
+  ...props
+}) {
+  return (
+    <div
+      data-slot="card-header"
+      className={cn(
+        "group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-xl px-(--card-spacing) has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-(--card-spacing)",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-export function CardTitle({ children, className = '', ...props }) {
-    return <h3 className={`text-[24px] sm:text-[28px] font-medium leading-[1.2] text-ink-black tracking-tight ${className}`} {...props}>{children}</h3>;
+function CardTitle({
+  className,
+  ...props
+}) {
+  return (
+    <div
+      data-slot="card-title"
+      className={cn(
+        "font-heading text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-export function CardDescription({ children, className = '', ...props }) {
-    return <p className={`text-body-sm sm:text-[16px] leading-[1.5] text-stone-gray ${className}`} {...props}>{children}</p>;
+function CardDescription({
+  className,
+  ...props
+}) {
+  return (
+    <div
+      data-slot="card-description"
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  )
 }
 
-export function CardContent({ children, className = '', ...props }) {
-    return <div className={`mt-2 ${className}`} {...props}>{children}</div>;
+function CardAction({
+  className,
+  ...props
+}) {
+  return (
+    <div
+      data-slot="card-action"
+      className={cn(
+        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-export function CardFooter({ children, className = '', ...props }) {
-    return <div className={`flex items-center pt-4 mt-4 border-t border-hairline-mist/40 ${className}`} {...props}>{children}</div>;
+function CardContent({
+  className,
+  ...props
+}) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("px-(--card-spacing)", className)}
+      {...props}
+    />
+  )
+}
+
+function CardFooter({
+  className,
+  ...props
+}) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn(
+        "flex items-center rounded-b-xl border-t bg-muted/50 p-(--card-spacing)",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
 }

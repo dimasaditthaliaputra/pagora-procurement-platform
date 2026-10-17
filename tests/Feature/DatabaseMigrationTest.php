@@ -55,7 +55,7 @@ class DatabaseMigrationTest extends TestCase
         ]));
 
         $this->assertTrue(Schema::hasColumns('users', [
-            'id', 'uuid', 'nama_lengkap', 'email', 'password', 'role_id', 'vendor_id',
+            'id', 'uuid', 'nama_lengkap', 'email', 'password', 'google_id', 'avatar', 'role_id', 'vendor_id',
             'status_aktif', 'created_at', 'updated_at', 'deleted_at',
         ]));
 

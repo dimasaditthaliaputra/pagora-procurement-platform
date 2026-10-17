@@ -177,7 +177,7 @@ export default function Home() {
     };
 
     return (
-        <div className="min-h-screen bg-cream-paper text-ink-black font-sans selection:bg-fresh-grass/30 selection:text-ink-black relative">
+        <div className="landing-page min-h-screen bg-cream-paper text-ink-black font-inter selection:bg-fresh-grass/30 selection:text-ink-black relative">
             <Head>
                 <title>PAGORA — Sistem E-Procurement B2B Berbasis Harga Referensi & 3-Way Matching</title>
                 <meta

@@ -126,9 +126,9 @@ export default function RegisterVendor({ kategori_options = [], status }) {
                     </div>
                 </Link>
                 <Button asChild variant="outline" size="sm" className="rounded-full gap-2">
-                    <Link href="/">
+                    <Link href="/register">
                         <ArrowLeft className="size-4" />
-                        <span>Kembali ke Beranda</span>
+                        <span>Kembali ke Registrasi</span>
                     </Link>
                 </Button>
             </header>

@@ -50,15 +50,6 @@ export default function Login({ status }) {
 
             {/* Left — Form */}
             <div className="flex flex-col justify-between p-6 md:p-10">
-                <div className="flex justify-center md:justify-start">
-                    <Link href="/" className="inline-flex items-center gap-2 font-bold text-2xl tracking-tight text-foreground hover:opacity-80 transition-opacity">
-                        <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-extrabold text-base">
-                            P
-                        </span>
-                        PAGORA
-                    </Link>
-                </div>
-
                 <div className="flex flex-1 items-center justify-center py-8">
                     <div className="w-full max-w-sm">
                         <form onSubmit={submit} className="flex flex-col gap-6" noValidate>

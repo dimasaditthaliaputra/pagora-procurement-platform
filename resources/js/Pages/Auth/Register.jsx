@@ -3,6 +3,7 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { cn } from '@/lib/utils';
+import { Building2, ArrowRight } from 'lucide-react';
 
 export default function Register() {
     const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
@@ -83,6 +84,28 @@ export default function Register() {
                                 <p className="text-muted-foreground text-sm text-balance">
                                     Lengkapi data untuk bergabung ke ekosistem pengadaan PAGORA
                                 </p>
+                            </div>
+
+                            {/* Callout Khusus Calon Vendor Bahan Baku */}
+                            <div className="p-3.5 rounded-xl border border-emerald-500/25 bg-emerald-500/5 dark:bg-emerald-950/20 flex items-start gap-3 text-xs leading-relaxed">
+                                <div className="p-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5">
+                                    <Building2 className="size-4" />
+                                </div>
+                                <div className="flex-1 text-left">
+                                    <p className="font-semibold text-foreground">
+                                        Perusahaan Pemasok Bahan Baku?
+                                    </p>
+                                    <p className="text-muted-foreground mt-0.5">
+                                        Pendaftaran calon vendor memerlukan pengunggahan berkas NIB/legalitas usaha.
+                                    </p>
+                                    <Link
+                                        href="/register/vendor"
+                                        className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400 hover:underline mt-1.5"
+                                    >
+                                        <span>Daftar sebagai Calon Vendor</span>
+                                        <ArrowRight className="size-3" />
+                                    </Link>
+                                </div>
                             </div>
 
                             <div className="grid gap-3.5">

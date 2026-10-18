@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\KomoditasController;
+use App\Http\Controllers\VendorRegistrationController;
 use Illuminate\Support\Facades\Route;
 
 // Public Home
@@ -18,7 +19,13 @@ Route::middleware('guest')->group(function () {
 
     Route::get('/register', [AuthController::class, 'register'])->name('register');
     Route::post('/register', [AuthController::class, 'storeRegister'])->name('register.store');
-    Route::get('/register-vendor', [AuthController::class, 'register'])->name('register.vendor');
+
+    // Vendor Candidate Registration (Domain Route Terpisah dari Auth Utama)
+    Route::prefix('register/vendor')->name('register.vendor')->group(function () {
+        Route::get('/', [VendorRegistrationController::class, 'create']);
+        Route::post('/', [VendorRegistrationController::class, 'store'])->name('.store');
+    });
+    Route::redirect('/register-vendor', '/register/vendor');
 
     Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle'])->name('auth.google.redirect');
     Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');

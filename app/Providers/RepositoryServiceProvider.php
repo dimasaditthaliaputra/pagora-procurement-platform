@@ -6,8 +6,10 @@ namespace App\Providers;
 
 use App\Repositories\Contracts\KomoditasRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Repositories\Contracts\VendorRepositoryInterface;
 use App\Repositories\Eloquent\KomoditasRepository;
 use App\Repositories\Eloquent\UserRepository;
+use App\Repositories\Eloquent\VendorRepository;
 use Illuminate\Support\ServiceProvider;
 
 class RepositoryServiceProvider extends ServiceProvider
@@ -25,6 +27,11 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             KomoditasRepositoryInterface::class,
             KomoditasRepository::class
+        );
+
+        $this->app->bind(
+            VendorRepositoryInterface::class,
+            VendorRepository::class
         );
     }
 

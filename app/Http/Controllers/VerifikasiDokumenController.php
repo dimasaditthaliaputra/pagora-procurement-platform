@@ -5,62 +5,60 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Helpers\ResponseHelper;
+use App\Http\Requests\Verifikasi\IndexVerifikasiDokumenRequest;
 use App\Http\Requests\Verifikasi\VerifikasiDokumenRequest;
+use App\Http\Resources\DokumenLegalitasVendorResource;
+use App\Models\User;
 use App\Services\VerifikasiDokumenService;
-use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 class VerifikasiDokumenController extends Controller
 {
     public function __construct(
-        protected VerifikasiDokumenService $service
+        private readonly VerifikasiDokumenService $service
     ) {}
 
     /**
      * Display the list of vendor legal documents.
      */
-    public function index(Request $request)
+    public function index(IndexVerifikasiDokumenRequest $request): Response|JsonResponse|RedirectResponse
     {
-        $filters = $request->validate([
-            'status_verifikasi' => [
-                'nullable',
-                'string',
-                'in:pending,approved,rejected',
-            ],
-        ]);
+        try {
+            $filters = $request->validated();
+            $perPage = (int) ($filters['per_page'] ?? 10);
 
-        $documents = $this->service->paginate($filters);
+            $documents = $this->service->paginate($filters, $perPage);
 
-        $documents->through(
-            fn ($document) => [
-                'uuid' => $document->uuid,
-                'jenis_dokumen' => $document->jenis_dokumen,
-                'nomor_dokumen' => $document->nomor_dokumen,
-                'status_verifikasi' => $document->status_verifikasi,
-                'alasan_penolakan' => $document->alasan_penolakan,
-                'diverifikasi_pada' => $document->diverifikasi_pada,
-                'file_url' => route(
-                    'verifikasi-dokumen.download',
-                    $document->uuid
-                ),
-                'vendor' => $document->vendor ? [
-                    'uuid' => $document->vendor->uuid,
-                    'nama_perusahaan' => $document->vendor->nama_perusahaan,
-                    'email_kontak' => $document->vendor->email_kontak,
-                ] : null,
-            ]
-        );
+            if ($request->expectsJson()) {
+                return ResponseHelper::success(
+                    'Daftar dokumen legalitas berhasil diambil.',
+                    DokumenLegalitasVendorResource::collection($documents)
+                );
+            }
 
-        return Inertia::render(
-            'Superadmin/VerifikasiDokumen/Index',
-            [
-                'documents' => $documents,
-                'filters' => $filters,
-            ]
-        );
+            return Inertia::render(
+                'Master/Vendor/VerifikasiDokumen/Index',
+                [
+                    'documents' => DokumenLegalitasVendorResource::collection($documents),
+                    'filters' => [
+                        'search' => $filters['search'] ?? '',
+                        'status_verifikasi' => $filters['status_verifikasi'] ?? 'all',
+                        'per_page' => $perPage,
+                    ],
+                ]
+            );
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Gagal memuat daftar dokumen legalitas.', $e);
+        }
     }
 
     /**
@@ -69,46 +67,45 @@ class VerifikasiDokumenController extends Controller
     public function verify(
         VerifikasiDokumenRequest $request,
         string $uuid
-    ) {
+    ): JsonResponse|RedirectResponse {
         try {
+            /** @var User|null $user */
+            $user = $request->user();
+
+            if (! $user instanceof User) {
+                return ResponseHelper::forbidden('Sesi pengguna tidak valid.', null, $request);
+            }
+
+            $validated = $request->validated();
+
             $document = $this->service->verify(
                 $uuid,
-                $request->validated('aksi'),
-                (int) $request->user()->getKey(),
-                $request->validated('alasan_penolakan')
+                (string) ($validated['aksi'] ?? ''),
+                (int) $user->id,
+                isset($validated['alasan_penolakan']) ? (string) $validated['alasan_penolakan'] : null
             );
 
             return ResponseHelper::success(
                 $document->status_verifikasi === 'approved'
                     ? 'Dokumen legalitas berhasil disetujui.'
                     : 'Dokumen legalitas ditolak.',
-                [
-                    'uuid' => $document->uuid,
-                    'status_verifikasi' => $document->status_verifikasi,
-                    'alasan_penolakan' => $document->alasan_penolakan,
-                ],
-                route('verifikasi-dokumen.index'),
+                new DokumenLegalitasVendorResource($document),
+                route('master.vendor.verifikasi-dokumen.index'),
+                $request
+            );
+        } catch (ValidationException $exception) {
+            return ResponseHelper::validationError(
+                $exception->errors(),
+                'Terjadi kesalahan validasi data.',
+                $request
+            );
+        } catch (ModelNotFoundException) {
+            return ResponseHelper::notFound(
+                'Dokumen legalitas tidak ditemukan.',
+                null,
                 $request
             );
         } catch (Throwable $exception) {
-            if (
-                $exception instanceof
-                \Illuminate\Database\Eloquent\ModelNotFoundException
-            ) {
-                return ResponseHelper::notFound(
-                    'Dokumen legalitas tidak ditemukan.',
-                    null,
-                    $request
-                );
-            }
-
-            if (
-                $exception instanceof
-                \Illuminate\Validation\ValidationException
-            ) {
-                throw $exception;
-            }
-
             return ResponseHelper::serverError(
                 'Gagal memproses verifikasi dokumen legalitas.',
                 $exception,
@@ -120,22 +117,31 @@ class VerifikasiDokumenController extends Controller
     /**
      * Stream a private legal document to an authorized user.
      */
-    public function download(string $uuid): StreamedResponse
+    public function download(string $uuid): StreamedResponse|JsonResponse|RedirectResponse
     {
-        $document = $this->service->findByUuid($uuid);
-        $path = $document->file_url;
+        try {
+            $document = $this->service->findByUuid($uuid);
+            $path = $document->file_url;
 
-        abort_unless(
-            is_string($path)
-            && $path !== ''
-            && Storage::disk('local')->exists($path),
-            404,
-            'File dokumen legalitas tidak ditemukan.'
-        );
+            /** @var FilesystemAdapter $disk */
+            $disk = Storage::disk('local');
 
-        return Storage::disk('local')->download(
-            $path,
-            basename($path)
-        );
+            if (
+                ! is_string($path)
+                || $path === ''
+                || ! $disk->exists($path)
+            ) {
+                return ResponseHelper::notFound('File dokumen legalitas tidak ditemukan.');
+            }
+
+            return $disk->download(
+                $path,
+                basename($path)
+            );
+        } catch (ModelNotFoundException) {
+            return ResponseHelper::notFound('Dokumen legalitas tidak ditemukan.');
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Gagal mengunduh file dokumen legalitas.', $e);
+        }
     }
 }

@@ -14,6 +14,22 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property string $nama_lengkap
+ * @property string $email
+ * @property string $password
+ * @property string|null $google_id
+ * @property string|null $avatar
+ * @property int $role_id
+ * @property int|null $vendor_id
+ * @property bool $status_aktif
+ * @property-read Role|null $role
+ * @property-read Vendor|null $vendor
+ *
+ * @method bool isSuperadmin()
+ */
 #[Fillable([
     'uuid',
     'nama_lengkap',

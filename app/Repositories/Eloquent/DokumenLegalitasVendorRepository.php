@@ -17,19 +17,30 @@ class DokumenLegalitasVendorRepository implements DokumenLegalitasVendorReposito
     /**
      * Get paginated vendor legal documents.
      *
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     public function paginate(array $filters, int $perPage = 10): LengthAwarePaginator
     {
         return $this->model
             ->newQuery()
-            ->with('vendor')
+            ->with(['vendor', 'verifier'])
             ->when(
-                !empty($filters['status_verifikasi']),
+                ! empty($filters['status_verifikasi']) && $filters['status_verifikasi'] !== 'all',
                 fn ($query) => $query->where(
                     'status_verifikasi',
                     $filters['status_verifikasi']
                 )
+            )
+            ->when(
+                ! empty($filters['search']),
+                fn ($query) => $query->where(function ($q) use ($filters) {
+                    $term = '%'.$filters['search'].'%';
+                    $q->where('nomor_dokumen', 'like', $term)
+                        ->orWhere('jenis_dokumen', 'like', $term)
+                        ->orWhereHas('vendor', fn ($vq) => $vq->where('nama_perusahaan', 'like', $term)
+                            ->orWhere('email_kontak', 'like', $term)
+                            ->orWhere('kategori_komoditas', 'like', $term));
+                })
             )
             ->latest('created_at')
             ->paginate($perPage)
@@ -48,7 +59,7 @@ class DokumenLegalitasVendorRepository implements DokumenLegalitasVendorReposito
     /**
      * Create a new vendor legal document record.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(array $data): DokumenLegalitasVendor
     {
@@ -58,7 +69,7 @@ class DokumenLegalitasVendorRepository implements DokumenLegalitasVendorReposito
     /**
      * Save changes to a legal document.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(
         DokumenLegalitasVendor $document,

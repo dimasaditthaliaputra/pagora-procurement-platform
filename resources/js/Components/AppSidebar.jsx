@@ -63,7 +63,7 @@ const managementNavItems = [
     { title: 'Inspeksi QC', icon: ClipboardCheck, href: '#' },
     { title: 'Laporan', icon: BarChart3, href: '#' },
     { title: 'Notifikasi', icon: Bell, href: '#' },
-    { title: 'Pengguna', icon: Users, href: '#' },
+    { title: 'Pengguna', icon: Users, href: '/manajemen/pengguna', routeName: 'manajemen.pengguna.index' },
     { title: 'Pengaturan', icon: Settings, href: '#' },
 ];
 

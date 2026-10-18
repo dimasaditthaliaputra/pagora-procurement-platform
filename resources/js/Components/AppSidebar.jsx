@@ -55,7 +55,7 @@ const mainNavItems = [
 const masterNavItems = [
     { title: 'Komoditas', icon: Boxes, href: '/master/komoditas', routeName: 'master.komoditas.index' },
     { title: 'Harga Referensi & Pagu', icon: TrendingUp, href: '#' },
-    { title: 'Data Vendor', icon: Building2, href: '#' },
+    { title: 'Data Vendor', icon: Building2, href: '/master/vendor/verifikasi-dokumen', routeName: 'master.vendor.verifikasi-dokumen.index' },
     { title: 'Role & Akses', icon: ShieldCheck, href: '#' },
 ];
 

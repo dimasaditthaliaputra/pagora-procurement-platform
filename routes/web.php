@@ -66,10 +66,10 @@ Route::middleware('auth')->group(function () {
 
     Route::redirect('/manajemen/internal-perusahaan', '/manajemen/pengguna');
 
-    // Vendor Legal Document Verification Routes (Superadmin Only)
+    // Master Vendor Legal Document Verification Routes (Superadmin Only)
     Route::middleware('superadmin')
-        ->prefix('superadmin/verifikasi-dokumen')
-        ->name('verifikasi-dokumen.')
+        ->prefix('master/vendor/verifikasi-dokumen')
+        ->name('master.vendor.verifikasi-dokumen.')
         ->controller(VerifikasiDokumenController::class)
         ->group(function () {
             Route::get('/', 'index')->name('index');
@@ -82,4 +82,6 @@ Route::middleware('auth')->group(function () {
                 ->whereUuid('uuid')
                 ->name('download');
         });
+
+    Route::redirect('/superadmin/verifikasi-dokumen', '/master/vendor/verifikasi-dokumen');
 });

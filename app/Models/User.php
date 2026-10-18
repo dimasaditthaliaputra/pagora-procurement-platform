@@ -14,7 +14,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['uuid', 'nama_lengkap', 'email', 'password', 'google_id', 'avatar', 'role_id', 'vendor_id', 'status_aktif'])]
+#[Fillable([
+    'uuid',
+    'nama_lengkap',
+    'email',
+    'password',
+    'google_id',
+    'avatar',
+    'role_id',
+    'vendor_id',
+    'status_aktif',
+])]
 #[Hidden(['id', 'password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -55,7 +65,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Relasi ke Role user.
+     * Get the role assigned to this user.
      */
     public function role(): BelongsTo
     {
@@ -63,10 +73,18 @@ class User extends Authenticatable
     }
 
     /**
-     * Relasi ke Vendor jika user merupakan akun vendor partner.
+     * Get the vendor associated with this user.
      */
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Vendor::class, 'vendor_id');
+    }
+
+    /**
+     * Determine whether the user is a superadmin.
+     */
+    public function isSuperadmin(): bool
+    {
+        return $this->role()->where('nama_role', 'superadmin')->exists();
     }
 }

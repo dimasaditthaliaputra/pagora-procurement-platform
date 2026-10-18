@@ -8,6 +8,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\KomoditasController;
 use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\VendorRegistrationController;
+use App\Http\Controllers\VerifikasiDokumenController;
 use Illuminate\Support\Facades\Route;
 
 // Public Home
@@ -21,11 +22,12 @@ Route::middleware('guest')->group(function () {
     Route::get('/register', [AuthController::class, 'register'])->name('register');
     Route::post('/register', [AuthController::class, 'storeRegister'])->name('register.store');
 
-    // Vendor Candidate Registration (Domain Route Terpisah dari Auth Utama)
+    // Vendor Candidate Registration
     Route::prefix('register/vendor')->name('register.vendor')->group(function () {
         Route::get('/', [VendorRegistrationController::class, 'create']);
         Route::post('/', [VendorRegistrationController::class, 'store'])->name('.store');
     });
+
     Route::redirect('/register-vendor', '/register/vendor');
 
     Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle'])->name('auth.google.redirect');
@@ -63,4 +65,21 @@ Route::middleware('auth')->group(function () {
         });
 
     Route::redirect('/manajemen/internal-perusahaan', '/manajemen/pengguna');
+
+    // Vendor Legal Document Verification Routes (Superadmin Only)
+    Route::middleware('superadmin')
+        ->prefix('superadmin/verifikasi-dokumen')
+        ->name('verifikasi-dokumen.')
+        ->controller(VerifikasiDokumenController::class)
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+
+            Route::post('/{uuid}/verifikasi', 'verify')
+                ->whereUuid('uuid')
+                ->name('verify');
+
+            Route::get('/{uuid}/file', 'download')
+                ->whereUuid('uuid')
+                ->name('download');
+        });
 });

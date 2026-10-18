@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
 use App\Repositories\Contracts\KomoditasRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Contracts\VendorRepositoryInterface;
+use App\Repositories\Eloquent\DokumenLegalitasVendorRepository;
 use App\Repositories\Eloquent\KomoditasRepository;
 use App\Repositories\Eloquent\UserRepository;
 use App\Repositories\Eloquent\VendorRepository;
@@ -32,6 +34,11 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             VendorRepositoryInterface::class,
             VendorRepository::class
+        );
+
+        $this->app->bind(
+            DokumenLegalitasVendorRepositoryInterface::class,
+            DokumenLegalitasVendorRepository::class
         );
     }
 

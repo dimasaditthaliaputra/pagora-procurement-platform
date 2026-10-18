@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Vendor;
+use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
 use App\Repositories\Contracts\VendorRepositoryInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class VendorRegistrationService
 {
     /**
-     * Pilihan kategori komoditas yang dapat disediakan oleh vendor mitra.
+     * Available commodity categories for vendor partners.
      *
      * @var list<string>
      */
@@ -30,35 +32,61 @@ class VendorRegistrationService
     ];
 
     public function __construct(
-        private readonly VendorRepositoryInterface $vendorRepository
+        private readonly VendorRepositoryInterface $vendorRepository,
+        private readonly DokumenLegalitasVendorRepositoryInterface $dokumenRepository
     ) {}
 
     /**
-     * Registrasi data profil calon vendor baru.
+     * Register a new vendor candidate and its legal document.
      *
-     * @param  array<string, mixed>  $data
+     * @param array<string, mixed> $data
      */
     public function register(array $data): Vendor
     {
-        return DB::transaction(function () use ($data) {
-            // Upload dokumen legalitas ke disk public (sesuai RULES.md bagian 8.7)
-            if (isset($data['dokumen_legalitas']) && $data['dokumen_legalitas'] instanceof UploadedFile) {
-                $file = $data['dokumen_legalitas'];
-                $extension = $file->getClientOriginalExtension() ?: 'bin';
+        return DB::transaction(function () use ($data): Vendor {
+            $file = $data['dokumen_legalitas'] ?? null;
+            $documentPath = null;
+
+            if ($file instanceof UploadedFile) {
+                $extension = strtolower($file->guessExtension() ?: 'bin');
                 $filename = Str::uuid()->toString().'.'.$extension;
-                $path = $file->storeAs('vendors/dokumen', $filename, 'public');
-                $data['dokumen_legalitas'] = $path;
+
+                $documentPath = $file->storeAs(
+                    'vendors/dokumen',
+                    $filename,
+                    'local'
+                );
+
+                if ($documentPath === false) {
+                    throw new RuntimeException(
+                        'Dokumen legalitas gagal disimpan.'
+                    );
+                }
+
+                $data['dokumen_legalitas'] = $documentPath;
             }
 
-            // Generate slug unik berdasarkan nama perusahaan
             $baseSlug = Str::slug($data['nama_perusahaan']);
             $data['slug'] = $baseSlug.'-'.Str::lower(Str::random(6));
-
-            // Set status verifikasi default 'pending' sesuai spesifikasi bisnis
             $data['status_verifikasi'] = 'pending';
             $data['status_aktif'] = true;
 
-            return $this->vendorRepository->create($data);
+            $vendor = $this->vendorRepository->create($data);
+
+            if ($documentPath !== null) {
+                $this->dokumenRepository->create([
+                    'vendor_id' => $vendor->getKey(),
+                    'jenis_dokumen' => 'dokumen_legalitas',
+                    'nomor_dokumen' => null,
+                    'file_url' => $documentPath,
+                    'status_verifikasi' => 'pending',
+                    'verif_by' => null,
+                    'diverifikasi_pada' => null,
+                    'alasan_penolakan' => null,
+                ]);
+            }
+
+            return $vendor;
         });
     }
 }

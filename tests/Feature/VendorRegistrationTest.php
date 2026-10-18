@@ -38,12 +38,16 @@ class VendorRegistrationTest extends TestCase
 
     public function test_guest_can_register_as_vendor_candidate_with_file_upload(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
         $initialUserCount = User::count();
         $initialVendorCount = Vendor::count();
 
-        $file = UploadedFile::fake()->create('dokumen_legalitas_nib.pdf', 1024, 'application/pdf');
+        $file = UploadedFile::fake()->create(
+            'dokumen_legalitas_nib.pdf',
+            1024,
+            'application/pdf'
+        );
 
         $payload = [
             'nama_perusahaan' => 'PT Agro Pangan Nusantara',
@@ -54,12 +58,16 @@ class VendorRegistrationTest extends TestCase
             'dokumen_legalitas' => $file,
         ];
 
-        $response = $this->from('/register/vendor')->post('/register/vendor', $payload);
+        $response = $this->from('/register/vendor')
+            ->post('/register/vendor', $payload);
 
         $response->assertRedirect('/register/vendor');
-        $response->assertSessionHas('status', 'Pendaftaran berhasil disubmit dan sedang dalam tahap validasi Manajemen.');
+        $response->assertSessionHas(
+            'status',
+            'Pendaftaran berhasil disubmit dan sedang dalam tahap validasi Manajemen.'
+        );
 
-        // Memastikan record masuk ke tabel vendor dengan status 'pending'
+        // Memastikan data vendor tersimpan dengan status pending.
         $this->assertDatabaseHas('vendor', [
             'nama_perusahaan' => 'PT Agro Pangan Nusantara',
             'email_kontak' => 'procurement@agropangan.co.id',
@@ -69,22 +77,37 @@ class VendorRegistrationTest extends TestCase
             'status_aktif' => true,
         ]);
 
-        $vendor = Vendor::where('email_kontak', 'procurement@agropangan.co.id')->firstOrFail();
+        $vendor = Vendor::where(
+            'email_kontak',
+            'procurement@agropangan.co.id'
+        )->firstOrFail();
+
         $this->assertNotNull($vendor->uuid);
         $this->assertNotNull($vendor->slug);
         $this->assertNotNull($vendor->dokumen_legalitas);
 
-        // Memastikan file fisik tersimpan di disk public
-        Storage::disk('public')->assertExists($vendor->dokumen_legalitas);
+        // Memastikan dokumen tersimpan di penyimpanan privat.
+        Storage::disk('local')->assertExists($vendor->dokumen_legalitas);
 
-        // Memastikan TIDAK membuat user di tabel users
+        // Memastikan data dokumen legalitas masuk ke tabel khusus.
+        $this->assertDatabaseHas('dokumen_legalitas_vendor', [
+            'vendor_id' => $vendor->getKey(),
+            'jenis_dokumen' => 'dokumen_legalitas',
+            'file_url' => $vendor->dokumen_legalitas,
+            'status_verifikasi' => 'pending',
+            'verif_by' => null,
+            'alasan_penolakan' => null,
+        ]);
+
+        // Memastikan pendaftaran vendor belum membuat akun pengguna.
         $this->assertSame($initialUserCount, User::count());
         $this->assertSame($initialVendorCount + 1, Vendor::count());
     }
 
     public function test_registration_validation_fails_when_fields_are_missing(): void
     {
-        $response = $this->from('/register/vendor')->post('/register/vendor', []);
+        $response = $this->from('/register/vendor')
+            ->post('/register/vendor', []);
 
         $response->assertRedirect('/register/vendor');
         $response->assertSessionHasErrors([
@@ -101,7 +124,7 @@ class VendorRegistrationTest extends TestCase
 
     public function test_registration_fails_when_email_already_registered_as_vendor(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
         Vendor::create([
             'nama_perusahaan' => 'PT Sudah Ada',
@@ -114,7 +137,11 @@ class VendorRegistrationTest extends TestCase
             'status_aktif' => true,
         ]);
 
-        $file = UploadedFile::fake()->create('dokumen.pdf', 500, 'application/pdf');
+        $file = UploadedFile::fake()->create(
+            'dokumen.pdf',
+            500,
+            'application/pdf'
+        );
 
         $response = $this->from('/register/vendor')->post('/register/vendor', [
             'nama_perusahaan' => 'PT Baru Mencoba Email Sama',
@@ -130,9 +157,13 @@ class VendorRegistrationTest extends TestCase
 
     public function test_registration_fails_when_file_exceeds_2mb(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
-        $largeFile = UploadedFile::fake()->create('dokumen_besar.pdf', 2500, 'application/pdf'); // > 2MB
+        $largeFile = UploadedFile::fake()->create(
+            'dokumen_besar.pdf',
+            2500,
+            'application/pdf'
+        );
 
         $response = $this->from('/register/vendor')->post('/register/vendor', [
             'nama_perusahaan' => 'PT Ukuran File Besar',

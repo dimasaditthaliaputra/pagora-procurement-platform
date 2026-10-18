@@ -4,12 +4,13 @@ import {
     useReactTable,
     getCoreRowModel,
 } from '@tanstack/react-table';
-import { Plus, Search, FilterX, Users2, ShieldCheck } from 'lucide-react';
+import { Plus, Search, FilterX, Users2 } from 'lucide-react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { DataTable } from '@/Components/data-table/data-table';
 import { DataTablePagination } from '@/Components/data-table/data-table-pagination';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
+import { Combobox } from '@/Components/combobox'; // <-- Import Combobox
 import {
     Select,
     SelectContent,
@@ -184,6 +185,13 @@ export default function PenggunaIndex({
         setDeleteDialogOpen(true);
     };
 
+    // <-- Memoized options untuk Combobox Role -->
+    const roleComboboxOptions = useMemo(() => [
+        { value: 'all', label: 'Semua Role' },
+        ...role_options.map((opt) => ({ value: opt.value, label: opt.label })),
+        { value: 'superadmin', label: 'Superadmin' }, // Tambahan opsi superadmin seperti sebelumnya
+    ], [role_options]);
+
     const columns = useMemo(
         () =>
             getColumns({
@@ -258,21 +266,17 @@ export default function PenggunaIndex({
 
                         {/* Grup Dropdown Filter */}
                         <div className="flex w-full sm:w-auto flex-col sm:flex-row items-center gap-3">
+                            {/* <-- Diubah menjadi Combobox --> */}
                             <div className="w-full sm:w-56">
-                                <Select value={role} onValueChange={handleRoleChange}>
-                                    <SelectTrigger className="h-9">
-                                        <SelectValue placeholder="Semua Role" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Semua Role</SelectItem>
-                                        {role_options.map((opt) => (
-                                            <SelectItem key={opt.value} value={opt.value}>
-                                                {opt.label}
-                                            </SelectItem>
-                                        ))}
-                                        <SelectItem value="superadmin">Superadmin</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={roleComboboxOptions}
+                                    value={role}
+                                    onChange={handleRoleChange}
+                                    placeholder="Semua Role"
+                                    searchPlaceholder="Cari role..."
+                                    emptyMessage="Role tidak ditemukan."
+                                    className="h-9"
+                                />
                             </div>
 
                             <div className="w-full sm:w-40">

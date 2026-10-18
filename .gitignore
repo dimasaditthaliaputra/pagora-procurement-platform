@@ -28,3 +28,5 @@ Thumbs.db
 DESIGN.md
 PRD.md
 design-db.md
+.agents/
+skills-lock.json

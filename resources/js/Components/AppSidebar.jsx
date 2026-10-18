@@ -12,6 +12,7 @@ import {
     SidebarMenuItem,
     SidebarRail,
 } from '@/Components/ui/sidebar';
+import { SidebarItem } from '@/Components/SidebarLink';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -36,14 +37,14 @@ import {
     BarChart3,
     Bell,
     Truck,
-    GalleryVerticalEnd,
     Boxes,
     TrendingUp,
     ShieldCheck,
 } from 'lucide-react';
+import Logo from '../../assets/logo/logo.webp';
 
 const mainNavItems = [
-    { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', active: true },
+    { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', routeName: 'dashboard' },
     { title: 'Pengadaan', icon: ShoppingCart, href: '#' },
     { title: 'Katalog Produk', icon: Package, href: '#' },
     { title: 'Vendor', icon: Building2, href: '#' },
@@ -52,7 +53,7 @@ const mainNavItems = [
 ];
 
 const masterNavItems = [
-    { title: 'Komoditas', icon: Boxes, href: '/master/komoditas' },
+    { title: 'Komoditas', icon: Boxes, href: '/master/komoditas', routeName: 'master.komoditas.index' },
     { title: 'Harga Referensi & Pagu', icon: TrendingUp, href: '#' },
     { title: 'Data Vendor', icon: Building2, href: '#' },
     { title: 'Role & Akses', icon: ShieldCheck, href: '#' },
@@ -93,14 +94,14 @@ export function AppSidebar({ ...props }) {
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
-                            <Link href="/dashboard">
-                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                                    <GalleryVerticalEnd className="size-4" />
+                        <SidebarMenuButton size="lg" asChild className="data-[slot=sidebar-menu-button]:!p-1.5 hover:bg-sidebar-accent/50 transition-colors">
+                            <Link href="/dashboard" className="flex items-center gap-2.5">
+                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-white shadow-2xs border border-border/50 p-1 shrink-0">
+                                    <img src={Logo} alt="Logo PAGORA" className="size-full object-contain" />
                                 </div>
                                 <div className="grid flex-1 text-left text-sm leading-tight">
-                                    <span className="truncate font-semibold">PAGORA</span>
-                                    <span className="truncate text-xs text-muted-foreground">E-Procurement</span>
+                                    <span className="truncate font-bold tracking-tight text-foreground text-base">PAGORA</span>
+                                    <span className="truncate text-xs text-muted-foreground font-medium">E-Procurement</span>
                                 </div>
                             </Link>
                         </SidebarMenuButton>
@@ -114,14 +115,13 @@ export function AppSidebar({ ...props }) {
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {mainNavItems.map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild isActive={item.active}>
-                                        <Link href={item.href}>
-                                            <item.icon />
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
+                                <SidebarItem
+                                    key={item.title}
+                                    title={item.title}
+                                    icon={item.icon}
+                                    href={item.href}
+                                    routeName={item.routeName}
+                                />
                             ))}
                         </SidebarMenu>
                     </SidebarGroupContent>
@@ -132,14 +132,13 @@ export function AppSidebar({ ...props }) {
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {masterNavItems.map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild>
-                                        <Link href={item.href}>
-                                            <item.icon />
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
+                                <SidebarItem
+                                    key={item.title}
+                                    title={item.title}
+                                    icon={item.icon}
+                                    href={item.href}
+                                    routeName={item.routeName}
+                                />
                             ))}
                         </SidebarMenu>
                     </SidebarGroupContent>
@@ -150,14 +149,13 @@ export function AppSidebar({ ...props }) {
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {managementNavItems.map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild>
-                                        <Link href={item.href}>
-                                            <item.icon />
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
+                                <SidebarItem
+                                    key={item.title}
+                                    title={item.title}
+                                    icon={item.icon}
+                                    href={item.href}
+                                    routeName={item.routeName}
+                                />
                             ))}
                         </SidebarMenu>
                     </SidebarGroupContent>

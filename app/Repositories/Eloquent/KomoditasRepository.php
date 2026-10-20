@@ -42,7 +42,6 @@ class KomoditasRepository implements KomoditasRepositoryInterface
         array $columns = [
             'id',
             'uuid',
-            'slug',
             'nama_komoditas',
             'sku',
             'kategori',
@@ -67,8 +66,6 @@ class KomoditasRepository implements KomoditasRepositoryInterface
                 $query->where(function ($q) use ($term, $like): void {
                     $q->where('nama_komoditas', $like, $term)
                         ->orWhere('sku', $like, $term)
-                        ->orWhere('kategori', $like, $term)
-                        ->orWhere('satuan', $like, $term)
                         ->orWhere('kode_referensi_api', $like, $term);
                 });
             })

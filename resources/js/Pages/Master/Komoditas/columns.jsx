@@ -59,10 +59,7 @@ export function getColumns({ onSortChange }) {
             cell: ({ row }) => {
                 const komoditas = row.original;
                 return (
-                    <div className="flex flex-col">
-                        <span className="font-medium text-foreground">{komoditas.nama_komoditas}</span>
-                        <span className="text-xs text-muted-foreground font-mono">/{komoditas.slug}</span>
-                    </div>
+                    <span className="font-medium text-foreground">{komoditas.nama_komoditas}</span>
                 );
             },
         },
@@ -127,7 +124,7 @@ export function getColumns({ onSortChange }) {
             cell: ({ row }) => {
                 const isActive = row.getValue('status_aktif');
                 return isActive ? (
-                    <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border-emerald-500/20">
+                    <Badge variant='green'>
                         Aktif
                     </Badge>
                 ) : (

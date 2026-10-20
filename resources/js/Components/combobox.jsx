@@ -25,6 +25,7 @@ export function Combobox({
     emptyMessage = 'Tidak ditemukan.',
     error,
     disabled = false,
+    searchable = true,
     className,
 }) {
     const [open, setOpen] = React.useState(false);
@@ -49,7 +50,7 @@ export function Combobox({
                     aria-invalid={Boolean(error)}
                     disabled={disabled}
                     className={cn(
-                        'w-full justify-between font-normal h-9',
+                        'w-full justify-between font-normal h-9 px-3 text-sm rounded-lg',
                         !selected && 'text-muted-foreground',
                         error && 'border-destructive focus-visible:ring-destructive',
                         className
@@ -60,11 +61,15 @@ export function Combobox({
                 </Button>
             </PopoverTrigger>
             <PopoverContent
-                className="w-[var(--radix-popover-trigger-width)] min-w-[200px] p-0"
+                className="w-[var(--radix-popover-trigger-width)] p-0"
                 align="start"
+                side="bottom"
+                sideOffset={4}
             >
                 <Command>
-                    <CommandInput placeholder={searchPlaceholder} className="h-9" />
+                    {searchable && (
+                        <CommandInput placeholder={searchPlaceholder} className="h-9" />
+                    )}
                     <CommandList>
                         <CommandEmpty>{emptyMessage}</CommandEmpty>
                         <CommandGroup>

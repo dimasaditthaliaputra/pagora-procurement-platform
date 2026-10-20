@@ -25,10 +25,11 @@ import { PegawaiDeleteDialog } from '@/Pages/Manajemen/Pengguna/components/Pegaw
 
 export default function PenggunaIndex({
     pegawai,
-    filters = {},
+    filters: rawFilters = {},
     role_options = [],
     default_password = 'Pagora@2026',
 }) {
+    const filters = Array.isArray(rawFilters) || !rawFilters ? {} : rawFilters;
     const data = pegawai?.data ?? [];
     const meta = pegawai?.meta ?? {
         current_page: pegawai?.current_page ?? 1,
@@ -50,7 +51,7 @@ export default function PenggunaIndex({
 
     // Initial sort state
     const [sorting, setSorting] = useState(
-        filters.sort
+        typeof filters.sort === 'string' && filters.sort
             ? [{ id: filters.sort, desc: filters.direction === 'desc' }]
             : []
     );
@@ -72,7 +73,7 @@ export default function PenggunaIndex({
                 ? String(filters.status_aktif)
                 : 'all'
         );
-        if (filters.sort) {
+        if (typeof filters.sort === 'string' && filters.sort) {
             setSorting([{ id: filters.sort, desc: filters.direction === 'desc' }]);
         } else {
             setSorting([]);
@@ -80,12 +81,13 @@ export default function PenggunaIndex({
     }, [filters.search, filters.role, filters.status_aktif, filters.sort, filters.direction]);
 
     const applyFilters = (newFilters = {}) => {
+        const activeSort = typeof sorting[0]?.id === 'string' ? sorting[0].id : undefined;
         const merged = {
             search: search.trim() || undefined,
             role: role !== 'all' ? role : undefined,
             status_aktif: statusAktif !== 'all' ? statusAktif : undefined,
-            sort: sorting[0]?.id || undefined,
-            direction: sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
+            sort: activeSort,
+            direction: activeSort && sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
             per_page: meta.per_page,
             page: 1,
             ...newFilters,

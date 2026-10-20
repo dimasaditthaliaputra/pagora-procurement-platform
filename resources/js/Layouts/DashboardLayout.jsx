@@ -17,7 +17,7 @@ export default function DashboardLayout({ children, breadcrumbs = [] }) {
     return (
         <TooltipProvider>
             <FlashHandler />
-            <Toaster position="top-right" richColors />
+            <Toaster />
             <SidebarProvider>
                 <AppSidebar />
                 <SidebarInset>

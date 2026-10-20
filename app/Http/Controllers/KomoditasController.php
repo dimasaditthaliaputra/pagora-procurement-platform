@@ -33,7 +33,6 @@ class KomoditasController extends Controller
         $komoditas = $this->service->paginate($filters, $perPage, [
             'id',
             'uuid',
-            'slug',
             'nama_komoditas',
             'sku',
             'kategori',
@@ -52,7 +51,10 @@ class KomoditasController extends Controller
 
         return Inertia::render('Master/Komoditas/Index', [
             'komoditas' => KomoditasResource::collection($komoditas),
-            'filters' => $request->only('search', 'sort', 'direction', 'kategori', 'status_aktif', 'per_page'),
+            'filters' => (object) array_filter(
+                $request->only('search', 'sort', 'direction', 'kategori', 'status_aktif', 'per_page'),
+                fn ($val) => $val !== null && $val !== ''
+            ),
             'satuan_options' => $this->service->getSatuanOptions(),
             'kategori_options' => $this->service->getKategoriOptions(),
         ]);

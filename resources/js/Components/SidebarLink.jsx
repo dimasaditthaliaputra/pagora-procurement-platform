@@ -1,8 +1,10 @@
 import { Link, usePage } from '@inertiajs/react';
 import { SidebarMenuItem, SidebarMenuButton } from '@/Components/ui/sidebar';
+import { Badge } from '@/Components/ui/badge';
+import { cn } from '@/lib/utils';
 
 /**
- * Komponen SidebarLink dengan active state otomatis dan styling bawaan shadcn/ui.
+ * Komponen SidebarLink dengan active state otomatis dan dark styling bernuansa modern.
  * Menggunakan isActive={isActive} untuk memanfaatkan data-active dari SidebarMenuButton.
  */
 export function SidebarLink({
@@ -12,6 +14,7 @@ export function SidebarLink({
     children,
     routeName,
     active: explicitActive,
+    badge,
     className,
     tooltip,
     size = 'default',
@@ -58,11 +61,25 @@ export function SidebarLink({
             size={size}
             variant={variant}
             tooltip={tooltip || title}
-            className={className}
+            className={cn(
+                "group flex h-10 w-full items-center justify-between rounded-lg px-3 transition-all duration-200",
+                "text-zinc-400 hover:bg-zinc-900 hover:text-white",
+                "data-[active=true]:bg-white/12 data-[active=true]:text-white data-[active=true]:font-semibold data-[active=true]:shadow-xs data-[active=true]:border data-[active=true]:border-white/10",
+                className
+            )}
         >
-            <Link href={href} {...props}>
-                {Icon && <Icon />}
-                <span>{title || children}</span>
+            <Link href={href} className="flex w-full items-center justify-between gap-3" {...props}>
+                <div className="flex min-w-0 items-center gap-3">
+                    {Icon && (
+                        <Icon className="size-5 shrink-0 transition-transform duration-200 group-hover:scale-110 text-zinc-400 group-hover:text-white group-data-[active=true]:text-white" />
+                    )}
+                    <span className="truncate font-medium">{title || children}</span>
+                </div>
+                {badge && (
+                    <Badge className="ml-auto h-5 px-1.5 text-[10px] font-semibold shrink-0 group-data-[collapsible=icon]:hidden bg-zinc-800 text-zinc-200 border-zinc-700">
+                        {badge}
+                    </Badge>
+                )}
             </Link>
         </SidebarMenuButton>
     );
@@ -80,4 +97,3 @@ export function SidebarItem(props) {
 }
 
 export default SidebarLink;
-

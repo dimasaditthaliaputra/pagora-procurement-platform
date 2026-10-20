@@ -1,5 +1,6 @@
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
+import { ThemeProvider } from '@/Components/theme-provider';
 
 createInertiaApp({
     resolve: (name) => {
@@ -31,6 +32,10 @@ createInertiaApp({
         return pages[`./Pages/${pascalName}.jsx`];
     },
     setup({ el, App, props }) {
-        createRoot(el).render(<App {...props} />);
+        createRoot(el).render(
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+                <App {...props} />
+            </ThemeProvider>
+        );
     },
 });

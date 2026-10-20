@@ -5,6 +5,8 @@ import { Toaster as Sonner } from "sonner";
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 const Toaster = ({
+  position = "bottom-right",
+  richColors = true,
   ...props
 }) => {
   const { theme = "system" } = useTheme()
@@ -12,6 +14,8 @@ const Toaster = ({
   return (
     <Sonner
       theme={theme}
+      position={position}
+      richColors={richColors}
       className="toaster group"
       icons={{
         success: (

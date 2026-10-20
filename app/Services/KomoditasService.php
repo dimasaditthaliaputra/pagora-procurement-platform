@@ -60,7 +60,6 @@ class KomoditasService
         array $columns = [
             'id',
             'uuid',
-            'slug',
             'nama_komoditas',
             'sku',
             'kategori',

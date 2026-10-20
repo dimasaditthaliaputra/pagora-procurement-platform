@@ -217,3 +217,50 @@
     @apply font-sans;
   }
 }
+
+/* Soft Badge Design Tokens (Flowbite-compatible) */
+.bg-brand-softer { background-color: #ecfdf5; }
+.border-brand-subtle { border-color: #a7f3d0; }
+.text-fg-brand-strong { color: #047857; }
+
+.bg-neutral-primary-soft { background-color: #ffffff; }
+.border-default { border-color: #e4e4e7; }
+.text-heading { color: #27272a; }
+
+.bg-neutral-secondary-medium { background-color: #f4f4f5; }
+.border-default-medium { border-color: #e4e4e7; }
+
+.bg-danger-soft { background-color: #fef2f2; }
+.border-danger-subtle { border-color: #fecaca; }
+.text-fg-danger-strong { color: #b91c1c; }
+
+.bg-success-soft { background-color: #ecfdf5; }
+.border-success-subtle { border-color: #a7f3d0; }
+.text-fg-success-strong { color: #047857; }
+
+.bg-warning-soft { background-color: #fffbeb; }
+.border-warning-subtle { border-color: #fde68a; }
+.text-fg-warning { color: #b45309; }
+
+.dark .bg-brand-softer { background-color: rgba(6, 78, 59, 0.4); }
+.dark .border-brand-subtle { border-color: #065f46; }
+.dark .text-fg-brand-strong { color: #34d399; }
+
+.dark .bg-neutral-primary-soft { background-color: #18181b; }
+.dark .border-default { border-color: #27272a; }
+.dark .text-heading { color: #e4e4e7; }
+
+.dark .bg-neutral-secondary-medium { background-color: #27272a; }
+.dark .border-default-medium { border-color: #3f3f46; }
+
+.dark .bg-danger-soft { background-color: rgba(127, 29, 29, 0.4); }
+.dark .border-danger-subtle { border-color: #991b1b; }
+.dark .text-fg-danger-strong { color: #f87171; }
+
+.dark .bg-success-soft { background-color: rgba(6, 78, 59, 0.4); }
+.dark .border-success-subtle { border-color: #065f46; }
+.dark .text-fg-success-strong { color: #34d399; }
+
+.dark .bg-warning-soft { background-color: rgba(120, 53, 15, 0.4); }
+.dark .border-warning-subtle { border-color: #92400e; }
+.dark .text-fg-warning { color: #fbbf24; }

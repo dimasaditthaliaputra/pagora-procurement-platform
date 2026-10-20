@@ -22,7 +22,7 @@ class KomoditasResource extends JsonResource
     {
         return [
             'uuid' => $this->uuid,
-            'slug' => $this->slug,
+            'slug' => $this->whenNotNull($this->slug),
             'nama_komoditas' => $this->nama_komoditas,
             'sku' => $this->sku,
             'kategori' => $this->kategori,

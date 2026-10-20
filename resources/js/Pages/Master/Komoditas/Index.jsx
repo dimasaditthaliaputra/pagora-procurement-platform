@@ -22,9 +22,10 @@ import {
 
 export default function KomoditasIndex({
     komoditas,
-    filters = {},
+    filters: rawFilters = {},
     kategori_options = [],
 }) {
+    const filters = Array.isArray(rawFilters) || !rawFilters ? {} : rawFilters;
     const data = komoditas?.data ?? [];
     const meta = komoditas?.meta ?? {
         current_page: komoditas?.current_page ?? 1,
@@ -44,9 +45,9 @@ export default function KomoditasIndex({
     );
     const [loading, setLoading] = useState(false);
 
-    // Initial sort state
+    // Initial sort state (pastikan filters.sort adalah string dan bukan method Array.prototype.sort)
     const [sorting, setSorting] = useState(
-        filters.sort
+        typeof filters.sort === 'string' && filters.sort
             ? [{ id: filters.sort, desc: filters.direction === 'desc' }]
             : []
     );
@@ -62,7 +63,7 @@ export default function KomoditasIndex({
                 ? String(filters.status_aktif)
                 : 'all'
         );
-        if (filters.sort) {
+        if (typeof filters.sort === 'string' && filters.sort) {
             setSorting([{ id: filters.sort, desc: filters.direction === 'desc' }]);
         } else {
             setSorting([]);
@@ -70,12 +71,13 @@ export default function KomoditasIndex({
     }, [filters.search, filters.kategori, filters.status_aktif, filters.sort, filters.direction]);
 
     const applyFilters = (newFilters = {}) => {
+        const activeSort = typeof sorting[0]?.id === 'string' ? sorting[0].id : undefined;
         const merged = {
             search: search.trim() || undefined,
             kategori: kategori !== 'all' ? kategori : undefined,
             status_aktif: statusAktif !== 'all' ? statusAktif : undefined,
-            sort: sorting[0]?.id || undefined,
-            direction: sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
+            sort: activeSort,
+            direction: activeSort && sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
             per_page: meta.per_page,
             page: 1,
             ...newFilters,
@@ -105,7 +107,7 @@ export default function KomoditasIndex({
         }
 
         const timer = setTimeout(() => {
-            const currentSearchInUrl = filters.search ?? '';
+            const currentSearchInUrl = typeof filters.search === 'string' ? filters.search : '';
             if (search.trim() !== currentSearchInUrl) {
                 applyFilters({ search: search.trim() || undefined, page: 1 });
             }
@@ -115,10 +117,11 @@ export default function KomoditasIndex({
     }, [search]);
 
     const handleSortChange = (columnId, direction) => {
-        const newSorting = direction ? [{ id: columnId, desc: direction === 'desc' }] : [];
+        const validColumn = typeof columnId === 'string' ? columnId : undefined;
+        const newSorting = validColumn && direction ? [{ id: validColumn, desc: direction === 'desc' }] : [];
         setSorting(newSorting);
         applyFilters({
-            sort: direction ? columnId : undefined,
+            sort: direction ? validColumn : undefined,
             direction: direction || undefined,
             page: 1,
         });

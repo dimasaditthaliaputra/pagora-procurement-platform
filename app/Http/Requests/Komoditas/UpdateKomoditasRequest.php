@@ -40,7 +40,13 @@ class UpdateKomoditasRequest extends FormRequest
                     ->ignore($ignoreId),
             ],
             'satuan' => ['required', 'string', 'max:20', Rule::in(KomoditasService::SATUAN_OPTIONS)],
-            'batas_susut' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'batas_susut' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:100',
+                'regex:/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/',
+            ],
             'kode_referensi_api' => ['nullable', 'string', 'max:50'],
             'sku' => [
                 'nullable',
@@ -72,6 +78,7 @@ class UpdateKomoditasRequest extends FormRequest
             'batas_susut.numeric' => 'Batas susut harus berupa angka.',
             'batas_susut.min' => 'Batas susut minimal 0 persen.',
             'batas_susut.max' => 'Batas susut maksimal 100 persen.',
+            'batas_susut.regex' => 'Batas susut hanya menerima format angka desimal dengan titik (contoh: 2.5).',
             'kode_referensi_api.max' => 'Kode referensi API maksimal 50 karakter.',
             'sku.unique' => 'SKU komoditas sudah digunakan oleh data lain.',
             'sku.max' => 'SKU tidak boleh lebih dari 50 karakter.',

@@ -39,8 +39,8 @@ export default function KomoditasIndex({
     const [search, setSearch] = useState(filters.search ?? '');
     const [kategori, setKategori] = useState(filters.kategori ?? 'all');
     const [statusAktif, setStatusAktif] = useState(
-        filters.status_aktif !== undefined && filters.status_aktif !== null && filters.status_aktif !== ''
-            ? String(filters.status_aktif)
+        filters.status !== undefined && filters.status !== null && filters.status !== ''
+            ? String(filters.status)
             : 'all'
     );
     const [loading, setLoading] = useState(false);
@@ -59,8 +59,8 @@ export default function KomoditasIndex({
         setSearch(filters.search ?? '');
         setKategori(filters.kategori ?? 'all');
         setStatusAktif(
-            filters.status_aktif !== undefined && filters.status_aktif !== null && filters.status_aktif !== ''
-                ? String(filters.status_aktif)
+            filters.status !== undefined && filters.status !== null && filters.status !== ''
+                ? String(filters.status)
                 : 'all'
         );
         if (typeof filters.sort === 'string' && filters.sort) {
@@ -68,14 +68,14 @@ export default function KomoditasIndex({
         } else {
             setSorting([]);
         }
-    }, [filters.search, filters.kategori, filters.status_aktif, filters.sort, filters.direction]);
+    }, [filters.search, filters.kategori, filters.status, filters.sort, filters.direction]);
 
     const applyFilters = (newFilters = {}) => {
         const activeSort = typeof sorting[0]?.id === 'string' ? sorting[0].id : undefined;
         const merged = {
             search: search.trim() || undefined,
             kategori: kategori !== 'all' ? kategori : undefined,
-            status_aktif: statusAktif !== 'all' ? statusAktif : undefined,
+            status: statusAktif !== 'all' ? statusAktif : undefined,
             sort: activeSort,
             direction: activeSort && sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
             per_page: meta.per_page,
@@ -136,7 +136,7 @@ export default function KomoditasIndex({
     const handleStatusChange = (val) => {
         const nextVal = (!val || val === 'all') ? 'all' : val;
         setStatusAktif(nextVal);
-        applyFilters({ status_aktif: nextVal !== 'all' ? nextVal : undefined, page: 1 });
+        applyFilters({ status: nextVal !== 'all' ? nextVal : undefined, page: 1 });
     };
 
     const handleResetFilters = () => {

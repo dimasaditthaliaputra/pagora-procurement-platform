@@ -9,7 +9,7 @@ use App\Http\Requests\Pegawai\IndexPegawaiRequest;
 use App\Http\Requests\Pegawai\StorePegawaiRequest;
 use App\Http\Requests\Pegawai\UpdatePegawaiRequest;
 use App\Http\Resources\PegawaiResource;
-use App\Services\InternalPegawaiService;
+use App\Services\PegawaiService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -22,7 +22,7 @@ use Throwable;
 class PegawaiController extends Controller
 {
     public function __construct(
-        protected InternalPegawaiService $service
+        protected PegawaiService $service
     ) {}
 
     /**
@@ -45,7 +45,7 @@ class PegawaiController extends Controller
             'pegawai' => PegawaiResource::collection($pegawai),
             'filters' => $request->only('search', 'role', 'status_aktif', 'sort', 'direction', 'per_page'),
             'role_options' => $this->service->getRoleOptions(),
-            'default_password' => InternalPegawaiService::DEFAULT_PASSWORD,
+            'default_password' => PegawaiService::DEFAULT_PASSWORD,
         ]);
     }
 

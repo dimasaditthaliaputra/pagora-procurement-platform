@@ -23,9 +23,11 @@ use Illuminate\Notifications\Notifiable;
  * @property string|null $google_id
  * @property string|null $avatar
  * @property int $role_id
+ * @property int|null $perusahaan_id
  * @property int|null $vendor_id
  * @property bool $status_aktif
  * @property-read Role|null $role
+ * @property-read PerusahaanBuyer|null $perusahaanBuyer
  * @property-read Vendor|null $vendor
  *
  * @method bool isSuperadmin()
@@ -38,6 +40,7 @@ use Illuminate\Notifications\Notifiable;
     'google_id',
     'avatar',
     'role_id',
+    'perusahaan_id',
     'vendor_id',
     'status_aktif',
 ])]
@@ -86,6 +89,14 @@ class User extends Authenticatable
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    /**
+     * Get the buyer company that employs this user.
+     */
+    public function perusahaanBuyer(): BelongsTo
+    {
+        return $this->belongsTo(PerusahaanBuyer::class, 'perusahaan_id');
     }
 
     /**

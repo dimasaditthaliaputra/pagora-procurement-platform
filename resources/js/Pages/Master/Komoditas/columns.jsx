@@ -113,7 +113,7 @@ export function getColumns({ onSortChange }) {
             },
         },
         {
-            accessorKey: 'status_aktif',
+            accessorKey: 'status',
             header: ({ column }) => (
                 <DataTableColumnHeader
                     column={column}
@@ -122,7 +122,7 @@ export function getColumns({ onSortChange }) {
                 />
             ),
             cell: ({ row }) => {
-                const isActive = row.getValue('status_aktif');
+                const isActive = row.getValue('status');
                 return isActive ? (
                     <Badge variant='green'>
                         Aktif

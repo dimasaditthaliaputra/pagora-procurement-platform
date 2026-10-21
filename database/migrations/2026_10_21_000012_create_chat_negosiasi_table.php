@@ -11,16 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('penerimaan_barang', function (Blueprint $table) {
+        Schema::create('chat_negosiasi', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique();
+            $table->foreignId('pengirim_id')->constrained('users')->restrictOnDelete();
             $table->foreignId('purchase_order_id')->constrained('purchase_order')->restrictOnDelete();
-            $table->foreignId('check_by')->constrained('users')->restrictOnDelete();
-            $table->string('no_polisi_dicocokkan', 20)->nullable();
-            $table->timestamp('tanggal_pemeriksaan');
-            $table->text('catatan')->nullable();
+            $table->text('pesan_teks')->nullable();
+            $table->decimal('nominal_tawar', 15, 2)->nullable();
             $table->timestamp('created_at')->useCurrent();
-            $table->softDeletes();
+
+            $table->index(['purchase_order_id', 'created_at'], 'ix_chat_po');
         });
     }
 
@@ -29,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('penerimaan_barang');
+        Schema::dropIfExists('chat_negosiasi');
     }
 };

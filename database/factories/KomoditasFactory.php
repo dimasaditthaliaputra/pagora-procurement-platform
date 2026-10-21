@@ -31,9 +31,10 @@ class KomoditasFactory extends Factory
             'sku' => 'SKU-'.strtoupper(Str::random(6)),
             'kategori' => fake()->randomElement(['Beras & Padi', 'Biji-bijian', 'Minyak & Lemak', 'Gula & Pemanis']),
             'satuan' => fake()->randomElement(['kg', 'ton', 'sak', 'liter']),
+            'batas_susut' => fake()->randomFloat(2, 0, 10),
             'kode_referensi_api' => (string) fake()->numberBetween(100, 999),
             'spesifikasi' => fake()->sentence(),
-            'status_aktif' => true,
+            'status' => true,
         ];
     }
 }

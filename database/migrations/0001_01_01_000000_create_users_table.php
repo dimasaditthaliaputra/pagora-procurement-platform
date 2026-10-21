@@ -18,9 +18,10 @@ return new class extends Migration
             $table->string('nama_lengkap', 150);
             $table->string('email', 150);
             $table->string('password', 255)->nullable();
-            $table->string('google_id')->nullable()->index();
+            $table->string('google_id')->nullable()->unique();
             $table->string('avatar', 500)->nullable();
             $table->unsignedBigInteger('role_id');
+            $table->unsignedBigInteger('perusahaan_id')->nullable();
             $table->unsignedBigInteger('vendor_id')->nullable();
             $table->boolean('status_aktif')->default(true);
             $table->rememberToken();

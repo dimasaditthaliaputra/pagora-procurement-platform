@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('status_verifikasi', 20)->default('pending');
             $table->foreignId('verif_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->timestamp('diverifikasi_pada')->nullable();
+            $table->text('alasan_penolakan')->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->softDeletes();
         });

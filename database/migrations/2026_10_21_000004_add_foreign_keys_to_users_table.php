@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->foreign('role_id')->references('id')->on('role')->restrictOnDelete();
+            $table->foreign('perusahaan_id')->references('id')->on('perusahaan_buyer')->restrictOnDelete();
             $table->foreign('vendor_id')->references('id')->on('vendor')->restrictOnDelete();
         });
     }
@@ -24,6 +25,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->dropForeign(['role_id']);
+            $table->dropForeign(['perusahaan_id']);
             $table->dropForeign(['vendor_id']);
         });
     }

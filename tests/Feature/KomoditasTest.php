@@ -95,7 +95,7 @@ class KomoditasTest extends TestCase
             ->has('komoditas.data', 2)
         );
 
-        $response = $this->actingAs($this->user)->get('/master/komoditas?status_aktif=false');
+        $response = $this->actingAs($this->user)->get('/master/komoditas?status=false');
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
             ->component('Master/Komoditas/Index')
@@ -124,7 +124,7 @@ class KomoditasTest extends TestCase
             'kategori' => 'Beras & Padi',
             'kode_referensi_api' => '102',
             'spesifikasi' => 'Kadar air maksimal 14 persen',
-            'status_aktif' => true,
+            'status' => true,
         ];
 
         $response = $this->actingAs($this->user)->post('/master/komoditas', $payload);
@@ -136,7 +136,7 @@ class KomoditasTest extends TestCase
             'sku' => 'BRS-RJL-50',
             'satuan' => 'sak',
             'kategori' => 'Beras & Padi',
-            'status_aktif' => true,
+            'status' => true,
         ]);
 
         $created = Komoditas::where('sku', 'BRS-RJL-50')->firstOrFail();
@@ -216,7 +216,7 @@ class KomoditasTest extends TestCase
             'sku' => 'KDL-001',
             'satuan' => 'ton',
             'kategori' => 'Biji-bijian & Jagung',
-            'status_aktif' => false,
+            'status' => false,
         ]);
 
         $response->assertRedirect('/master/komoditas');
@@ -225,7 +225,7 @@ class KomoditasTest extends TestCase
             'nama_komoditas' => 'Kedelai Impor Premium',
             'slug' => 'kedelai-impor-premium',
             'satuan' => 'ton',
-            'status_aktif' => false,
+            'status' => false,
         ]);
     }
 

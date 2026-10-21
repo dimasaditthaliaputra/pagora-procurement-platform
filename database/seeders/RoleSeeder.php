@@ -33,6 +33,16 @@ class RoleSeeder extends Seeder
                 'nama_role' => 'vendor',
                 'deskripsi' => 'Pemasok bahan baku mitra: guided bidding, pelaporan armada ekspedisi, dan pengajuan invoice.',
             ],
+            [
+                'id' => 5,
+                'nama_role' => 'manajemen',
+                'deskripsi' => 'Admin internal perusahaan buyer: verifikasi vendor rekanan, tinjau sengketa, kelola staf buyer/QC.',
+            ],
+            [
+                'id' => 6,
+                'nama_role' => 'owner',
+                'deskripsi' => 'Pemilik perusahaan buyer: pantau dasbor, PO, anggaran, invoice, dan sengketa (read-only).',
+            ],
         ];
 
         foreach ($roles as $role) {

@@ -17,12 +17,12 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
-class InternalPegawaiService
+class PegawaiService
 {
     /**
      * Default initial password assigned to newly created employee accounts.
      */
-    public const DEFAULT_PASSWORD = 'Pagora@2026';
+    public const DEFAULT_PASSWORD = 'password123';
 
     /**
      * Allowed internal roles for employee accounts.
@@ -114,7 +114,7 @@ class InternalPegawaiService
             try {
                 $user->notify(new AkunPegawaiDibuatNotification($user, $defaultPassword, $roleLabel));
             } catch (Throwable $e) {
-                Log::warning('Gagal mengirimkan email notifikasi akun pegawai baru: '.$e->getMessage(), [
+                Log::warning('Gagal mengirimkan email notifikasi akun pegawai baru: ' . $e->getMessage(), [
                     'user_uuid' => $user->uuid,
                     'email' => $user->email,
                 ]);

@@ -19,9 +19,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'sku',
     'kategori',
     'satuan',
+    'batas_susut',
     'kode_referensi_api',
     'spesifikasi',
-    'status_aktif',
+    'status',
 ])]
 #[Hidden(['id'])]
 class Komoditas extends Model
@@ -57,7 +58,8 @@ class Komoditas extends Model
     protected function casts(): array
     {
         return [
-            'status_aktif' => 'boolean',
+            'batas_susut' => 'decimal:2',
+            'status' => 'boolean',
         ];
     }
 }

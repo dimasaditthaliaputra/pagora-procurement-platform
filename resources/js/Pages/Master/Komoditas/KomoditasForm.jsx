@@ -49,6 +49,17 @@ export function KomoditasForm({
             hasError = true;
         }
 
+        if (data.batas_susut !== '' && data.batas_susut !== null && data.batas_susut !== undefined) {
+            const batasSusutStr = String(data.batas_susut).trim();
+            if (batasSusutStr.includes(',')) {
+                setError('batas_susut', 'Batas susut hanya menerima format angka desimal dengan titik (contoh: 2.5).');
+                hasError = true;
+            } else if (!/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/.test(batasSusutStr)) {
+                setError('batas_susut', 'Batas susut harus berupa angka antara 0 hingga 100 dengan format titik (contoh: 2.5).');
+                hasError = true;
+            }
+        }
+
         if (hasError) {
             notify.validationFailed();
             return;
@@ -234,15 +245,35 @@ export function KomoditasForm({
                         </Label>
                         <Input
                             id="batas_susut"
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
+                            type="text"
+                            inputMode="decimal"
                             placeholder="Contoh: 2.5"
-                            value={data.batas_susut}
+                            value={data.batas_susut ?? ''}
+                            onKeyDown={(e) => {
+                                // Tolak koma, eksponen (e/E), serta tanda plus/minus secara langsung
+                                if (e.key === ',' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
+                                    e.preventDefault();
+                                }
+                            }}
+                            onPaste={(e) => {
+                                const pasted = e.clipboardData.getData('text');
+                                if (pasted.includes(',')) {
+                                    e.preventDefault();
+                                    // Cegah jika mengandung koma dan bukan format titik yang sah
+                                    const sanitized = pasted.replace(/,/g, '.');
+                                    if (/^(?:100(?:\.0{0,2})?|[0-9]{0,2}(?:\.[0-9]{0,2})?)$/.test(sanitized)) {
+                                        setData('batas_susut', sanitized);
+                                        if (errors.batas_susut) clearErrors('batas_susut');
+                                    }
+                                }
+                            }}
                             onChange={(e) => {
-                                setData('batas_susut', e.target.value);
-                                if (errors.batas_susut) clearErrors('batas_susut');
+                                const val = e.target.value;
+                                // Guard format: hanya izinkan string kosong atau desimal bertitik (0-100, maks 2 desimal)
+                                if (val === '' || /^(?:100(?:\.0{0,2})?|[0-9]{0,2}(?:\.[0-9]{0,2})?)$/.test(val)) {
+                                    setData('batas_susut', val);
+                                    if (errors.batas_susut) clearErrors('batas_susut');
+                                }
                             }}
                             aria-invalid={Boolean(errors.batas_susut)}
                             className={cn('h-9', errors.batas_susut && 'border-destructive focus-visible:ring-destructive')}
@@ -253,7 +284,7 @@ export function KomoditasForm({
                             </p>
                         )}
                         <p className="text-[11px] text-muted-foreground">
-                            Toleransi penyusutan berat yang masih diterima QC gudang saat penerimaan barang.
+                            Toleransi penyusutan berat yang masih diterima QC gudang (0–100%). Hanya menerima format titik (.), contoh: 2.5
                         </p>
                     </div>
 

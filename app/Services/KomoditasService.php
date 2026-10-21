@@ -10,6 +10,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class KomoditasService
 {
@@ -105,7 +106,11 @@ class KomoditasService
                 $data['status'] = true;
             }
 
-            $data['batas_susut'] ??= 0;
+            if (array_key_exists('batas_susut', $data)) {
+                $data['batas_susut'] = $this->normalizeBatasSusut($data['batas_susut']);
+            } else {
+                $data['batas_susut'] = 0.0;
+            }
 
             return $this->repository->create($data);
         });
@@ -117,6 +122,7 @@ class KomoditasService
      * @param  array<string, mixed>  $data
      *
      * @throws ModelNotFoundException
+     * @throws ValidationException
      */
     public function update(string $uuid, array $data): Komoditas
     {
@@ -127,14 +133,52 @@ class KomoditasService
                 $data['slug'] = $this->generateUniqueSlug((string) $data['nama_komoditas'], $uuid);
             }
 
-            if (array_key_exists('batas_susut', $data) && $data['batas_susut'] === null) {
-                $data['batas_susut'] = 0;
+            if (array_key_exists('batas_susut', $data)) {
+                $data['batas_susut'] = $this->normalizeBatasSusut($data['batas_susut']);
             }
 
             $this->repository->update($komoditas, $data);
 
             return $komoditas->fresh();
         });
+    }
+
+    /**
+     * Guard and normalize batas_susut to ensure decimal dot format and range.
+     *
+     * @throws ValidationException
+     */
+    private function normalizeBatasSusut(mixed $value): float
+    {
+        if ($value === null || $value === '') {
+            return 0.0;
+        }
+
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if (str_contains($trimmed, ',') || ! preg_match('/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/', $trimmed)) {
+                throw ValidationException::withMessages([
+                    'batas_susut' => 'Batas susut hanya menerima format angka desimal dengan titik (contoh: 2.5).',
+                ]);
+            }
+
+            return (float) $trimmed;
+        }
+
+        if (is_numeric($value)) {
+            $num = (float) $value;
+            if ($num < 0 || $num > 100) {
+                throw ValidationException::withMessages([
+                    'batas_susut' => 'Batas susut harus berada dalam rentang 0 hingga 100 persen.',
+                ]);
+            }
+
+            return round($num, 2);
+        }
+
+        throw ValidationException::withMessages([
+            'batas_susut' => 'Format batas susut tidak valid.',
+        ]);
     }
 
     /**

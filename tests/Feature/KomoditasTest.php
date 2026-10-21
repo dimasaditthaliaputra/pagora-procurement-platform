@@ -244,4 +244,48 @@ class KomoditasTest extends TestCase
             'uuid' => $komoditas->uuid,
         ]);
     }
+
+    public function test_create_komoditas_accepts_valid_decimal_with_dot_for_batas_susut(): void
+    {
+        $payload = [
+            'nama_komoditas' => 'Gula Pasir Kristal 50kg',
+            'satuan' => 'karung',
+            'sku' => 'GLA-50',
+            'batas_susut' => '2.75',
+        ];
+
+        $response = $this->actingAs($this->user)->post('/master/komoditas', $payload);
+
+        $response->assertRedirect('/master/komoditas');
+        $this->assertDatabaseHas('komoditas', [
+            'sku' => 'GLA-50',
+            'batas_susut' => 2.75,
+        ]);
+    }
+
+    public function test_create_komoditas_rejects_comma_format_for_batas_susut(): void
+    {
+        $payload = [
+            'nama_komoditas' => 'Minyak Goreng Sawit 18L',
+            'satuan' => 'liter',
+            'batas_susut' => '2,5',
+        ];
+
+        $response = $this->actingAs($this->user)->post('/master/komoditas', $payload);
+
+        $response->assertSessionHasErrors(['batas_susut']);
+    }
+
+    public function test_create_komoditas_rejects_batas_susut_greater_than_100(): void
+    {
+        $payload = [
+            'nama_komoditas' => 'Garam Halus',
+            'satuan' => 'kg',
+            'batas_susut' => '100.5',
+        ];
+
+        $response = $this->actingAs($this->user)->post('/master/komoditas', $payload);
+
+        $response->assertSessionHasErrors(['batas_susut']);
+    }
 }

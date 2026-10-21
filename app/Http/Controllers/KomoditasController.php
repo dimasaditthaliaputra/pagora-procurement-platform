@@ -37,8 +37,9 @@ class KomoditasController extends Controller
             'sku',
             'kategori',
             'satuan',
+            'batas_susut',
             'kode_referensi_api',
-            'status_aktif',
+            'status',
             'created_at',
         ]);
 
@@ -52,7 +53,7 @@ class KomoditasController extends Controller
         return Inertia::render('Master/Komoditas/Index', [
             'komoditas' => KomoditasResource::collection($komoditas),
             'filters' => (object) array_filter(
-                $request->only('search', 'sort', 'direction', 'kategori', 'status_aktif', 'per_page'),
+                $request->only('search', 'sort', 'direction', 'kategori', 'status', 'per_page'),
                 fn ($val) => $val !== null && $val !== ''
             ),
             'satuan_options' => $this->service->getSatuanOptions(),

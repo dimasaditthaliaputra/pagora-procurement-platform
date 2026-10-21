@@ -11,17 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('penerimaan_barang_item', function (Blueprint $table) {
+        Schema::create('penerimaan_barang', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique();
-            $table->foreignId('penerimaan_barang_id')->constrained('penerimaan_barang')->restrictOnDelete();
-            $table->foreignId('po_item_id')->constrained('po_item')->restrictOnDelete();
-            $table->decimal('jumlah_diterima', 15, 3);
-            $table->string('status', 20);
+            $table->foreignId('purchase_order_id')->constrained('purchase_order')->restrictOnDelete();
+            $table->foreignId('check_by')->constrained('users')->restrictOnDelete();
+            $table->string('no_polisi_dicocokkan', 20)->nullable();
+            $table->timestamp('tanggal_pemeriksaan');
             $table->text('catatan')->nullable();
-            $table->string('foto_bukti_penolakan', 500)->nullable();
             $table->timestamp('created_at')->useCurrent();
-            $table->softDeletes();
         });
     }
 
@@ -30,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('penerimaan_barang_item');
+        Schema::dropIfExists('penerimaan_barang');
     }
 };

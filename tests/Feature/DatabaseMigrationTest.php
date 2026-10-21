@@ -17,9 +17,11 @@ class DatabaseMigrationTest extends TestCase
     {
         $tables = [
             'role',
+            'perusahaan_buyer',
             'vendor',
             'users',
             'dokumen_legalitas_vendor',
+            'kerja_sama',
             'komoditas',
             'harga_referensi_komoditas',
             'prediksi_harga',
@@ -45,84 +47,234 @@ class DatabaseMigrationTest extends TestCase
     public function test_table_columns_match_design(): void
     {
         $this->assertTrue(Schema::hasColumns('role', [
-            'id', 'nama_role', 'deskripsi', 'created_at',
+            'id',
+            'nama_role',
+            'deskripsi',
+            'created_at',
+        ]));
+
+        $this->assertTrue(Schema::hasColumns('perusahaan_buyer', [
+            'id',
+            'uuid',
+            'nama_perusahaan',
+            'nomor_npwp',
+            'file_url',
+            'alamat',
+            'tipe_paket',
+            'status_aktif',
+            'created_at',
+            'updated_at',
+        ]));
+
+        $this->assertTrue(Schema::hasColumns('kerja_sama', [
+            'id',
+            'uuid',
+            'id_perusahaan',
+            'id_vendor',
+            'status_kerjasama',
+            'catatan_penolakan',
+            'created_at',
+            'updated_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('vendor', [
-            'id', 'uuid', 'slug', 'nama_perusahaan', 'email_kontak', 'no_telepon', 'alamat',
-            'status_verifikasi', 'status_aktif', 'alasan_pemblokiran', 'blocked_by',
-            'diblokir_pada', 'created_at', 'updated_at', 'deleted_at',
+            'id',
+            'uuid',
+            'slug',
+            'nama_perusahaan',
+            'email_kontak',
+            'no_telepon',
+            'alamat',
+            'kategori_komoditas',
+            'dokumen_legalitas',
+            'status_verifikasi',
+            'status_aktif',
+            'alasan_pemblokiran',
+            'blocked_by',
+            'diblokir_pada',
+            'created_at',
+            'updated_at',
+            'deleted_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('users', [
-            'id', 'uuid', 'nama_lengkap', 'email', 'password', 'google_id', 'avatar', 'role_id', 'vendor_id',
-            'status_aktif', 'created_at', 'updated_at', 'deleted_at',
+            'id',
+            'uuid',
+            'nama_lengkap',
+            'email',
+            'password',
+            'google_id',
+            'avatar',
+            'role_id',
+            'vendor_id',
+            'vendor_id',
+            'status_aktif',
+            'created_at',
+            'updated_at',
+            'deleted_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('dokumen_legalitas_vendor', [
-            'id', 'uuid', 'vendor_id', 'jenis_dokumen', 'nomor_dokumen', 'file_url',
-            'status_verifikasi', 'verif_by', 'diverifikasi_pada', 'created_at', 'deleted_at',
+            'id',
+            'uuid',
+            'vendor_id',
+            'jenis_dokumen',
+            'nomor_dokumen',
+            'file_url',
+            'status_verifikasi',
+            'verif_by',
+            'diverifikasi_pada',
+            'alasan_penolakan',
+            'created_at',
+            'deleted_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('komoditas', [
-            'id', 'uuid', 'slug', 'nama_komoditas', 'satuan', 'kode_referensi_api',
-            'created_at', 'updated_at', 'deleted_at',
+            'id',
+            'uuid',
+            'sku',
+            'slug',
+            'nama_komoditas',
+            'kategori',
+            'satuan',
+            'batas_susut',
+            'kode_referensi_api',
+            'spesifikasi',
+            'status',
+            'created_at',
+            'updated_at',
+            'deleted_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('harga_referensi_komoditas', [
-            'id', 'uuid', 'komoditas_id', 'tanggal', 'harga', 'sumber_data', 'created_at',
+            'id',
+            'uuid',
+            'komoditas_id',
+            'tanggal',
+            'harga',
+            'sumber_data',
+            'created_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('prediksi_harga', [
-            'id', 'uuid', 'komoditas_id', 'tanggal_prediksi', 'harga_prediksi',
-            'harga_pagu_rekomendasi', 'dihitung_pada',
+            'id',
+            'uuid',
+            'komoditas_id',
+            'tanggal_prediksi',
+            'harga_prediksi',
+            'harga_pagu_rekomendasi',
+            'dihitung_pada',
         ]));
 
         $this->assertTrue(Schema::hasColumns('purchase_order', [
-            'id', 'uuid', 'nomor_po', 'vendor_id', 'created_by', 'prediksi_harga_id',
-            'harga_pagu_acuan', 'status', 'tanggal_po', 'catatan',
-            'created_at', 'updated_at', 'deleted_at',
+            'id',
+            'uuid',
+            'nomor_po',
+            'vendor_id',
+            'created_by',
+            'prediksi_harga_id',
+            'perusahaan_buyer_id',
+            'harga_pagu_acuan',
+            'status',
+            'tanggal_po',
+            'catatan',
+            'created_at',
+            'updated_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('po_item', [
-            'id', 'uuid', 'purchase_order_id', 'komoditas_id', 'jumlah_pesanan',
-            'harga_satuan_po', 'subtotal', 'harga_tawar_vendor', 'status_item',
-            'created_at', 'updated_at', 'deleted_at',
+            'id',
+            'uuid',
+            'purchase_order_id',
+            'komoditas_id',
+            'jumlah_pesanan',
+            'harga_satuan_po',
+            'subtotal',
+            'harga_tawar_vendor',
+            'status_item',
+            'created_at',
+            'updated_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('chat_negosiasi', [
-            'id', 'uuid', 'purchase_order_id', 'pengirim_id', 'pesan_teks', 'nominal_tawar', 'created_at',
+            'id',
+            'uuid',
+            'purchase_order_id',
+            'pengirim_id',
+            'pesan_teks',
+            'nominal_tawar',
+            'created_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('pengiriman', [
-            'id', 'uuid', 'purchase_order_id', 'jalur_pengiriman', 'nama_armada_ekspedisi',
-            'no_polisi_armada', 'perkiraan_tanggal_tiba', 'status', 'dilaporkan_oleh',
-            'created_at', 'deleted_at',
+            'id',
+            'uuid',
+            'purchase_order_id',
+            'jalur_pengiriman',
+            'nama_armada_ekspedisi',
+            'no_polisi_armada',
+            'perkiraan_tanggal_tiba',
+            'status',
+            'dilaporkan_oleh',
+            'created_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('penerimaan_barang', [
-            'id', 'uuid', 'purchase_order_id', 'check_by', 'no_polisi_dicocokkan',
-            'tanggal_pemeriksaan', 'catatan', 'created_at', 'deleted_at',
+            'id',
+            'uuid',
+            'purchase_order_id',
+            'check_by',
+            'no_polisi_dicocokkan',
+            'tanggal_pemeriksaan',
+            'catatan',
+            'created_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('penerimaan_barang_item', [
-            'id', 'uuid', 'penerimaan_barang_id', 'po_item_id', 'jumlah_diterima',
-            'status', 'catatan', 'foto_bukti_penolakan', 'created_at', 'deleted_at',
+            'id',
+            'uuid',
+            'penerimaan_barang_id',
+            'po_item_id',
+            'jumlah_diterima',
+            'status',
+            'catatan',
+            'foto_bukti_penolakan',
+            'created_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('invoice', [
-            'id', 'uuid', 'purchase_order_id', 'nomor_invoice_vendor', 'jumlah_tagihan',
-            'file_invoice', 'tanggal_invoice', 'status_matching', 'diverifikasi_oleh',
-            'diverifikasi_pada', 'created_at', 'deleted_at',
+            'id',
+            'uuid',
+            'purchase_order_id',
+            'nomor_invoice_vendor',
+            'jumlah_tagihan',
+            'file_invoice',
+            'tanggal_invoice',
+            'status_matching',
+            'diverifikasi_oleh',
+            'diverifikasi_pada',
+            'created_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('sengketa', [
-            'id', 'uuid', 'invoice_id', 'dibuka_oleh', 'status', 'tanggal_dibuka',
-            'tanggal_selesai', 'created_at', 'deleted_at',
+            'id',
+            'uuid',
+            'invoice_id',
+            'dibuka_oleh',
+            'status',
+            'tanggal_dibuka',
+            'tanggal_selesai',
+            'created_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('log_sengketa', [
-            'id', 'uuid', 'sengketa_id', 'user_id', 'isi_pesan', 'file_bukti', 'created_at',
+            'id',
+            'uuid',
+            'sengketa_id',
+            'user_id',
+            'isi_pesan',
+            'file_bukti',
+            'created_at',
         ]));
     }
 }

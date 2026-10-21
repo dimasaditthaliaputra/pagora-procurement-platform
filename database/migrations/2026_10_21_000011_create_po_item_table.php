@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -23,16 +22,7 @@ return new class extends Migration
             $table->decimal('harga_tawar_vendor', 15, 2)->nullable();
             $table->string('status_item', 30)->default('menunggu');
             $table->timestamps();
-            $table->softDeletes();
         });
-
-        if (in_array(DB::getDriverName(), ['pgsql', 'sqlite'])) {
-            DB::statement('CREATE INDEX ix_poitem_po ON po_item (purchase_order_id) WHERE deleted_at IS NULL');
-        } else {
-            Schema::table('po_item', function (Blueprint $table) {
-                $table->index('purchase_order_id', 'ix_poitem_po');
-            });
-        }
     }
 
     /**

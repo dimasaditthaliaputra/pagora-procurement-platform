@@ -22,7 +22,7 @@ class KomoditasRepository implements KomoditasRepositoryInterface
         'sku',
         'kategori',
         'satuan',
-        'status_aktif',
+        'status',
         'created_at',
     ];
 
@@ -46,8 +46,9 @@ class KomoditasRepository implements KomoditasRepositoryInterface
             'sku',
             'kategori',
             'satuan',
+            'batas_susut',
             'kode_referensi_api',
-            'status_aktif',
+            'status',
             'created_at',
         ]
     ): LengthAwarePaginator {
@@ -72,10 +73,10 @@ class KomoditasRepository implements KomoditasRepositoryInterface
             ->when(! empty($filters['kategori']) && $filters['kategori'] !== 'all', function ($query) use ($filters): void {
                 $query->where('kategori', $filters['kategori']);
             })
-            ->when(isset($filters['status_aktif']) && $filters['status_aktif'] !== '' && $filters['status_aktif'] !== 'all', function ($query) use ($filters): void {
-                $status = filter_var($filters['status_aktif'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            ->when(isset($filters['status']) && $filters['status'] !== '' && $filters['status'] !== 'all', function ($query) use ($filters): void {
+                $status = filter_var($filters['status'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
                 if ($status !== null) {
-                    $query->where('status_aktif', $status);
+                    $query->where('status', $status);
                 }
             })
             ->orderBy($sort, $direction)
@@ -118,8 +119,8 @@ class KomoditasRepository implements KomoditasRepositoryInterface
             $data['uuid'] = (string) Str::uuid();
         }
 
-        if (! isset($data['status_aktif'])) {
-            $data['status_aktif'] = true;
+        if (! isset($data['status'])) {
+            $data['status'] = true;
         }
 
         return $this->model->newQuery()->create($data);

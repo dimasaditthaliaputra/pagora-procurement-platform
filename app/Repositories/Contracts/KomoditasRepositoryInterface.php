@@ -25,8 +25,9 @@ interface KomoditasRepositoryInterface
             'sku',
             'kategori',
             'satuan',
+            'batas_susut',
             'kode_referensi_api',
-            'status_aktif',
+            'status',
             'created_at',
         ]
     ): LengthAwarePaginator;

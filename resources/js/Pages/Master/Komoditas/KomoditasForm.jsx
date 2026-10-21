@@ -26,11 +26,12 @@ export function KomoditasForm({
     const { data, setData, post, put, processing, errors, setError, clearErrors } = useForm({
         nama_komoditas: initialData?.nama_komoditas ?? '',
         satuan: initialData?.satuan ?? '',
+        batas_susut: initialData?.batas_susut ?? '',
         kode_referensi_api: initialData?.kode_referensi_api ?? '',
         sku: initialData?.sku ?? '',
         kategori: initialData?.kategori ?? '',
         spesifikasi: initialData?.spesifikasi ?? '',
-        status_aktif: initialData?.status_aktif ?? true,
+        status: initialData?.status ?? true,
     });
 
     const handleSubmit = (e) => {
@@ -211,7 +212,7 @@ export function KomoditasForm({
 
                         <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 mt-0.5">
                             <div className="space-y-0.5 pr-2">
-                                <Label htmlFor="status_aktif" className="text-sm font-medium cursor-pointer">
+                                <Label htmlFor="status" className="text-sm font-medium cursor-pointer">
                                     Status Aktif Pengadaan
                                 </Label>
                                 <p className="text-[11px] text-muted-foreground leading-tight">
@@ -219,14 +220,44 @@ export function KomoditasForm({
                                 </p>
                             </div>
                             <Switch
-                                id="status_aktif"
-                                checked={data.status_aktif}
-                                onCheckedChange={(checked) => setData('status_aktif', checked)}
+                                id="status"
+                                checked={data.status}
+                                onCheckedChange={(checked) => setData('status', checked)}
                             />
                         </div>
                     </div>
 
-                    {/* Row 4: Spesifikasi & Syarat Mutu QC */}
+                    {/* Row 4: Batas Susut */}
+                    <div className="grid gap-1.5 sm:w-1/2">
+                        <Label htmlFor="batas_susut" className={cn('text-sm', errors.batas_susut && 'text-destructive')}>
+                            Batas Susut (%)
+                        </Label>
+                        <Input
+                            id="batas_susut"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            placeholder="Contoh: 2.5"
+                            value={data.batas_susut}
+                            onChange={(e) => {
+                                setData('batas_susut', e.target.value);
+                                if (errors.batas_susut) clearErrors('batas_susut');
+                            }}
+                            aria-invalid={Boolean(errors.batas_susut)}
+                            className={cn('h-9', errors.batas_susut && 'border-destructive focus-visible:ring-destructive')}
+                        />
+                        {errors.batas_susut && (
+                            <p className="text-xs font-medium text-destructive">
+                                {errors.batas_susut}
+                            </p>
+                        )}
+                        <p className="text-[11px] text-muted-foreground">
+                            Toleransi penyusutan berat yang masih diterima QC gudang saat penerimaan barang.
+                        </p>
+                    </div>
+
+                    {/* Row 5: Spesifikasi & Syarat Mutu QC */}
                     <div className="grid gap-1.5">
                         <Label htmlFor="spesifikasi" className={cn('text-sm', errors.spesifikasi && 'text-destructive')}>
                             Spesifikasi & Syarat Mutu QC

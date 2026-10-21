@@ -14,13 +14,12 @@ return new class extends Migration
         Schema::create('sengketa', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique();
-            $table->foreignId('invoice_id')->constrained('invoice')->restrictOnDelete();
+            $table->foreignId('invoice_id')->nullable()->constrained('invoice')->restrictOnDelete();
             $table->foreignId('dibuka_oleh')->constrained('users')->restrictOnDelete();
             $table->string('status', 20)->default('terbuka');
             $table->timestamp('tanggal_dibuka')->useCurrent();
             $table->timestamp('tanggal_selesai')->nullable();
             $table->timestamp('created_at')->useCurrent();
-            $table->softDeletes();
         });
     }
 

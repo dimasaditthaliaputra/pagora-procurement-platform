@@ -27,9 +27,10 @@ class KomoditasResource extends JsonResource
             'sku' => $this->sku,
             'kategori' => $this->kategori,
             'satuan' => $this->satuan,
+            'batas_susut' => $this->batas_susut !== null ? (float) $this->batas_susut : null,
             'kode_referensi_api' => $this->kode_referensi_api,
             'spesifikasi' => $this->spesifikasi,
-            'status_aktif' => (bool) $this->status_aktif,
+            'status' => (bool) $this->status,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

@@ -20,6 +20,8 @@ return new class extends Migration
             $table->string('email_kontak', 150);
             $table->string('no_telepon', 30)->nullable();
             $table->text('alamat')->nullable();
+            $table->string('kategori_komoditas', 100)->nullable();
+            $table->string('dokumen_legalitas')->nullable();
             $table->string('status_verifikasi', 20)->default('pending');
             $table->boolean('status_aktif')->default(true);
             $table->text('alasan_pemblokiran')->nullable();

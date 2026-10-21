@@ -27,8 +27,8 @@ class IndexKomoditasRequest extends FormRequest
         return [
             'search' => ['nullable', 'string', 'max:100'],
             'kategori' => ['nullable', 'string', 'max:100'],
-            'status_aktif' => ['nullable'],
-            'sort' => ['nullable', 'string', Rule::in(['nama_komoditas', 'sku', 'kategori', 'satuan', 'status_aktif', 'created_at'])],
+            'status' => ['nullable'],
+            'sort' => ['nullable', 'string', Rule::in(['nama_komoditas', 'sku', 'kategori', 'satuan', 'status', 'created_at'])],
             'direction' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
             'page' => ['nullable', 'integer', 'min:1'],

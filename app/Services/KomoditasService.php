@@ -64,8 +64,9 @@ class KomoditasService
             'sku',
             'kategori',
             'satuan',
+            'batas_susut',
             'kode_referensi_api',
-            'status_aktif',
+            'status',
             'created_at',
         ]
     ): LengthAwarePaginator {
@@ -100,9 +101,11 @@ class KomoditasService
             $data['slug'] = $this->generateUniqueSlug($nama);
             $data['uuid'] = (string) Str::uuid();
 
-            if (! isset($data['status_aktif'])) {
-                $data['status_aktif'] = true;
+            if (! isset($data['status'])) {
+                $data['status'] = true;
             }
+
+            $data['batas_susut'] ??= 0;
 
             return $this->repository->create($data);
         });
@@ -122,6 +125,10 @@ class KomoditasService
         return DB::transaction(function () use ($komoditas, $data, $uuid): Komoditas {
             if (isset($data['nama_komoditas']) && $data['nama_komoditas'] !== $komoditas->nama_komoditas) {
                 $data['slug'] = $this->generateUniqueSlug((string) $data['nama_komoditas'], $uuid);
+            }
+
+            if (array_key_exists('batas_susut', $data) && $data['batas_susut'] === null) {
+                $data['batas_susut'] = 0;
             }
 
             $this->repository->update($komoditas, $data);

@@ -11,18 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('pengiriman', function (Blueprint $table) {
+        Schema::create('invoice', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique();
             $table->foreignId('purchase_order_id')->constrained('purchase_order')->restrictOnDelete();
-            $table->string('jalur_pengiriman', 50)->nullable();
-            $table->string('nama_armada_ekspedisi', 150)->nullable();
-            $table->string('no_polisi_armada', 20)->nullable();
-            $table->date('perkiraan_tanggal_tiba')->nullable();
-            $table->string('status', 30)->default('disiapkan');
-            $table->foreignId('dilaporkan_oleh')->constrained('users')->restrictOnDelete();
+            $table->string('nomor_invoice_vendor', 100);
+            $table->decimal('jumlah_tagihan', 17, 2);
+            $table->string('file_invoice', 500)->nullable();
+            $table->date('tanggal_invoice');
+            $table->string('status_matching', 20)->default('pending');
+            $table->foreignId('diverifikasi_oleh')->nullable()->constrained('users')->restrictOnDelete();
+            $table->timestamp('diverifikasi_pada')->nullable();
             $table->timestamp('created_at')->useCurrent();
-            $table->softDeletes();
         });
     }
 
@@ -31,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('pengiriman');
+        Schema::dropIfExists('invoice');
     }
 };

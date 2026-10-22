@@ -19,6 +19,7 @@ use Illuminate\Notifications\Notifiable;
  * @property string $uuid
  * @property string $nama_lengkap
  * @property string $email
+ * @property \Illuminate\Support\Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $google_id
  * @property string|null $avatar
@@ -36,6 +37,7 @@ use Illuminate\Notifications\Notifiable;
     'uuid',
     'nama_lengkap',
     'email',
+    'email_verified_at',
     'password',
     'google_id',
     'avatar',
@@ -79,6 +81,7 @@ class User extends Authenticatable
     {
         return [
             'status_aktif' => 'boolean',
+            'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

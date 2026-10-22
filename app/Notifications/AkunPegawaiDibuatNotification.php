@@ -43,7 +43,8 @@ class AkunPegawaiDibuatNotification extends Notification
             ->line('• Role / Jabatan: '.$this->roleLabel)
             ->line('• Password Sementara: '.$this->defaultPassword)
             ->action('Masuk ke Sistem PAGORA', route('login'))
-            ->line('Demi keamanan akun Anda, silakan segera masuk dan ubah kata sandi default ini.')
+            ->line('Akun Anda belum aktif. Saat masuk pertama kali, kami akan mengirimkan kode OTP ke email ini untuk mengaktifkan akun.')
+            ->line('Demi keamanan akun Anda, silakan segera ubah kata sandi default ini setelah masuk.')
             ->salutation('Salam hormat, Tim Manajemen PAGORA');
     }
 }

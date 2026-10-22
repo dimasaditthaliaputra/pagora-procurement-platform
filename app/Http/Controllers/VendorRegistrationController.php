@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Helpers\ResponseHelper;
+use App\Http\Requests\Auth\SendVendorOtpRequest;
 use App\Http\Requests\Auth\StoreVendorRegistrationRequest;
 use App\Services\VendorRegistrationService;
 use Illuminate\Http\JsonResponse;
@@ -29,6 +30,22 @@ class VendorRegistrationController extends Controller
             'kategori_options' => VendorRegistrationService::KATEGORI_OPTIONS,
             'status' => session('status'),
         ]);
+    }
+
+    /**
+     * Kirim kode OTP ke email bisnis untuk memastikan email tersebut asli.
+     */
+    public function sendOtp(SendVendorOtpRequest $request): JsonResponse|RedirectResponse
+    {
+        try {
+            $this->service->sendEmailOtp((string) $request->validated('email_kontak'));
+
+            return ResponseHelper::success('Kode OTP telah dikirim ke email bisnis Anda.');
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors());
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Gagal mengirim kode OTP.', $e);
+        }
     }
 
     /**

@@ -8,7 +8,9 @@ use App\Models\User;
 use App\Models\Vendor;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Mail\OtpMail;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -36,9 +38,114 @@ class VendorRegistrationTest extends TestCase
         $response->assertRedirect('/register/vendor');
     }
 
+    /**
+     * Request an OTP for the email and return the code that was mailed.
+     */
+    private function requestOtp(string $email): string
+    {
+        $this->postJson('/register/vendor/otp', ['email_kontak' => $email])->assertOk();
+
+        $code = null;
+        Mail::assertSent(OtpMail::class, function (OtpMail $mail) use ($email, &$code) {
+            $code = $mail->code;
+
+            return $mail->hasTo($email);
+        });
+
+        return (string) $code;
+    }
+
+    public function test_otp_is_sent_to_the_vendor_email(): void
+    {
+        Mail::fake();
+
+        $this->postJson('/register/vendor/otp', ['email_kontak' => 'baru@vendor.co.id'])
+            ->assertOk();
+
+        Mail::assertSent(OtpMail::class, fn (OtpMail $mail) => $mail->hasTo('baru@vendor.co.id'));
+    }
+
+    public function test_otp_cannot_be_requested_for_an_invalid_or_registered_email(): void
+    {
+        Mail::fake();
+
+        Vendor::create([
+            'nama_perusahaan' => 'PT Sudah Ada',
+            'slug' => 'pt-sudah-ada',
+            'email_kontak' => 'duplikat@perusahaan.com',
+            'status_verifikasi' => 'pending',
+            'status_aktif' => true,
+        ]);
+
+        $this->postJson('/register/vendor/otp', ['email_kontak' => 'bukan-email'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email_kontak');
+
+        $this->postJson('/register/vendor/otp', ['email_kontak' => 'duplikat@perusahaan.com'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email_kontak');
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_otp_cannot_be_resent_during_cooldown(): void
+    {
+        Mail::fake();
+
+        $this->postJson('/register/vendor/otp', ['email_kontak' => 'baru@vendor.co.id'])->assertOk();
+        $this->postJson('/register/vendor/otp', ['email_kontak' => 'baru@vendor.co.id'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email_kontak');
+
+        Mail::assertSentCount(1);
+    }
+
+    public function test_registration_is_rejected_with_wrong_otp(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $this->requestOtp('procurement@agropangan.co.id');
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'nama_perusahaan' => 'PT Agro Pangan Nusantara',
+            'email_kontak' => 'procurement@agropangan.co.id',
+            'no_telepon' => '081234567890',
+            'alamat' => 'Bekasi',
+            'kategori_komoditas' => 'Agroindustri & Pangan',
+            'otp' => '000000',
+            'dokumen_legalitas' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
+        ]);
+
+        $response->assertRedirect('/register/vendor');
+        $response->assertSessionHasErrors('otp');
+        $this->assertSame(0, Vendor::count());
+    }
+
+    public function test_registration_is_rejected_when_otp_was_issued_for_another_email(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $code = $this->requestOtp('asli@agropangan.co.id');
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'nama_perusahaan' => 'PT Agro Pangan Nusantara',
+            'email_kontak' => 'lain@agropangan.co.id',
+            'no_telepon' => '081234567890',
+            'alamat' => 'Bekasi',
+            'kategori_komoditas' => 'Agroindustri & Pangan',
+            'otp' => $code,
+            'dokumen_legalitas' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
+        ]);
+
+        $response->assertSessionHasErrors('otp');
+        $this->assertSame(0, Vendor::count());
+    }
+
     public function test_guest_can_register_as_vendor_candidate_with_file_upload(): void
     {
         Storage::fake('local');
+        Mail::fake();
+        $otp = $this->requestOtp('procurement@agropangan.co.id');
 
         $initialUserCount = User::count();
         $initialVendorCount = Vendor::count();
@@ -55,6 +162,7 @@ class VendorRegistrationTest extends TestCase
             'no_telepon' => '081234567890',
             'alamat' => 'Kawasan Industri Cikarang Blok C-12, Bekasi',
             'kategori_komoditas' => 'Agroindustri & Pangan',
+            'otp' => $otp,
             'dokumen_legalitas' => $file,
         ];
 
@@ -116,6 +224,7 @@ class VendorRegistrationTest extends TestCase
             'no_telepon',
             'alamat',
             'kategori_komoditas',
+            'otp',
             'dokumen_legalitas',
         ]);
 

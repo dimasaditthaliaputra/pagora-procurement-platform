@@ -1,13 +1,108 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Checkbox } from '@/Components/ui/checkbox';
+import { LoadingButton } from '@/Components/loading-button';
+import { OtpField, OTP_LENGTH } from '@/Components/otp-field';
+import { useCountdown } from '@/hooks/use-countdown';
+import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
-export default function Login({ status }) {
+function OtpStep({ otp, status }) {
+    const { data, setData, post, processing, errors, setError, clearErrors, reset } = useForm({ otp: '' });
+    const resend = useCountdown(otp.cooldown);
+    const [resending, setResending] = useState(false);
+
+    const submit = (e) => {
+        e.preventDefault();
+
+        if (data.otp.length !== OTP_LENGTH) {
+            setError('otp', `Kode OTP harus terdiri dari ${OTP_LENGTH} digit angka.`);
+            notify.validationFailed();
+            return;
+        }
+
+        post('/login/otp', {
+            onError: () => notify.validationFailed(),
+        });
+    };
+
+    const resendOtp = () => {
+        router.post('/login/otp/resend', {}, {
+            preserveScroll: true,
+            onStart: () => setResending(true),
+            onFinish: () => setResending(false),
+            onSuccess: () => {
+                reset();
+                clearErrors();
+                resend.start(60);
+            },
+            onError: (errs) => {
+                setError('otp', errs.otp ?? 'Gagal mengirim ulang kode OTP.');
+                notify.validationFailed();
+            },
+        });
+    };
+
+    return (
+        <form onSubmit={submit} className="flex flex-col gap-6" noValidate>
+            <div className="flex flex-col gap-2 text-center">
+                <h1 className="text-2xl font-bold tracking-tight">Verifikasi Akun</h1>
+                <p className="text-muted-foreground text-sm text-balance">
+                    Akun Anda belum aktif. Masukkan kode 6 digit yang kami kirim ke{' '}
+                    <span className="font-medium text-foreground">{otp.email}</span> untuk mengaktifkannya.
+                </p>
+            </div>
+
+            {status && (
+                <div className="text-xs font-medium text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 p-3 rounded-lg text-center">
+                    {status}
+                </div>
+            )}
+
+            <OtpField
+                value={data.otp}
+                onChange={(value) => {
+                    setData('otp', value);
+                    clearErrors('otp');
+                }}
+                error={errors.otp}
+                disabled={processing}
+                autoFocus
+            />
+
+            <div className="grid gap-3">
+                <LoadingButton type="submit" loading={processing} loadingText="Memverifikasi..." disabled={resending} className="w-full cursor-pointer">
+                    Aktifkan &amp; Masuk
+                </LoadingButton>
+                <LoadingButton
+                    type="button"
+                    variant="outline"
+                    onClick={resendOtp}
+                    loading={resending}
+                    loadingText="Mengirim..."
+                    disabled={processing || resend.seconds > 0}
+                    className="w-full cursor-pointer"
+                >
+                    {resend.seconds > 0 ? `Kirim ulang kode (${resend.seconds}d)` : 'Kirim ulang kode'}
+                </LoadingButton>
+                <button
+                    type="button"
+                    onClick={() => router.delete('/login/otp')}
+                    disabled={processing || resending}
+                    className="text-sm text-muted-foreground hover:text-foreground hover:underline cursor-pointer disabled:opacity-50"
+                >
+                    Kembali ke halaman masuk
+                </button>
+            </div>
+        </form>
+    );
+}
+
+export default function Login({ status, otp = null }) {
     const [isView, setIsView] = useState(false);
     const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
         email: '',
@@ -52,6 +147,9 @@ export default function Login({ status }) {
             <div className="flex flex-col justify-between p-6 md:p-10">
                 <div className="flex flex-1 items-center justify-center py-8">
                     <div className="w-full max-w-sm">
+                        {otp ? (
+                            <OtpStep otp={otp} status={status} />
+                        ) : (
                         <form onSubmit={submit} className="flex flex-col gap-6" noValidate>
                             <div className="flex flex-col gap-2 text-center">
                                 <h1 className="text-2xl font-bold tracking-tight">
@@ -204,6 +302,7 @@ export default function Login({ status }) {
                                 </Link>
                             </div>
                         </form>
+                        )}
                     </div>
                 </div>
 

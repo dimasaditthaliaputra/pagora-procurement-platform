@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Notifications\AkunPegawaiDibuatNotification;
+use App\Services\PegawaiService;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -140,19 +141,20 @@ class PegawaiTest extends TestCase
             'nama_lengkap' => 'Andi Wijaya',
             'email' => 'andi.wijaya@perusahaan.com',
             'role_id' => 2,
-            'status_aktif' => true,
+            'status_aktif' => false,
+            'email_verified_at' => null,
             'deleted_at' => null,
         ]);
 
         $createdUser = User::where('email', 'andi.wijaya@perusahaan.com')->first();
         $this->assertNotNull($createdUser);
-        $this->assertTrue(Hash::check('Pagora@2026', $createdUser->password));
+        $this->assertTrue(Hash::check(PegawaiService::DEFAULT_PASSWORD, $createdUser->password));
 
         Notification::assertSentTo(
             $createdUser,
             AkunPegawaiDibuatNotification::class,
             function (AkunPegawaiDibuatNotification $notification) {
-                return $notification->defaultPassword === 'Pagora@2026'
+                return $notification->defaultPassword === PegawaiService::DEFAULT_PASSWORD
                     && str_contains($notification->roleLabel, 'Buyer');
             }
         );

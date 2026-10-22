@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Mail\VendorApprovalMail;
 use App\Models\DokumenLegalitasVendor;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class VerifikasiDokumenService
@@ -20,7 +22,7 @@ class VerifikasiDokumenService
     /**
      * Get paginated legal documents.
      *
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     public function paginate(
         array $filters,
@@ -54,7 +56,7 @@ class VerifikasiDokumenService
         int $verifierId,
         ?string $rejectionReason = null
     ): DokumenLegalitasVendor {
-        if (!in_array($action, ['approve', 'reject'], true)) {
+        if (! in_array($action, ['approve', 'reject'], true)) {
             throw ValidationException::withMessages([
                 'aksi' => 'Aksi verifikasi tidak valid.',
             ]);
@@ -69,7 +71,7 @@ class VerifikasiDokumenService
             ]);
         }
 
-        return DB::transaction(function () use (
+        $document = DB::transaction(function () use (
             $uuid,
             $action,
             $verifierId,
@@ -85,8 +87,7 @@ class VerifikasiDokumenService
 
             if ($document->status_verifikasi !== 'pending') {
                 throw ValidationException::withMessages([
-                    'status_verifikasi' =>
-                        'Dokumen ini sudah diverifikasi dan tidak dapat diproses ulang.',
+                    'status_verifikasi' => 'Dokumen ini sudah diverifikasi dan tidak dapat diproses ulang.',
                 ]);
             }
 
@@ -117,5 +118,20 @@ class VerifikasiDokumenService
 
             return $document->fresh(['vendor']);
         });
+
+        if ($action === 'approve') {
+            $vendor = $document->vendor;
+
+            if ($vendor !== null && filled($vendor->email_kontak)) {
+                Mail::to($vendor->email_kontak)->send(
+                    new VendorApprovalMail(
+                        vendorName: $vendor->nama_perusahaan,
+                        companyName: $vendor->nama_perusahaan,
+                    )
+                );
+            }
+        }
+
+        return $document;
     }
 }

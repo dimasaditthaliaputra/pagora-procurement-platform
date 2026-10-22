@@ -43,7 +43,8 @@ class UserSeeder extends Seeder
         foreach ($accounts as $data) {
             User::updateOrCreate(
                 ['email' => $data['email']],
-                $data + ['password' => Hash::make('password')]
+                // Demo accounts count as verified so they skip the activation OTP and can reset passwords.
+                $data + ['password' => Hash::make('password'), 'email_verified_at' => now()]
             );
         }
     }

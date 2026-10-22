@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -13,13 +14,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property string $uuid
  * @property string $nama_lengkap
  * @property string $email
- * @property \Illuminate\Support\Carbon|null $email_verified_at
+ * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $google_id
  * @property string|null $avatar
@@ -108,6 +110,14 @@ class User extends Authenticatable
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Vendor::class, 'vendor_id');
+    }
+
+    /**
+     * Send the Indonesian password reset email instead of the framework default.
+     */
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 
     /**

@@ -8,10 +8,13 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\LoginRateLimiter;
 use Laravel\Socialite\Facades\Socialite;
@@ -230,6 +233,88 @@ class AuthService
         [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
 
         return substr($local, 0, 2).str_repeat('*', max(1, strlen($local) - 2)).'@'.$domain;
+    }
+
+    /**
+     * Email a password reset link. Only verified, active accounts qualify.
+     *
+     * @throws ValidationException
+     */
+    public function sendPasswordResetLink(string $email): string
+    {
+        $this->ensureCanResetPassword($email);
+
+        $status = Password::sendResetLink(['email' => $email]);
+
+        if ($status === Password::RESET_THROTTLED) {
+            throw ValidationException::withMessages([
+                'email' => 'Permintaan terlalu sering. Silakan tunggu sebentar sebelum meminta tautan baru.',
+            ]);
+        }
+
+        if ($status !== Password::RESET_LINK_SENT) {
+            throw ValidationException::withMessages([
+                'email' => 'Tautan atur ulang kata sandi gagal dikirim. Silakan coba kembali.',
+            ]);
+        }
+
+        return 'Tautan atur ulang kata sandi telah dikirim ke email Anda.';
+    }
+
+    /**
+     * Reset the password with a valid token.
+     *
+     * @param  array{token: string, email: string, password: string, password_confirmation: string}  $data
+     *
+     * @throws ValidationException
+     */
+    public function resetPassword(array $data): string
+    {
+        $this->ensureCanResetPassword($data['email']);
+
+        $status = Password::reset($data, function (User $user, string $password): void {
+            // Password is hashed by the model cast.
+            $this->userRepository->update($user, [
+                'password' => $password,
+                'remember_token' => Str::random(60),
+            ]);
+
+            event(new PasswordReset($user));
+        });
+
+        if ($status !== Password::PASSWORD_RESET) {
+            throw ValidationException::withMessages([
+                'email' => 'Tautan atur ulang kata sandi tidak valid atau sudah kedaluwarsa. Silakan minta tautan baru.',
+            ]);
+        }
+
+        return 'Kata sandi berhasil diperbarui. Silakan masuk dengan kata sandi baru.';
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function ensureCanResetPassword(string $email): void
+    {
+        $user = $this->userRepository->findByEmail($email);
+
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'email' => 'Alamat email belum terdaftar dalam sistem.',
+            ]);
+        }
+
+        if ($user->email_verified_at === null) {
+            throw ValidationException::withMessages([
+                'email' => 'Akun Anda belum terverifikasi. Masuk dengan email dan kata sandi untuk verifikasi OTP terlebih dahulu.',
+            ]);
+        }
+
+        if (! $user->status_aktif) {
+            throw ValidationException::withMessages([
+                'email' => 'Akun Anda dinonaktifkan. Silakan hubungi administrator.',
+            ]);
+        }
     }
 
     /**

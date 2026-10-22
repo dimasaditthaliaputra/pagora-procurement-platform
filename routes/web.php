@@ -24,6 +24,11 @@ Route::middleware('guest')->group(function () {
     Route::post('/login/otp/resend', [AuthController::class, 'resendLoginOtp'])->middleware('throttle:6,1')->name('login.otp.resend');
     Route::delete('/login/otp', [AuthController::class, 'cancelLoginOtp'])->name('login.otp.cancel');
 
+    Route::get('/forgot-password', [AuthController::class, 'forgotPassword'])->name('password.request');
+    Route::post('/forgot-password', [AuthController::class, 'storeForgotPassword'])->middleware('throttle:6,1')->name('password.email');
+    Route::get('/reset-password/{token}', [AuthController::class, 'resetPassword'])->name('password.reset');
+    Route::post('/reset-password', [AuthController::class, 'storeResetPassword'])->middleware('throttle:6,1')->name('password.update');
+
     Route::get('/register', [AuthController::class, 'register'])->name('register');
     Route::post('/register', [AuthController::class, 'storeRegister'])->name('register.store');
 

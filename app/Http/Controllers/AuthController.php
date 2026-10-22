@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Helpers\ResponseHelper;
+use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Requests\Auth\VerifyLoginOtpRequest;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
@@ -121,6 +123,59 @@ class AuthController extends Controller
         $this->authService->cancelLoginOtp($request);
 
         return ResponseHelper::success('Verifikasi dibatalkan.', null, route('login'), $request);
+    }
+
+    /**
+     * Render the forgot password page.
+     */
+    public function forgotPassword(): Response
+    {
+        return Inertia::render('Auth/ForgotPassword');
+    }
+
+    /**
+     * Email a password reset link to a verified account.
+     */
+    public function storeForgotPassword(ForgotPasswordRequest $request): JsonResponse|RedirectResponse
+    {
+        try {
+            $message = $this->authService->sendPasswordResetLink((string) $request->validated('email'));
+
+            return ResponseHelper::success($message, null, route('password.request'), $request);
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors(), request: $request);
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Terjadi kesalahan saat mengirim tautan atur ulang kata sandi.', $e, $request);
+        }
+    }
+
+    /**
+     * Render the reset password page from the emailed link.
+     */
+    public function resetPassword(Request $request, string $token): Response
+    {
+        return Inertia::render('Auth/ResetPassword', [
+            'token' => $token,
+            'email' => (string) $request->query('email', ''),
+        ]);
+    }
+
+    /**
+     * Save the new password using the reset token.
+     */
+    public function storeResetPassword(ResetPasswordRequest $request): JsonResponse|RedirectResponse
+    {
+        try {
+            $message = $this->authService->resetPassword(
+                $request->only('token', 'email', 'password', 'password_confirmation')
+            );
+
+            return ResponseHelper::success($message, null, route('login'), $request);
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors(), request: $request);
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Terjadi kesalahan saat mengatur ulang kata sandi.', $e, $request);
+        }
     }
 
     /**

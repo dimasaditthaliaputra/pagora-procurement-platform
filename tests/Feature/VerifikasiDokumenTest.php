@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Mail\VendorApprovalMail;
 use App\Models\DokumenLegalitasVendor;
 use App\Models\User;
 use App\Models\Vendor;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -96,6 +98,7 @@ class VerifikasiDokumenTest extends TestCase
 
     public function test_superadmin_can_approve_vendor_legal_document(): void
     {
+        Mail::fake();
         $vendor = $this->createVendor([
             'nama_perusahaan' => 'PT Mitra Sejahtera',
             'email_kontak' => 'mitra@sejahtera.com',
@@ -128,10 +131,20 @@ class VerifikasiDokumenTest extends TestCase
             'id' => $vendor->id,
             'status_verifikasi' => 'approved',
         ]);
+
+        Mail::assertSent(
+            VendorApprovalMail::class,
+            function (VendorApprovalMail $mail) use ($vendor): bool {
+                return $mail->hasTo($vendor->email_kontak)
+                    && $mail->vendorName === $vendor->nama_perusahaan
+                    && $mail->companyName === $vendor->nama_perusahaan;
+            }
+        );
     }
 
     public function test_superadmin_can_reject_vendor_legal_document_with_reason(): void
     {
+        Mail::fake();
         $vendor = $this->createVendor([
             'nama_perusahaan' => 'CV Logistik Prima',
             'email_kontak' => 'info@logistikprima.com',
@@ -164,6 +177,7 @@ class VerifikasiDokumenTest extends TestCase
             'id' => $vendor->id,
             'status_verifikasi' => 'rejected',
         ]);
+        Mail::assertNotSent(VendorApprovalMail::class);
     }
 
     public function test_reject_requires_rejection_reason(): void

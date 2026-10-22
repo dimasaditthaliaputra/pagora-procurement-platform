@@ -26,7 +26,7 @@ class IndexPegawaiRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:100'],
-            'role' => ['nullable', 'string', 'in:all,buyer,qc_gudang,superadmin'],
+            'role' => ['nullable', 'string', 'in:all,superadmin,owner,manajemen,buyer,qc_gudang,vendor'],
             'status_aktif' => ['nullable', 'string', 'in:all,true,false,1,0'],
             'sort' => ['nullable', 'string', 'in:nama_lengkap,email,role_id,status_aktif,created_at'],
             'direction' => ['nullable', 'string', 'in:asc,desc'],

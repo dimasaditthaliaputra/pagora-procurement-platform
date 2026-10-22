@@ -121,7 +121,6 @@ class PegawaiTest extends TestCase
         );
     }
 
-
     public function test_can_create_new_employee_with_default_password_and_notification(): void
     {
         Notification::fake();
@@ -279,5 +278,140 @@ class PegawaiTest extends TestCase
         $this->assertNotSoftDeleted('users', [
             'id' => $this->admin->id,
         ]);
+    }
+
+    public function test_role_options_match_authorization_rules_for_each_role(): void
+    {
+        $superadmin = $this->admin; // role_id = 1 (superadmin)
+
+        $owner = User::factory()->create([
+            'role_id' => 6, // owner
+            'nama_lengkap' => 'Pak Owner',
+            'email' => 'owner@perusahaan.com',
+            'status_aktif' => true,
+        ]);
+
+        $manajemen = User::factory()->create([
+            'role_id' => 5, // manajemen
+            'nama_lengkap' => 'Bu Manajemen',
+            'email' => 'manajemen@perusahaan.com',
+            'status_aktif' => true,
+        ]);
+
+        /** @var PegawaiService $service */
+        $service = app(PegawaiService::class);
+
+        // 1. Superadmin has all roles
+        $superadminOptions = collect($service->getRoleOptionsForUser($superadmin))->pluck('value')->all();
+        $this->assertEquals(['superadmin', 'owner', 'manajemen', 'buyer', 'qc_gudang', 'vendor'], $superadminOptions);
+
+        // 2. Owner has manajemen, buyer, qc_gudang
+        $ownerOptions = collect($service->getRoleOptionsForUser($owner))->pluck('value')->all();
+        $this->assertEquals(['manajemen', 'buyer', 'qc_gudang'], $ownerOptions);
+
+        // 3. Manajemen has buyer, qc_gudang
+        $manajemenOptions = collect($service->getRoleOptionsForUser($manajemen))->pluck('value')->all();
+        $this->assertEquals(['buyer', 'qc_gudang'], $manajemenOptions);
+    }
+
+    public function test_superadmin_can_create_any_role(): void
+    {
+        Notification::fake();
+
+        $rolesToTest = ['owner', 'manajemen', 'buyer', 'qc_gudang', 'superadmin', 'vendor'];
+
+        foreach ($rolesToTest as $index => $role) {
+            $payload = [
+                'nama_lengkap' => "User {$role}",
+                'email' => "user.{$role}.{$index}@perusahaan.com",
+                'role' => $role,
+            ];
+
+            $response = $this->actingAs($this->admin)->post('/manajemen/pengguna', $payload);
+            $response->assertSessionHasNoErrors();
+            $response->assertRedirect('/manajemen/pengguna');
+
+            $this->assertDatabaseHas('users', [
+                'email' => "user.{$role}.{$index}@perusahaan.com",
+            ]);
+        }
+    }
+
+    public function test_owner_can_create_manajemen_buyer_and_qc_gudang_only(): void
+    {
+        Notification::fake();
+
+        $owner = User::factory()->create([
+            'role_id' => 6, // owner
+            'nama_lengkap' => 'Pak Owner',
+            'email' => 'owner.test@perusahaan.com',
+            'status_aktif' => true,
+        ]);
+
+        // Allowed roles for Owner
+        $allowedRoles = ['manajemen', 'buyer', 'qc_gudang'];
+        foreach ($allowedRoles as $role) {
+            $response = $this->actingAs($owner)->post('/manajemen/pengguna', [
+                'nama_lengkap' => "Staff {$role}",
+                'email' => "owner.created.{$role}@perusahaan.com",
+                'role' => $role,
+            ]);
+
+            $response->assertSessionHasNoErrors();
+            $response->assertRedirect('/manajemen/pengguna');
+            $this->assertDatabaseHas('users', ['email' => "owner.created.{$role}@perusahaan.com"]);
+        }
+
+        // Disallowed roles for Owner: superadmin, owner, vendor
+        $disallowedRoles = ['superadmin', 'owner', 'vendor'];
+        foreach ($disallowedRoles as $role) {
+            $response = $this->actingAs($owner)->post('/manajemen/pengguna', [
+                'nama_lengkap' => "Disallowed {$role}",
+                'email' => "owner.disallowed.{$role}@perusahaan.com",
+                'role' => $role,
+            ]);
+
+            $response->assertSessionHasErrors(['role']);
+            $this->assertDatabaseMissing('users', ['email' => "owner.disallowed.{$role}@perusahaan.com"]);
+        }
+    }
+
+    public function test_manajemen_can_create_buyer_and_qc_gudang_only(): void
+    {
+        Notification::fake();
+
+        $manajemen = User::factory()->create([
+            'role_id' => 5, // manajemen
+            'nama_lengkap' => 'Bu Manajemen',
+            'email' => 'manajemen.test@perusahaan.com',
+            'status_aktif' => true,
+        ]);
+
+        // Allowed roles for Manajemen
+        $allowedRoles = ['buyer', 'qc_gudang'];
+        foreach ($allowedRoles as $role) {
+            $response = $this->actingAs($manajemen)->post('/manajemen/pengguna', [
+                'nama_lengkap' => "Staff {$role}",
+                'email' => "manajemen.created.{$role}@perusahaan.com",
+                'role' => $role,
+            ]);
+
+            $response->assertSessionHasNoErrors();
+            $response->assertRedirect('/manajemen/pengguna');
+            $this->assertDatabaseHas('users', ['email' => "manajemen.created.{$role}@perusahaan.com"]);
+        }
+
+        // Disallowed roles for Manajemen: manajemen, owner, superadmin, vendor
+        $disallowedRoles = ['manajemen', 'owner', 'superadmin', 'vendor'];
+        foreach ($disallowedRoles as $role) {
+            $response = $this->actingAs($manajemen)->post('/manajemen/pengguna', [
+                'nama_lengkap' => "Disallowed {$role}",
+                'email' => "manajemen.disallowed.{$role}@perusahaan.com",
+                'role' => $role,
+            ]);
+
+            $response->assertSessionHasErrors(['role']);
+            $this->assertDatabaseMissing('users', ['email' => "manajemen.disallowed.{$role}@perusahaan.com"]);
+        }
     }
 }

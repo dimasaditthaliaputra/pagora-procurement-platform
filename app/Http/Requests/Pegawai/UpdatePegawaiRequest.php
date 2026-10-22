@@ -36,7 +36,8 @@ class UpdatePegawaiRequest extends FormRequest
                 'max:150',
                 Rule::unique('users', 'email')->ignore($uuid, 'uuid')->whereNull('deleted_at'),
             ],
-            'role' => ['required', 'string', 'in:buyer,qc_gudang,superadmin'],
+            // Which roles are actually permitted depends on the actor's role (enforced in PegawaiService::update())
+            'role' => ['required', 'string', 'in:superadmin,owner,manajemen,buyer,qc_gudang,vendor'],
             'password' => ['nullable', 'string', 'min:8'],
             'status_aktif' => ['required', 'boolean'],
         ];

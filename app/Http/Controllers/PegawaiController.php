@@ -9,6 +9,7 @@ use App\Http\Requests\Pegawai\IndexPegawaiRequest;
 use App\Http\Requests\Pegawai\StorePegawaiRequest;
 use App\Http\Requests\Pegawai\UpdatePegawaiRequest;
 use App\Http\Resources\PegawaiResource;
+use App\Models\User;
 use App\Services\PegawaiService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -26,17 +27,26 @@ class PegawaiController extends Controller
     ) {}
 
     /**
-     * Display a listing of internal employee accounts.
+     * Display a listing of user accounts.
+     *
+     * - superadmin / owner / manajemen : lihat semua akun internal (buyer-side)
+     * - vendor user                    : hanya lihat akun dari vendor yang sama
      */
     public function index(IndexPegawaiRequest $request): Response|JsonResponse
     {
+        /** @var User $authUser */
+        $authUser = $request->user();
+
+        // If the logged-in user belongs to a vendor, scope the listing to that vendor only
+        $vendorId = $authUser->vendor_id;
+
         $filters = $request->validated();
         $perPage = (int) $request->input('per_page', 10);
-        $pegawai = $this->service->paginate($filters, $perPage);
+        $pegawai = $this->service->paginate($filters, $perPage, vendorId: $vendorId);
 
         if ($request->expectsJson()) {
             return ResponseHelper::success(
-                'Daftar pegawai internal berhasil diambil.',
+                'Daftar pengguna berhasil diambil.',
                 PegawaiResource::collection($pegawai)
             );
         }
@@ -44,13 +54,13 @@ class PegawaiController extends Controller
         return Inertia::render('Manajemen/Pengguna/Index', [
             'pegawai' => PegawaiResource::collection($pegawai),
             'filters' => $request->only('search', 'role', 'status_aktif', 'sort', 'direction', 'per_page'),
-            'role_options' => $this->service->getRoleOptions(),
+            'role_options' => $this->service->getRoleOptionsForUser($authUser->load('role')),
             'default_password' => PegawaiService::DEFAULT_PASSWORD,
         ]);
     }
 
     /**
-     * Display the specified employee account.
+     * Display the specified user account.
      */
     public function show(string $uuid): JsonResponse|RedirectResponse
     {
@@ -58,77 +68,112 @@ class PegawaiController extends Controller
             $pegawai = $this->service->findByUuid($uuid);
 
             return ResponseHelper::success(
-                'Detail akun pegawai berhasil diambil.',
+                'Detail akun pengguna berhasil diambil.',
                 new PegawaiResource($pegawai)
             );
         } catch (ModelNotFoundException) {
-            return ResponseHelper::notFound('Akun pegawai tidak ditemukan.');
+            return ResponseHelper::notFound('Akun pengguna tidak ditemukan.');
         } catch (Throwable $e) {
-            return ResponseHelper::serverError('Gagal memuat detail akun pegawai.', $e);
+            return ResponseHelper::serverError('Gagal memuat detail akun pengguna.', $e);
         }
     }
 
     /**
-     * Store a newly created employee account and send initial credentials notification.
+     * Store a newly created user account.
+     *
+     * Authorization:
+     * - superadmin : semua roles
+     * - owner      : manajemen, buyer, qc_gudang
+     * - manajemen  : buyer, qc_gudang
+     * - vendor     : vendor
      */
     public function store(StorePegawaiRequest $request): JsonResponse|RedirectResponse
     {
+        /** @var User $authUser */
+        $authUser = $request->user()->load('role');
+
+        if (! $this->isAuthorizedRole($authUser)) {
+            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk membuat akun pengguna.');
+        }
+
         try {
-            $pegawai = $this->service->create($request->validated());
+            $pegawai = $this->service->create($request->validated(), $authUser);
 
             return ResponseHelper::created(
-                'Akun pegawai berhasil dibuat dan notifikasi akses telah dikirim ke email pegawai.',
+                'Akun pengguna berhasil dibuat dan notifikasi akses telah dikirim ke email.',
                 new PegawaiResource($pegawai),
                 route('manajemen.pengguna.index')
             );
         } catch (ValidationException $e) {
             return ResponseHelper::validationError($e->errors());
         } catch (Throwable $e) {
-            return ResponseHelper::serverError('Gagal membuat akun pegawai internal baru.', $e);
+            return ResponseHelper::serverError('Gagal membuat akun pengguna baru.', $e);
         }
     }
 
     /**
-     * Update the specified employee account.
+     * Update the specified user account.
      */
     public function update(UpdatePegawaiRequest $request, string $uuid): JsonResponse|RedirectResponse
     {
+        /** @var User $authUser */
+        $authUser = $request->user()->load('role');
+
+        if (! $this->isAuthorizedRole($authUser)) {
+            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk mengubah akun pengguna.');
+        }
+
         try {
-            $pegawai = $this->service->update($uuid, $request->validated());
+            $pegawai = $this->service->update($uuid, $request->validated(), $authUser);
 
             return ResponseHelper::success(
-                'Data akun pegawai berhasil diperbarui.',
+                'Data akun pengguna berhasil diperbarui.',
                 new PegawaiResource($pegawai),
                 route('manajemen.pengguna.index')
             );
         } catch (ModelNotFoundException) {
-            return ResponseHelper::notFound('Akun pegawai tidak ditemukan.');
+            return ResponseHelper::notFound('Akun pengguna tidak ditemukan.');
         } catch (ValidationException $e) {
             return ResponseHelper::validationError($e->errors());
         } catch (Throwable $e) {
-            return ResponseHelper::serverError('Gagal memperbarui data akun pegawai.', $e);
+            return ResponseHelper::serverError('Gagal memperbarui data akun pengguna.', $e);
         }
     }
 
     /**
-     * Soft delete the specified employee account.
+     * Soft delete the specified user account.
      */
     public function destroy(Request $request, string $uuid): JsonResponse|RedirectResponse
     {
+        /** @var User $authUser */
+        $authUser = $request->user()->load('role');
+
+        if (! $this->isAuthorizedRole($authUser)) {
+            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk menghapus akun pengguna.');
+        }
+
         try {
-            $this->service->delete($uuid, $request->user());
+            $this->service->delete($uuid, $authUser);
 
             return ResponseHelper::success(
-                'Akun pegawai berhasil dinonaktifkan.',
+                'Akun pengguna berhasil dinonaktifkan.',
                 null,
                 route('manajemen.pengguna.index')
             );
         } catch (ModelNotFoundException) {
-            return ResponseHelper::notFound('Akun pegawai tidak ditemukan.');
+            return ResponseHelper::notFound('Akun pengguna tidak ditemukan.');
         } catch (ValidationException $e) {
             return ResponseHelper::validationError($e->errors());
         } catch (Throwable $e) {
-            return ResponseHelper::serverError('Gagal menghapus data akun pegawai.', $e);
+            return ResponseHelper::serverError('Gagal menghapus data akun pengguna.', $e);
         }
+    }
+
+    /**
+     * Check whether the user's role is allowed to access the Manajemen Pengguna feature.
+     */
+    private function isAuthorizedRole(User $user): bool
+    {
+        return in_array($user->role?->nama_role, ['superadmin', 'manajemen', 'owner'], true);
     }
 }

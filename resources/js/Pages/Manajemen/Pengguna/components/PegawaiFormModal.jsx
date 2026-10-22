@@ -106,7 +106,7 @@ export function PegawaiFormModal({
         }
 
         if (!data.role) {
-            setError('role', 'Role pegawai (Buyer atau QC Gudang) wajib dipilih.');
+            setError('role', 'Role pengguna wajib dipilih.');
             hasError = true;
         }
 
@@ -158,12 +158,12 @@ export function PegawaiFormModal({
                             </div>
                             <div>
                                 <DialogTitle className="text-lg font-bold">
-                                    {isEdit ? 'Ubah Akun Pegawai Internal' : 'Tambah Pegawai Internal Baru'}
+                                    {isEdit ? 'Ubah Akun Pengguna' : 'Tambah Pengguna Baru'}
                                 </DialogTitle>
                                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                                     {isEdit
-                                        ? 'Perbarui informasi profil, akses peran, atau setel ulang kata sandi pegawai.'
-                                        : 'Buat akun akses untuk tim Buyer atau QC Gudang dengan kredensial awal.'}
+                                        ? 'Perbarui informasi profil, akses peran, atau setel ulang kata sandi pengguna.'
+                                        : 'Buat akun akses pengguna baru dengan kredensial awal.'}
                                 </DialogDescription>
                             </div>
                         </div>
@@ -254,7 +254,7 @@ export function PegawaiFormModal({
                                     aria-invalid={Boolean(errors.role)}
                                     className={cn('h-9 text-sm w-full', errors.role && 'border-destructive focus-visible:ring-destructive')}
                                 >
-                                    <SelectValue placeholder="Pilih Role (Buyer atau QC Gudang)" />
+                                    <SelectValue placeholder="Pilih Role Pengguna" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {role_options.map((opt) => (

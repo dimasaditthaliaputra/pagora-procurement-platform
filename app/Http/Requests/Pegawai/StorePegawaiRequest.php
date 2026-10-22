@@ -34,7 +34,8 @@ class StorePegawaiRequest extends FormRequest
                 'max:150',
                 Rule::unique('users', 'email')->whereNull('deleted_at'),
             ],
-            'role' => ['required', 'string', 'in:buyer,qc_gudang'],
+            // Role authorization (which roles are allowed per creator) is enforced in PegawaiService::create()
+            'role' => ['required', 'string', 'in:superadmin,owner,manajemen,buyer,qc_gudang,vendor'],
         ];
     }
 
@@ -53,8 +54,8 @@ class StorePegawaiRequest extends FormRequest
             'email.email' => 'Format email pegawai tidak valid.',
             'email.max' => 'Email maksimal 150 karakter.',
             'email.unique' => 'Email sudah terdaftar dalam sistem.',
-            'role.required' => 'Role pegawai wajib dipilih.',
-            'role.in' => 'Role pegawai yang dipilih harus Buyer atau QC Gudang.',
+            'role.required' => 'Role pengguna wajib dipilih.',
+            'role.in' => 'Role yang dipilih tidak valid.',
         ];
     }
 }

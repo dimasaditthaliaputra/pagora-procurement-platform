@@ -46,6 +46,24 @@ function getRoleBadge(role) {
                     {roleLabel}
                 </Badge>
             );
+        case 'owner':
+            return (
+                <Badge variant="outline" className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30 font-medium">
+                    {roleLabel}
+                </Badge>
+            );
+        case 'manajemen':
+            return (
+                <Badge variant="outline" className="bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/30 font-medium">
+                    {roleLabel}
+                </Badge>
+            );
+        case 'vendor':
+            return (
+                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 font-medium">
+                    {roleLabel}
+                </Badge>
+            );
         default:
             return (
                 <Badge variant="secondary" className="font-medium">

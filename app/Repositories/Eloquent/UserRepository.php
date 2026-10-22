@@ -57,10 +57,12 @@ class UserRepository implements UserRepositoryInterface
             'email',
             'avatar',
             'role_id',
+            'vendor_id',
             'status_aktif',
             'created_at',
             'updated_at',
-        ]
+        ],
+        ?int $vendorId = null
     ): LengthAwarePaginator {
         $sort = in_array($filters['sort'] ?? null, self::SORTABLE, true)
             ? (string) $filters['sort']
@@ -73,9 +75,21 @@ class UserRepository implements UserRepositoryInterface
         return User::query()
             ->select($columns)
             ->with('role')
-            ->whereNull('vendor_id')
-            ->whereHas('role', function ($q): void {
-                $q->whereIn('nama_role', ['buyer', 'qc_gudang', 'superadmin']);
+            ->when($vendorId !== null, function ($query) use ($vendorId): void {
+                // Scope to specific vendor's users only
+                $query->where('vendor_id', $vendorId);
+            }, function ($query) use ($filters): void {
+                // If filtering specifically by vendor, query vendor accounts; otherwise query internal accounts
+                if (($filters['role'] ?? null) === 'vendor') {
+                    $query->whereHas('role', function ($q): void {
+                        $q->where('nama_role', 'vendor');
+                    });
+                } else {
+                    $query->whereNull('vendor_id')
+                        ->whereHas('role', function ($q): void {
+                            $q->whereIn('nama_role', ['superadmin', 'owner', 'manajemen', 'buyer', 'qc_gudang']);
+                        });
+                }
             })
             ->when(! empty($filters['search']), function ($query) use ($filters, $like): void {
                 $term = '%'.trim((string) $filters['search']).'%';

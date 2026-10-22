@@ -57,10 +57,12 @@ interface UserRepositoryInterface
             'email',
             'avatar',
             'role_id',
+            'vendor_id',
             'status_aktif',
             'created_at',
             'updated_at',
-        ]
+        ],
+        ?int $vendorId = null
     ): LengthAwarePaginator;
 
     /**

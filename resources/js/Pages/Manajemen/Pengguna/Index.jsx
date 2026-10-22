@@ -187,12 +187,18 @@ export default function PenggunaIndex({
         setDeleteDialogOpen(true);
     };
 
-    // <-- Memoized options untuk Combobox Role -->
-    const roleComboboxOptions = useMemo(() => [
-        { value: 'all', label: 'Semua Role' },
-        ...role_options.map((opt) => ({ value: opt.value, label: opt.label })),
-        { value: 'superadmin', label: 'Superadmin' }, // Tambahan opsi superadmin seperti sebelumnya
-    ], [role_options]);
+    // Memoized options untuk Combobox Filter Role
+    const roleComboboxOptions = useMemo(() => {
+        const options = [{ value: 'all', label: 'Semua Role' }];
+        const seen = new Set(['all']);
+        for (const opt of role_options) {
+            if (!seen.has(opt.value)) {
+                seen.add(opt.value);
+                options.push({ value: opt.value, label: opt.label });
+            }
+        }
+        return options;
+    }, [role_options]);
 
     const columns = useMemo(
         () =>

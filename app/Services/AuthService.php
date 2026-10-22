@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\LoginRateLimiter;
 use Laravel\Socialite\Facades\Socialite;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -24,13 +25,17 @@ class AuthService
      */
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
-        private readonly LoginRateLimiter $limiter
+        private readonly LoginRateLimiter $limiter,
+        private readonly OtpService $otpService
     ) {}
 
     /**
      * Authenticate user with email and password.
      *
-     * @return array{success: bool, code: int, message: string, user?: User, errors?: array<string, string>}
+     * Inactive accounts that were never activated (new employees) must pass an
+     * email OTP first; the result then carries `otp_required` instead of a login.
+     *
+     * @return array{success: bool, code: int, message: string, user?: User, otp_required?: bool, errors?: array<string, string>}
      */
     public function login(LoginRequest $request): array
     {
@@ -63,7 +68,7 @@ class AuthService
             ];
         }
 
-        if (! $user->status_aktif) {
+        if (! $user->status_aktif && $user->email_verified_at !== null) {
             $this->limiter->increment($request);
 
             return [
@@ -91,6 +96,13 @@ class AuthService
         }
 
         $remember = $request->boolean('remember');
+
+        if (! $user->status_aktif) {
+            $this->limiter->clear($request);
+
+            return $this->startLoginOtp($request, $user, $remember);
+        }
+
         Auth::login($user, $remember);
         $this->limiter->clear($request);
         $request->session()->regenerate();
@@ -101,6 +113,123 @@ class AuthService
             'message' => 'Berhasil masuk ke sistem.',
             'user' => $user,
         ];
+    }
+
+    /**
+     * Describe the login OTP step waiting in this session, if any.
+     *
+     * @return array{email: string, cooldown: int}|null
+     */
+    public function pendingLoginOtp(Request $request): ?array
+    {
+        $user = $this->pendingLoginUser($request);
+
+        if (! $user) {
+            return null;
+        }
+
+        return [
+            'email' => $this->maskEmail($user->email),
+            'cooldown' => $this->otpService->cooldownRemaining(OtpService::PURPOSE_LOGIN, $user->email),
+        ];
+    }
+
+    /**
+     * Verify the login OTP, activate the account, and sign the user in.
+     *
+     * @return array{success: bool, code: int, message: string, user: User}
+     *
+     * @throws ValidationException
+     */
+    public function verifyLoginOtp(Request $request, string $code): array
+    {
+        $user = $this->pendingLoginUser($request) ?? throw ValidationException::withMessages([
+            'otp' => 'Sesi verifikasi berakhir. Silakan masuk kembali.',
+        ]);
+
+        $this->otpService->verify(OtpService::PURPOSE_LOGIN, $user->email, $code);
+
+        $this->userRepository->update($user, [
+            'status_aktif' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        $remember = (bool) $request->session()->get('login_otp.remember', false);
+        $request->session()->forget('login_otp');
+
+        Auth::login($user, $remember);
+        $request->session()->regenerate();
+
+        return [
+            'success' => true,
+            'code' => 200,
+            'message' => 'Akun berhasil diaktivasi. Selamat datang di PAGORA.',
+            'user' => $user,
+        ];
+    }
+
+    /**
+     * Send a fresh login OTP for the pending session.
+     *
+     * @throws ValidationException
+     */
+    public function resendLoginOtp(Request $request): void
+    {
+        $user = $this->pendingLoginUser($request) ?? throw ValidationException::withMessages([
+            'otp' => 'Sesi verifikasi berakhir. Silakan masuk kembali.',
+        ]);
+
+        $this->otpService->send(OtpService::PURPOSE_LOGIN, $user->email, 'otp');
+    }
+
+    /**
+     * Drop the pending login OTP step.
+     */
+    public function cancelLoginOtp(Request $request): void
+    {
+        $request->session()->forget('login_otp');
+    }
+
+    /**
+     * Park the verified-password user in the session and email the OTP.
+     *
+     * @return array{success: bool, code: int, message: string, otp_required: bool}
+     */
+    private function startLoginOtp(LoginRequest $request, User $user, bool $remember): array
+    {
+        $this->otpService->send(OtpService::PURPOSE_LOGIN, $user->email, 'email');
+
+        $request->session()->put('login_otp', [
+            'uuid' => $user->uuid,
+            'remember' => $remember,
+        ]);
+
+        return [
+            'success' => true,
+            'code' => 202,
+            'message' => 'Kode OTP telah dikirim ke email Anda.',
+            'otp_required' => true,
+        ];
+    }
+
+    private function pendingLoginUser(Request $request): ?User
+    {
+        $uuid = $request->session()->get('login_otp.uuid');
+
+        if (! is_string($uuid)) {
+            return null;
+        }
+
+        $user = $this->userRepository->findByUuid($uuid);
+
+        return $user && ! $user->status_aktif && $user->email_verified_at === null ? $user : null;
+    }
+
+    private function maskEmail(string $email): string
+    {
+        [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
+
+        return substr($local, 0, 2).str_repeat('*', max(1, strlen($local) - 2)).'@'.$domain;
     }
 
     /**
@@ -190,12 +319,16 @@ class AuthService
         }
 
         if (! $user->status_aktif) {
+            $needsActivation = $user->email_verified_at === null;
+
             return [
                 'success' => false,
                 'code' => 403,
-                'message' => 'Akun dinonaktifkan.',
+                'message' => $needsActivation ? 'Akun belum diaktivasi.' : 'Akun dinonaktifkan.',
                 'errors' => [
-                    'google' => 'Akun Anda dinonaktifkan. Silakan hubungi administrator.',
+                    'google' => $needsActivation
+                        ? 'Akun Anda belum diaktivasi. Masuk dengan email dan kata sandi untuk verifikasi OTP.'
+                        : 'Akun Anda dinonaktifkan. Silakan hubungi administrator.',
                 ],
             ];
         }

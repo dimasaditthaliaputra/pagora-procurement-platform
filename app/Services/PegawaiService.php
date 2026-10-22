@@ -105,7 +105,9 @@ class PegawaiService
                 'email' => strtolower(trim((string) $data['email'])),
                 'password' => Hash::make($defaultPassword),
                 'role_id' => $role->id,
-                'status_aktif' => true,
+                // Stays inactive until the employee passes the first-login OTP.
+                'status_aktif' => false,
+                'email_verified_at' => null,
             ]);
 
             $roleLabel = self::INTERNAL_ROLES[$roleName] ?? ucfirst($roleName);

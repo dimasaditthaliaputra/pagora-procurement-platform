@@ -1,4 +1,5 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, useHttp } from '@inertiajs/react';
+import { useState } from 'react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -7,6 +8,8 @@ import { Combobox } from '@/Components/combobox';
 import { FileDropzone } from '@/Components/file-dropzone';
 import { LoadingButton } from '@/Components/loading-button';
 import { FlashHandler } from '@/Components/flash-handler';
+import { OtpField, OTP_LENGTH } from '@/Components/otp-field';
+import { useCountdown } from '@/hooks/use-countdown';
 import { Toaster } from '@/Components/ui/sonner';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
@@ -26,8 +29,13 @@ export default function RegisterVendor({ kategori_options = [], status }) {
         no_telepon: '',
         kategori_komoditas: '',
         alamat: '',
+        otp: '',
         dokumen_legalitas: null,
     });
+
+    const [otpSent, setOtpSent] = useState(false);
+    const resend = useCountdown();
+    const otpRequest = useHttp({ email_kontak: '' });
 
     const categories = kategori_options.length > 0 ? kategori_options : [
         'Agroindustri & Pangan',
@@ -40,6 +48,35 @@ export default function RegisterVendor({ kategori_options = [], status }) {
         'Tekstil & Kemasan',
         'Lainnya',
     ];
+
+    const sendOtp = () => {
+        const email = data.email_kontak.trim();
+
+        if (!email) {
+            setError('email_kontak', 'Email bisnis wajib diisi.');
+            notify.validationFailed();
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setError('email_kontak', 'Format email bisnis tidak valid.');
+            notify.validationFailed();
+            return;
+        }
+
+        clearErrors('email_kontak', 'otp');
+        otpRequest.transform(() => ({ email_kontak: email }));
+        otpRequest.post('/register/vendor/otp', {
+            onSuccess: () => {
+                setOtpSent(true);
+                resend.start(60);
+                notify.success('Kode OTP telah dikirim ke email bisnis Anda.');
+            },
+            onError: (errs) => {
+                setError('email_kontak', errs.email_kontak ?? 'Gagal mengirim kode OTP.');
+                notify.validationFailed();
+            },
+        });
+    };
 
     const validate = () => {
         let hasError = false;
@@ -77,6 +114,14 @@ export default function RegisterVendor({ kategori_options = [], status }) {
             hasError = true;
         }
 
+        if (!otpSent) {
+            setError('otp', 'Verifikasi email terlebih dahulu dengan menekan "Kirim Kode OTP".');
+            hasError = true;
+        } else if (data.otp.length !== OTP_LENGTH) {
+            setError('otp', `Kode OTP harus terdiri dari ${OTP_LENGTH} digit angka.`);
+            hasError = true;
+        }
+
         if (!data.dokumen_legalitas) {
             setError('dokumen_legalitas', 'Dokumen legalitas (NPWP/SIUP) wajib diunggah.');
             hasError = true;
@@ -104,6 +149,8 @@ export default function RegisterVendor({ kategori_options = [], status }) {
             },
             onSuccess: () => {
                 reset();
+                setOtpSent(false);
+                resend.start(0);
             },
         });
     };
@@ -244,6 +291,12 @@ export default function RegisterVendor({ kategori_options = [], status }) {
                                     onChange={(e) => {
                                         setData('email_kontak', e.target.value);
                                         clearErrors('email_kontak');
+                                        if (otpSent) {
+                                            // The OTP belongs to the previous address.
+                                            setOtpSent(false);
+                                            setData('otp', '');
+                                            resend.start(0);
+                                        }
                                     }}
                                     aria-invalid={!!errors.email_kontak}
                                     className={cn('h-10 w-full', errors.email_kontak && 'border-destructive focus-visible:ring-destructive')}
@@ -280,6 +333,48 @@ export default function RegisterVendor({ kategori_options = [], status }) {
                                     </p>
                                 )}
                             </div>
+                        </div>
+
+                        {/* Verifikasi Email (OTP) */}
+                        <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div className="text-sm">
+                                    <p className="font-semibold text-foreground">Verifikasi Email Bisnis</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        Kami kirim kode 6 digit untuk memastikan email di atas aktif dan milik Anda.
+                                    </p>
+                                </div>
+                                <LoadingButton
+                                    type="button"
+                                    variant="outline"
+                                    onClick={sendOtp}
+                                    loading={otpRequest.processing}
+                                    loadingText="Mengirim..."
+                                    disabled={processing || resend.seconds > 0}
+                                    className="shrink-0"
+                                >
+                                    {resend.seconds > 0
+                                        ? `Kirim ulang (${resend.seconds}d)`
+                                        : otpSent ? 'Kirim Ulang Kode' : 'Kirim Kode OTP'}
+                                </LoadingButton>
+                            </div>
+                            {otpSent && (
+                                <OtpField
+                                    value={data.otp}
+                                    onChange={(value) => {
+                                        setData('otp', value);
+                                        clearErrors('otp');
+                                    }}
+                                    error={errors.otp}
+                                    disabled={processing}
+                                />
+                            )}
+                            {!otpSent && errors.otp && (
+                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
+                                    <AlertCircle className="size-3.5 shrink-0" />
+                                    <span>{errors.otp}</span>
+                                </p>
+                            )}
                         </div>
 
                         {/* Alamat Lengkap */}

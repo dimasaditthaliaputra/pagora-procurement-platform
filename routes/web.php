@@ -19,6 +19,11 @@ Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'login'])->name('login');
     Route::post('/login', [AuthController::class, 'storeAuth'])->name('login.store');
 
+    // Account activation OTP (first login of a new employee)
+    Route::post('/login/otp', [AuthController::class, 'verifyLoginOtp'])->middleware('throttle:10,1')->name('login.otp.verify');
+    Route::post('/login/otp/resend', [AuthController::class, 'resendLoginOtp'])->middleware('throttle:6,1')->name('login.otp.resend');
+    Route::delete('/login/otp', [AuthController::class, 'cancelLoginOtp'])->name('login.otp.cancel');
+
     Route::get('/register', [AuthController::class, 'register'])->name('register');
     Route::post('/register', [AuthController::class, 'storeRegister'])->name('register.store');
 
@@ -26,6 +31,7 @@ Route::middleware('guest')->group(function () {
     Route::prefix('register/vendor')->name('register.vendor')->group(function () {
         Route::get('/', [VendorRegistrationController::class, 'create']);
         Route::post('/', [VendorRegistrationController::class, 'store'])->name('.store');
+        Route::post('/otp', [VendorRegistrationController::class, 'sendOtp'])->middleware('throttle:6,1')->name('.otp');
     });
 
     Route::redirect('/register-vendor', '/register/vendor');

@@ -10,6 +10,7 @@ use App\Repositories\Contracts\VendorRepositoryInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class VendorRegistrationService
@@ -33,16 +34,40 @@ class VendorRegistrationService
 
     public function __construct(
         private readonly VendorRepositoryInterface $vendorRepository,
-        private readonly DokumenLegalitasVendorRepositoryInterface $dokumenRepository
+        private readonly DokumenLegalitasVendorRepositoryInterface $dokumenRepository,
+        private readonly OtpService $otpService
     ) {}
+
+    /**
+     * Email a one-time code to prove the contact email is real.
+     *
+     * @throws ValidationException
+     */
+    public function sendEmailOtp(string $email): void
+    {
+        $this->otpService->send(
+            OtpService::PURPOSE_VENDOR_REGISTRATION,
+            strtolower(trim($email)),
+            'email_kontak'
+        );
+    }
 
     /**
      * Register a new vendor candidate and its legal document.
      *
      * @param array<string, mixed> $data
+     *
+     * @throws ValidationException when the email OTP is wrong or expired
      */
     public function register(array $data): Vendor
     {
+        $this->otpService->verify(
+            OtpService::PURPOSE_VENDOR_REGISTRATION,
+            strtolower(trim((string) $data['email_kontak'])),
+            (string) ($data['otp'] ?? '')
+        );
+        unset($data['otp']);
+
         return DB::transaction(function () use ($data): Vendor {
             $file = $data['dokumen_legalitas'] ?? null;
             $documentPath = null;

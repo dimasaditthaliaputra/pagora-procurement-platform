@@ -37,6 +37,7 @@ class StoreVendorRegistrationRequest extends FormRequest
             'no_telepon' => ['required', 'string', 'max:30'],
             'alamat' => ['required', 'string', 'max:1000'],
             'kategori_komoditas' => ['required', 'string', 'max:100'],
+            'otp' => ['required', 'digits:6'],
             'dokumen_legalitas' => [
                 'required',
                 'file',
@@ -74,6 +75,9 @@ class StoreVendorRegistrationRequest extends FormRequest
             'kategori_komoditas.required' => 'Kategori komoditas wajib dipilih.',
             'kategori_komoditas.string' => 'Kategori komoditas tidak valid.',
             'kategori_komoditas.max' => 'Kategori komoditas maksimal 100 karakter.',
+
+            'otp.required' => 'Kode OTP wajib diisi.',
+            'otp.digits' => 'Kode OTP harus terdiri dari 6 digit angka.',
 
             'dokumen_legalitas.required' => 'Dokumen legalitas (NPWP/SIUP) wajib diunggah.',
             'dokumen_legalitas.file' => 'Dokumen legalitas harus berupa file yang valid.',

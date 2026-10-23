@@ -4,12 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
+import Snap from 'lenis/snap';
 import {
     ArrowRight,
     Check,
     ChevronDown,
 } from 'lucide-react';
 import { Badge } from '@/Components/ui/badge';
+import { ContainerScroll } from '@/Components/ui/container-scroll-animation';
 import Navbar from '@/Components/Navbar';
 import Footer from '@/Components/Footer';
 import ScrollPath from '@/Components/ScrollPath';
@@ -61,6 +63,8 @@ export default function Home() {
     const [monthlySpend, setMonthlySpend] = useState(1500);
     const [isLoading, setIsLoading] = useState(true);
     const lenisRef = useRef(null);
+    const snapRef = useRef(null);
+    const pageRef = useRef(null);
     const headlineRef = useRef(null);
     const descRef = useRef(null);
     const heroCtaRef = useRef(null);
@@ -76,9 +80,69 @@ export default function Home() {
         });
         lenisRef.current = lenis;
 
+        const snap = new Snap(lenis, {
+            type: 'proximity',
+            distanceThreshold: '50%',
+            debounce: 200,
+            duration: 0.9,
+            easing: (t) => 1 - Math.pow(1 - t, 3),
+        });
+        snapRef.current = snap;
+
         if (isLoading) {
             lenis.stop();
+            snap.stop();
         }
+
+        // Snap points: the top of every section, the bottom edge of sections taller
+        // than the viewport, and one point per viewport inside GSAP pin spacers
+        // (so each pinned feature card lands exactly in place).
+        let removeSnapPoints = [];
+        const computeSnapPoints = () => {
+            removeSnapPoints.forEach((remove) => remove());
+            if (!pageRef.current) return;
+
+            const vh = window.innerHeight;
+            const sections = pageRef.current.querySelectorAll(
+                ':scope > section, :scope > .pin-spacer > section, :scope > footer'
+            );
+            const points = [];
+
+            sections.forEach((section) => {
+                const spacer = section.parentElement.classList.contains('pin-spacer')
+                    ? section.parentElement
+                    : null;
+                const box = spacer ?? section;
+                const top = box.getBoundingClientRect().top + window.scrollY;
+                const height = box.offsetHeight;
+
+                points.push(top);
+
+                if (spacer) {
+                    const steps = Math.round((height - section.offsetHeight) / vh);
+                    for (let i = 1; i <= steps; i++) points.push(top + i * vh);
+                }
+
+                if (height > vh) points.push(top + height - vh);
+            });
+
+            const values = points
+                .map((value) => Math.round(Math.min(Math.max(value, 0), lenis.limit)))
+                .sort((a, b) => a - b)
+                .filter((value, i, arr) => i === 0 || value - arr[i - 1] > 4);
+
+            removeSnapPoints = values.map((value) => snap.add(value));
+        };
+
+        computeSnapPoints();
+        ScrollTrigger.addEventListener('refresh', computeSnapPoints);
+
+        let resizeTimeout;
+        const resizeObserver = new ResizeObserver(() => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(computeSnapPoints, 150);
+        });
+        if (pageRef.current) resizeObserver.observe(pageRef.current);
 
         lenis.on('scroll', ScrollTrigger.update);
 
@@ -105,6 +169,10 @@ export default function Home() {
         return () => {
             ctx.revert();
             gsap.ticker.remove(updateTicker);
+            ScrollTrigger.removeEventListener('refresh', computeSnapPoints);
+            resizeObserver.disconnect();
+            clearTimeout(resizeTimeout);
+            snap.destroy();
             lenis.destroy();
             ScrollTrigger.getAll().forEach((t) => t.kill());
         };
@@ -113,6 +181,9 @@ export default function Home() {
     const handleStartReveal = () => {
         if (lenisRef.current) {
             lenisRef.current.start();
+        }
+        if (snapRef.current) {
+            snapRef.current.start();
         }
 
         const headlineEl = headlineRef.current;
@@ -177,7 +248,7 @@ export default function Home() {
     };
 
     return (
-        <div className="landing-page min-h-screen bg-cream-paper text-ink-black font-inter selection:bg-fresh-grass/30 selection:text-ink-black relative">
+        <div ref={pageRef} className="landing-page min-h-screen bg-cream-paper text-ink-black font-inter selection:bg-fresh-grass/30 selection:text-ink-black relative">
             <Head>
                 <title>PAGORA — Sistem E-Procurement B2B Berbasis Harga Referensi & 3-Way Matching</title>
                 <meta
@@ -239,6 +310,30 @@ export default function Home() {
                     <span className="text-micro uppercase tracking-widest font-medium">Scroll</span>
                     <ChevronDown className="w-4 h-4 animate-bounce" />
                 </div>
+            </section>
+
+            {/* ═══════ PRODUCT PREVIEW — Scroll Animation ═══════ */}
+            <section id="preview" className="flex flex-col overflow-hidden bg-cream-paper">
+                <ContainerScroll
+                    titleComponent={
+                        <h2 className="text-3xl font-semibold text-ink-black md:text-4xl">
+                            Pantau seluruh pengadaan dalam <br />
+                            <span className="mt-1 text-4xl font-bold leading-none md:text-[6rem]">
+                                Satu Dasbor
+                            </span>
+                        </h2>
+                    }
+                >
+                    <img
+                        src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1400&h=720&q=80"
+                        alt="Dasbor analitik pengadaan PAGORA"
+                        height={720}
+                        width={1400}
+                        className="mx-auto h-full w-full rounded-2xl object-cover object-left-top"
+                        draggable={false}
+                        loading="lazy"
+                    />
+                </ContainerScroll>
             </section>
 
             {/* ═══════ PROBLEMS — Stacked Cards ═══════ */}

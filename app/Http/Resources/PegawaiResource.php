@@ -26,7 +26,7 @@ class PegawaiResource extends JsonResource
             'uuid' => $this->uuid,
             'nama_lengkap' => $this->nama_lengkap,
             'email' => $this->email,
-            'avatar' => $this->avatar,
+            'avatar' => $this->avatar_url,
             'role' => [
                 'name' => $roleName,
                 'label' => match ($roleName) {

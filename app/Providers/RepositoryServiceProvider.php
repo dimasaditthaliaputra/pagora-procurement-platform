@@ -6,10 +6,12 @@ namespace App\Providers;
 
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
 use App\Repositories\Contracts\KomoditasRepositoryInterface;
+use App\Repositories\Contracts\PengaturanRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Contracts\VendorRepositoryInterface;
 use App\Repositories\Eloquent\DokumenLegalitasVendorRepository;
 use App\Repositories\Eloquent\KomoditasRepository;
+use App\Repositories\Eloquent\PengaturanRepository;
 use App\Repositories\Eloquent\UserRepository;
 use App\Repositories\Eloquent\VendorRepository;
 use Illuminate\Support\ServiceProvider;
@@ -39,6 +41,11 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             DokumenLegalitasVendorRepositoryInterface::class,
             DokumenLegalitasVendorRepository::class
+        );
+
+        $this->app->bind(
+            PengaturanRepositoryInterface::class,
+            PengaturanRepository::class
         );
     }
 

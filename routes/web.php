@@ -7,6 +7,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\KomoditasController;
 use App\Http\Controllers\PegawaiController;
+use App\Http\Controllers\PengaturanController;
+use App\Http\Controllers\ProfilController;
+use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\VendorRegistrationController;
 use App\Http\Controllers\VerifikasiDokumenController;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +53,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+    // Profil Saya Routes (every signed-in user, own account only)
+    Route::controller(ProfilController::class)
+        ->prefix('profil')
+        ->name('profil.')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::put('/', 'update')->name('update');
+            Route::put('/password', 'updatePassword')->middleware('throttle:6,1')->name('password.update');
+        });
+
     // Master Komoditas Routes
     Route::controller(KomoditasController::class)
         ->prefix('master/komoditas')
@@ -61,6 +74,18 @@ Route::middleware('auth')->group(function () {
             Route::get('/{uuid}/edit', 'edit')->whereUuid('uuid')->name('edit');
             Route::put('/{uuid}', 'update')->whereUuid('uuid')->name('update');
             Route::delete('/{uuid}', 'destroy')->whereUuid('uuid')->name('destroy');
+        });
+
+    // Purchase Order & Negosiasi Routes (frontend prototype, mock data)
+    Route::controller(PurchaseOrderController::class)
+        ->prefix('purchase-order')
+        ->name('purchase-order.')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/create', 'create')->name('create');
+            Route::get('/{uuid}', 'show')->whereUuid('uuid')->name('show');
+            Route::get('/{uuid}/edit', 'edit')->whereUuid('uuid')->name('edit');
+            Route::get('/{uuid}/negosiasi', 'negosiasi')->whereUuid('uuid')->name('negosiasi');
         });
 
     // Manajemen Pengguna (Internal Perusahaan) Routes
@@ -95,4 +120,17 @@ Route::middleware('auth')->group(function () {
         });
 
     Route::redirect('/superadmin/verifikasi-dokumen', '/master/vendor/verifikasi-dokumen');
+
+    // Pengaturan Aplikasi Routes (Superadmin Only)
+    Route::middleware('superadmin')
+        ->prefix('pengaturan')
+        ->name('pengaturan.')
+        ->controller(PengaturanController::class)
+        ->group(function () {
+            Route::redirect('/', '/pengaturan/profil')->name('index');
+            Route::get('/profil', 'profil')->name('profil');
+            Route::post('/profil', 'updateProfil')->name('profil.update');
+            Route::get('/integrasi', 'integrasi')->name('integrasi');
+            Route::put('/integrasi', 'updateIntegrasi')->name('integrasi.update');
+        });
 });

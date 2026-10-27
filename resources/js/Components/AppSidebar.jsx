@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
-import { useTheme } from 'next-themes';
 import {
     Sidebar,
     SidebarContent,
@@ -22,9 +21,6 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-    DropdownMenuSub,
-    DropdownMenuSubTrigger,
-    DropdownMenuSubContent,
 } from '@/Components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
 import { Button } from '@/Components/ui/button';
@@ -50,10 +46,6 @@ import {
     Search,
     ChevronsUpDown,
     X,
-    Sun,
-    Moon,
-    Monitor,
-    Check,
 } from 'lucide-react';
 import Logo from '../../assets/logo/logo.webp';
 
@@ -62,7 +54,7 @@ const mainNavItems = [
     { title: 'Pengadaan', icon: ShoppingCart, href: '#', badge: 'Baru' },
     { title: 'Katalog Produk', icon: Package, href: '#' },
     { title: 'Vendor', icon: Building2, href: '#' },
-    { title: 'Purchase Order', icon: FileText, href: '#' },
+    { title: 'Purchase Order', icon: FileText, href: '/purchase-order', routeName: 'purchase-order' },
     { title: 'Pengiriman', icon: Truck, href: '#' },
 ];
 
@@ -78,7 +70,7 @@ const managementNavItems = [
     { title: 'Laporan', icon: BarChart3, href: '#' },
     { title: 'Notifikasi', icon: Bell, href: '#' },
     { title: 'Pengguna', icon: Users, href: '/manajemen/pengguna', routeName: 'manajemen.pengguna.index' },
-    { title: 'Pengaturan', icon: Settings, href: '#' },
+    { title: 'Pengaturan', icon: Settings, href: '/pengaturan/profil', routeName: 'pengaturan' },
 ];
 
 function getRoleName(roleId) {
@@ -97,8 +89,8 @@ function getInitials(name) {
 }
 
 export function AppSidebar({ className, ...props }) {
-    const { user } = usePage().props;
-    const { theme, setTheme } = useTheme();
+    const { user, aplikasi } = usePage().props;
+    const namaAplikasi = aplikasi?.nama || 'PAGORA';
     const [searchQuery, setSearchQuery] = useState('');
 
     const handleLogout = () => {
@@ -133,15 +125,17 @@ export function AppSidebar({ className, ...props }) {
                         className="group/logo flex items-center gap-2.5 min-w-0 outline-none"
                     >
                         <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-white shadow-2xs border border-white/20 p-1.5 shrink-0 transition-transform duration-200 group-hover/logo:scale-105">
-                            <img src={Logo} alt="Logo PAGORA" className="size-full object-contain" />
+                            <img src={aplikasi?.logo_url || Logo} alt={`Logo ${namaAplikasi}`} className="size-full object-contain" />
                         </div>
                         <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                             <span className="truncate font-bold tracking-tight text-white text-base">
-                                PAGORA
+                                {namaAplikasi}
                             </span>
-                            <span className="truncate text-[11px] text-zinc-400 font-medium">
-                                E-Procurement
-                            </span>
+                            {aplikasi?.tagline && (
+                                <span className="truncate text-[11px] text-zinc-400 font-medium">
+                                    {aplikasi.tagline}
+                                </span>
+                            )}
                         </div>
                     </Link>
 
@@ -264,7 +258,7 @@ export function AppSidebar({ className, ...props }) {
                 )}
             </SidebarContent>
 
-            {/* Footer: User Profile Card & Dropdown with Theme Changer */}
+            {/* Footer: User Profile Card & Account Dropdown */}
             <SidebarFooter className="mt-auto border-t border-zinc-800/80 p-3">
                 <SidebarMenu>
                     <SidebarMenuItem>
@@ -275,7 +269,7 @@ export function AppSidebar({ className, ...props }) {
                                     className="group flex h-12 w-full items-center gap-3 rounded-lg p-2 transition-all hover:bg-zinc-900 data-[state=open]:bg-zinc-900"
                                 >
                                     <Avatar className="size-9 rounded-lg border border-zinc-800 shrink-0">
-                                        <AvatarImage src={user?.avatar} alt={user?.nama_lengkap} />
+                                        <AvatarImage src={user?.avatar_url} alt={user?.nama_lengkap} />
                                         <AvatarFallback className="rounded-lg bg-zinc-800 font-bold text-white text-xs border border-zinc-700">
                                             {getInitials(user?.nama_lengkap)}
                                         </AvatarFallback>
@@ -300,7 +294,7 @@ export function AppSidebar({ className, ...props }) {
                                 <DropdownMenuLabel className="p-0 font-normal">
                                     <div className="flex items-center gap-2.5 px-2 py-2 text-left text-sm">
                                         <Avatar className="size-8 rounded-lg border border-zinc-800">
-                                            <AvatarImage src={user?.avatar} alt={user?.nama_lengkap} />
+                                            <AvatarImage src={user?.avatar_url} alt={user?.nama_lengkap} />
                                             <AvatarFallback className="rounded-lg bg-zinc-800 font-bold text-white text-xs">
                                                 {getInitials(user?.nama_lengkap)}
                                             </AvatarFallback>
@@ -316,56 +310,12 @@ export function AppSidebar({ className, ...props }) {
                                     </div>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator className="my-1 bg-zinc-800" />
-                                <DropdownMenuItem className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white">
-                                    <UserCircle className="size-4 text-zinc-400" />
-                                    Profil Saya
+                                <DropdownMenuItem asChild className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white">
+                                    <Link href="/profil">
+                                        <UserCircle className="size-4 text-zinc-400" />
+                                        Profil Saya
+                                    </Link>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white">
-                                    <Settings className="size-4 text-zinc-400" />
-                                    Pengaturan
-                                </DropdownMenuItem>
-
-                                {/* Theme Switcher Submenu */}
-                                <DropdownMenuSub>
-                                    <DropdownMenuSubTrigger className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white">
-                                        <Sun className="size-4 text-amber-500 rotate-0 scale-100 dark:-rotate-90 dark:scale-0 transition-all" />
-                                        <Moon className="absolute size-4 text-sky-400 rotate-90 scale-0 dark:rotate-0 dark:scale-100 transition-all" />
-                                        <span className="ml-0.5">Tema Tampilan</span>
-                                    </DropdownMenuSubTrigger>
-                                    <DropdownMenuSubContent className="rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 p-1 min-w-36">
-                                        <DropdownMenuItem
-                                            onClick={() => setTheme('light')}
-                                            className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <Sun className="size-3.5 text-amber-500" />
-                                                <span>Terang</span>
-                                            </div>
-                                            {theme === 'light' && <Check className="size-3 text-emerald-400" />}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            onClick={() => setTheme('dark')}
-                                            className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <Moon className="size-3.5 text-sky-400" />
-                                                <span>Gelap</span>
-                                            </div>
-                                            {theme === 'dark' && <Check className="size-3 text-emerald-400" />}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            onClick={() => setTheme('system')}
-                                            className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <Monitor className="size-3.5 text-zinc-400" />
-                                                <span>Sistem</span>
-                                            </div>
-                                            {theme === 'system' && <Check className="size-3 text-emerald-400" />}
-                                        </DropdownMenuItem>
-                                    </DropdownMenuSubContent>
-                                </DropdownMenuSub>
-
                                 <DropdownMenuSeparator className="my-1 bg-zinc-800" />
                                 <DropdownMenuItem
                                     onClick={handleLogout}

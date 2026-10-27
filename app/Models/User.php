@@ -6,8 +6,10 @@ namespace App\Models;
 
 use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Attributes\Appends;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +17,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * @property int $id
@@ -25,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property string $password
  * @property string|null $google_id
  * @property string|null $avatar
+ * @property-read string|null $avatar_url
  * @property int $role_id
  * @property int|null $perusahaan_id
  * @property int|null $vendor_id
@@ -49,6 +54,7 @@ use Illuminate\Support\Carbon;
     'status_aktif',
 ])]
 #[Hidden(['id', 'password', 'remember_token'])]
+#[Appends(['avatar_url'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -126,5 +132,21 @@ class User extends Authenticatable
     public function isSuperadmin(): bool
     {
         return $this->role()->where('nama_role', 'superadmin')->exists();
+    }
+
+    /**
+     * Public URL of the avatar. Google sign-in stores a full URL, while uploads store a public-disk path.
+     */
+    protected function avatarUrl(): Attribute
+    {
+        return Attribute::get(function (): ?string {
+            if (blank($this->avatar)) {
+                return null;
+            }
+
+            return Str::startsWith($this->avatar, ['http://', 'https://'])
+                ? $this->avatar
+                : Storage::disk('public')->url($this->avatar);
+        });
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\PengaturanService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -41,6 +42,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'user' => $request->user(),
+            'aplikasi' => fn () => app(PengaturanService::class)->profilPublik(),
             'status' => fn () => $request->session()->get('status'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success') ?? $request->session()->get('status'),

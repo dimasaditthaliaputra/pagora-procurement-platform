@@ -1,41 +1,12 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { useState } from 'react';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import { Input } from '@/Components/ui/input';
+import { ArrowLeft } from 'lucide-react';
 import { Label } from '@/Components/ui/label';
 import { LoadingButton } from '@/Components/loading-button';
+import { PasswordInput } from '@/Components/password-input';
 import { FlashHandler } from '@/Components/flash-handler';
 import { Toaster } from '@/Components/ui/sonner';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
-
-function PasswordInput({ id, value, onChange, error, disabled }) {
-    const [visible, setVisible] = useState(false);
-
-    return (
-        <div className="relative">
-            <Input
-                id={id}
-                type={visible ? 'text' : 'password'}
-                value={value}
-                onChange={onChange}
-                aria-invalid={!!error}
-                aria-describedby={error ? `${id}-error` : undefined}
-                className={cn('pr-10', error && 'border-destructive focus-visible:ring-destructive')}
-                disabled={disabled}
-            />
-            <button
-                type="button"
-                onClick={() => setVisible(!visible)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none cursor-pointer"
-                tabIndex={-1}
-                aria-label={visible ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
-            >
-                {visible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
-            </button>
-        </div>
-    );
-}
 
 export default function ResetPassword({ token, email }) {
     // The email comes from the reset link itself, not from a default value.

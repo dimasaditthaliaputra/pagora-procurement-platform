@@ -29,7 +29,7 @@ export function DetailDialog({ document, open, onOpenChange, onApprove, onReject
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <FileText className="size-5 text-emerald-600" />

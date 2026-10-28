@@ -53,7 +53,7 @@ const mainNavItems = [
     { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', routeName: 'dashboard' },
     { title: 'Pengadaan', icon: ShoppingCart, href: '#', badge: 'Baru' },
     { title: 'Katalog Produk', icon: Package, href: '#' },
-    { title: 'Vendor', icon: Building2, href: '#' },
+    { title: 'Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index' },
     { title: 'Purchase Order', icon: FileText, href: '/purchase-order', routeName: 'purchase-order' },
     { title: 'Pengiriman', icon: Truck, href: '#' },
 ];
@@ -61,7 +61,8 @@ const mainNavItems = [
 const masterNavItems = [
     { title: 'Komoditas', icon: Boxes, href: '/master/komoditas', routeName: 'master.komoditas.index', badge: 'Utama' },
     { title: 'Harga Referensi & Pagu', icon: TrendingUp, href: '#' },
-    { title: 'Data Vendor', icon: Building2, href: '/master/vendor/verifikasi-dokumen', routeName: 'master.vendor.verifikasi-dokumen.index' },
+    { title: 'Data Rekanan Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index' },
+    { title: 'Verifikasi Legalitas', icon: ShieldCheck, href: '/master/vendor/verifikasi-dokumen', routeName: 'master.vendor.verifikasi-dokumen.index' },
     { title: 'Role & Akses', icon: ShieldCheck, href: '#' },
 ];
 

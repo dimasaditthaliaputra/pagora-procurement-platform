@@ -10,6 +10,7 @@ use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\PengaturanController;
 use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorRegistrationController;
 use App\Http\Controllers\VerifikasiDokumenController;
 use Illuminate\Support\Facades\Route;
@@ -101,6 +102,16 @@ Route::middleware('auth')->group(function () {
         });
 
     Route::redirect('/manajemen/internal-perusahaan', '/manajemen/pengguna');
+
+    // Master Vendor & Pemblokiran Rekanan
+    Route::controller(VendorController::class)
+        ->prefix('master/vendor')
+        ->name('master.vendor.')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/{uuid}/blokir', 'blokir')->whereUuid('uuid')->name('blokir');
+            Route::post('/{uuid}/buka-blokir', 'bukaBlokir')->whereUuid('uuid')->name('buka-blokir');
+        });
 
     // Master Vendor Legal Document Verification Routes (Superadmin Only)
     Route::middleware('superadmin')

@@ -131,7 +131,25 @@ class User extends Authenticatable
      */
     public function isSuperadmin(): bool
     {
-        return $this->role()->where('nama_role', 'superadmin')->exists();
+        return $this->role?->nama_role === 'superadmin'
+            || $this->role()->where('nama_role', 'superadmin')->exists();
+    }
+
+    /**
+     * Determine whether the user is in the manajemen role.
+     */
+    public function isManajemen(): bool
+    {
+        return $this->role?->nama_role === 'manajemen'
+            || $this->role()->where('nama_role', 'manajemen')->exists();
+    }
+
+    /**
+     * Determine whether the user can manage vendors (superadmin or manajemen).
+     */
+    public function canManageVendors(): bool
+    {
+        return $this->isSuperadmin() || $this->isManajemen();
     }
 
     /**

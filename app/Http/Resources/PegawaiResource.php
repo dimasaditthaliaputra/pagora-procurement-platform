@@ -21,6 +21,21 @@ class PegawaiResource extends JsonResource
     public function toArray(Request $request): array
     {
         $roleName = $this->role?->nama_role;
+        $perusahaan = null;
+
+        if ($this->perusahaanBuyer !== null) {
+            $perusahaan = [
+                'uuid' => $this->perusahaanBuyer->uuid,
+                'nama' => $this->perusahaanBuyer->nama_perusahaan,
+                'tipe' => 'buyer',
+            ];
+        } elseif ($this->vendor !== null) {
+            $perusahaan = [
+                'uuid' => $this->vendor->uuid,
+                'nama' => $this->vendor->nama_perusahaan,
+                'tipe' => 'vendor',
+            ];
+        }
 
         return [
             'uuid' => $this->uuid,
@@ -40,6 +55,7 @@ class PegawaiResource extends JsonResource
                 },
                 'deskripsi' => $this->role?->deskripsi,
             ],
+            'perusahaan' => $perusahaan,
             'status_aktif' => (bool) $this->status_aktif,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

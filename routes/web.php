@@ -109,6 +109,7 @@ Route::middleware('auth')->group(function () {
         ->name('master.vendor.')
         ->group(function () {
             Route::get('/', 'index')->name('index');
+            Route::post('/undang', 'undang')->name('undang');
             Route::post('/{uuid}/blokir', 'blokir')->whereUuid('uuid')->name('blokir');
             Route::post('/{uuid}/buka-blokir', 'bukaBlokir')->whereUuid('uuid')->name('buka-blokir');
         });

@@ -10,6 +10,7 @@ use App\Http\Requests\Auth\StoreVendorRegistrationRequest;
 use App\Services\VendorRegistrationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -24,11 +25,27 @@ class VendorRegistrationController extends Controller
     /**
      * Tampilkan formulir pendaftaran calon vendor mitra.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
-        return Inertia::render('auth/register-vendor', [
+        $invitation = null;
+        $token = $request->query('invitation');
+
+        if (is_string($token) && $token !== '') {
+            $undangan = $this->service->findValidInvitationByToken($token);
+            if ($undangan !== null) {
+                $invitation = [
+                    'token' => $undangan->token,
+                    'nama_perusahaan' => $undangan->nama_perusahaan,
+                    'email_kontak' => $undangan->email,
+                    'kategori_komoditas' => $undangan->kategori_komoditas,
+                ];
+            }
+        }
+
+        return Inertia::render('Auth/RegisterVendor', [
             'kategori_options' => VendorRegistrationService::KATEGORI_OPTIONS,
             'status' => session('status'),
+            'invitation' => $invitation,
         ]);
     }
 

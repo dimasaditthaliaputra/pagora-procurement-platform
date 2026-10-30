@@ -8,8 +8,10 @@ use App\Helpers\ResponseHelper;
 use App\Http\Requests\Vendor\BlokirVendorRequest;
 use App\Http\Requests\Vendor\BukaBlokirVendorRequest;
 use App\Http\Requests\Vendor\IndexVendorRequest;
+use App\Http\Requests\Vendor\UndangVendorRequest;
 use App\Http\Resources\VendorResource;
 use App\Models\User;
+use App\Services\VendorRegistrationService;
 use App\Services\VendorService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -57,9 +59,35 @@ class VendorController extends Controller
                     'per_page' => $perPage,
                 ],
                 'can_manage' => $user->canManageVendors(),
+                'kategori_options' => VendorRegistrationService::KATEGORI_OPTIONS,
             ]);
         } catch (Throwable $e) {
             return ResponseHelper::serverError('Gagal memuat daftar vendor.', $e);
+        }
+    }
+
+    /**
+     * Invite a new vendor partner via email.
+     */
+    public function undang(UndangVendorRequest $request): JsonResponse|RedirectResponse
+    {
+        try {
+            /** @var User $actor */
+            $actor = $request->user();
+
+            $invitation = $this->vendorService->undang(
+                $request->validated(),
+                $actor
+            );
+
+            return ResponseHelper::success(
+                "Undangan kemitraan berhasil dikirim ke {$invitation->email}.",
+                redirectTo: route('master.vendor.index')
+            );
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors(), 'Gagal mengirim undangan vendor.');
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Terjadi kesalahan saat memproses undangan vendor.', $e);
         }
     }
 

@@ -1,4 +1,4 @@
-import { MoreHorizontal, Eye, Edit, Trash2, UserCheck, UserX } from 'lucide-react';
+import { MoreHorizontal, Eye, Edit, Trash2, UserCheck, UserX, Building2, Shield } from 'lucide-react';
 import { DataTableColumnHeader } from '@/Components/data-table/data-table-column-header';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
@@ -89,14 +89,22 @@ function formatDate(isoString) {
     }
 }
 
-export function getColumns({ onSortChange, onViewDetail, onEdit, onDelete }) {
-    return [
+export function getColumns({
+    isSuperadmin = false,
+    canEditPegawai = () => true,
+    canDeletePegawai = () => true,
+    onSortChange,
+    onViewDetail,
+    onEdit,
+    onDelete,
+}) {
+    const columns = [
         {
             accessorKey: 'nama_lengkap',
             header: ({ column }) => (
                 <DataTableColumnHeader
                     column={column}
-                    title="Pegawai"
+                    title="Pengguna"
                     onSortChange={onSortChange}
                 />
             ),
@@ -122,6 +130,39 @@ export function getColumns({ onSortChange, onViewDetail, onEdit, onDelete }) {
                 );
             },
         },
+    ];
+
+    if (isSuperadmin) {
+        columns.push({
+            id: 'perusahaan',
+            header: () => <span className="text-xs font-semibold">Perusahaan</span>,
+            cell: ({ row }) => {
+                const perusahaan = row.original.perusahaan;
+                if (!perusahaan) {
+                    return (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Shield className="size-3.5 text-purple-500" />
+                            Internal Platform
+                        </span>
+                    );
+                }
+
+                return (
+                    <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                            <Building2 className="size-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate max-w-[200px]">{perusahaan.nama}</span>
+                        </span>
+                        <span className="text-[11px] text-muted-foreground capitalize pl-5">
+                            {perusahaan.tipe === 'vendor' ? 'Rekanan Vendor' : 'Perusahaan Buyer'}
+                        </span>
+                    </div>
+                );
+            },
+        });
+    }
+
+    columns.push(
         {
             accessorKey: 'role_id',
             header: ({ column }) => (
@@ -180,6 +221,9 @@ export function getColumns({ onSortChange, onViewDetail, onEdit, onDelete }) {
             header: () => <span className="sr-only">Aksi</span>,
             cell: ({ row }) => {
                 const pegawai = row.original;
+                const allowEdit = canEditPegawai(pegawai);
+                const allowDelete = canDeletePegawai(pegawai);
+
                 return (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -189,7 +233,7 @@ export function getColumns({ onSortChange, onViewDetail, onEdit, onDelete }) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuLabel>Aksi Pegawai</DropdownMenuLabel>
+                            <DropdownMenuLabel>Aksi Pengguna</DropdownMenuLabel>
                             <DropdownMenuItem
                                 onClick={() => onViewDetail(pegawai)}
                                 className="cursor-pointer"
@@ -197,25 +241,33 @@ export function getColumns({ onSortChange, onViewDetail, onEdit, onDelete }) {
                                 <Eye className="mr-2 size-4 text-muted-foreground" />
                                 Lihat Detail
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() => onEdit(pegawai)}
-                                className="cursor-pointer"
-                            >
-                                <Edit className="mr-2 size-4 text-muted-foreground" />
-                                Ubah Kredensial
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                                onClick={() => onDelete(pegawai)}
-                                className="text-destructive focus:text-destructive cursor-pointer"
-                            >
-                                <Trash2 className="mr-2 size-4" />
-                                Hapus Akun
-                            </DropdownMenuItem>
+                            {allowEdit && (
+                                <DropdownMenuItem
+                                    onClick={() => onEdit(pegawai)}
+                                    className="cursor-pointer"
+                                >
+                                    <Edit className="mr-2 size-4 text-muted-foreground" />
+                                    Ubah Kredensial
+                                </DropdownMenuItem>
+                            )}
+                            {allowDelete && (
+                                <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        onClick={() => onDelete(pegawai)}
+                                        className="text-destructive focus:text-destructive cursor-pointer"
+                                    >
+                                        <Trash2 className="mr-2 size-4" />
+                                        Hapus Akun
+                                    </DropdownMenuItem>
+                                </>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 );
             },
-        },
-    ];
+        }
+    );
+
+    return columns;
 }

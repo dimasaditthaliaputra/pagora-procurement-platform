@@ -6,6 +6,7 @@ namespace App\Repositories\Contracts;
 
 use App\Models\Vendor;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 
 interface VendorRepositoryInterface
 {
@@ -39,4 +40,11 @@ interface VendorRepositoryInterface
      * @param  array<string, mixed>  $data
      */
     public function update(Vendor $vendor, array $data): bool;
+
+    /**
+     * Retrieve all vendors ordered by company name.
+     *
+     * @return Collection<int, Vendor>
+     */
+    public function getAllOrdered(): Collection;
 }

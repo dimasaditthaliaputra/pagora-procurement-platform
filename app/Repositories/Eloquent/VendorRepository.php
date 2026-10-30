@@ -8,6 +8,7 @@ use App\Models\Vendor;
 use App\Repositories\Contracts\VendorRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 
 class VendorRepository implements VendorRepositoryInterface
 {
@@ -106,5 +107,18 @@ class VendorRepository implements VendorRepositoryInterface
     public function update(Vendor $vendor, array $data): bool
     {
         return $vendor->update($data);
+    }
+
+    /**
+     * Retrieve all vendors ordered by company name.
+     *
+     * @return Collection<int, Vendor>
+     */
+    public function getAllOrdered(): Collection
+    {
+        return $this->model->newQuery()
+            ->select(['id', 'uuid', 'nama_perusahaan', 'status_aktif'])
+            ->orderBy('nama_perusahaan')
+            ->get();
     }
 }

@@ -42,7 +42,7 @@ interface UserRepositoryInterface
     public function findByUuid(string $uuid): ?User;
 
     /**
-     * Paginate internal employees with search, role filters, and sorting.
+     * Paginate users with search, role/company filters, sorting, and tenant scoping.
      *
      * @param  array<string, mixed>  $filters
      * @param  list<string>  $columns
@@ -57,12 +57,17 @@ interface UserRepositoryInterface
             'email',
             'avatar',
             'role_id',
+            'perusahaan_id',
             'vendor_id',
             'status_aktif',
             'created_at',
             'updated_at',
         ],
-        ?int $vendorId = null
+        ?int $vendorId = null,
+        ?int $perusahaanId = null,
+        bool $isSuperadmin = false,
+        bool $unassignedOnly = false,
+        bool $forceEmpty = false
     ): LengthAwarePaginator;
 
     /**

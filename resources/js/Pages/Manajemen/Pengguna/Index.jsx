@@ -1,16 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import {
     useReactTable,
     getCoreRowModel,
 } from '@tanstack/react-table';
-import { Plus, Search, FilterX, Users2 } from 'lucide-react';
+import { Plus, Search, FilterX, Users2, Building2 } from 'lucide-react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { DataTable } from '@/Components/data-table/data-table';
 import { DataTablePagination } from '@/Components/data-table/data-table-pagination';
 import { Button } from '@/Components/ui/button';
+import { Badge } from '@/Components/ui/badge';
 import { Input } from '@/Components/ui/input';
-import { Combobox } from '@/Components/combobox'; // <-- Import Combobox
+import { Combobox } from '@/Components/combobox';
 import {
     Select,
     SelectContent,
@@ -27,8 +28,17 @@ export default function PenggunaIndex({
     pegawai,
     filters: rawFilters = {},
     role_options = [],
-    default_password = 'Pagora@2026',
+    filter_role_options = [],
+    is_superadmin = false,
+    current_perusahaan = null,
+    perusahaan_filter_options = [],
+    perusahaan_buyer_options = [],
+    vendor_options = [],
+    default_password = 'password123',
 }) {
+    const { auth, user: sharedUser } = usePage().props;
+    const currentUserUuid = auth?.user?.uuid ?? sharedUser?.uuid ?? null;
+
     const filters = Array.isArray(rawFilters) || !rawFilters ? {} : rawFilters;
     const data = pegawai?.data ?? [];
     const meta = pegawai?.meta ?? {
@@ -41,6 +51,7 @@ export default function PenggunaIndex({
     };
 
     const [search, setSearch] = useState(filters.search ?? '');
+    const [perusahaan, setPerusahaan] = useState(filters.perusahaan ?? 'all');
     const [role, setRole] = useState(filters.role ?? 'all');
     const [statusAktif, setStatusAktif] = useState(
         filters.status_aktif !== undefined && filters.status_aktif !== null && filters.status_aktif !== ''
@@ -49,14 +60,12 @@ export default function PenggunaIndex({
     );
     const [loading, setLoading] = useState(false);
 
-    // Initial sort state
     const [sorting, setSorting] = useState(
         typeof filters.sort === 'string' && filters.sort
             ? [{ id: filters.sort, desc: filters.direction === 'desc' }]
             : []
     );
 
-    // Modal states
     const [formModalOpen, setFormModalOpen] = useState(false);
     const [detailModalOpen, setDetailModalOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -64,9 +73,9 @@ export default function PenggunaIndex({
 
     const isFirstRender = useRef(true);
 
-    // Sync state with incoming props
     useEffect(() => {
         setSearch(filters.search ?? '');
+        setPerusahaan(filters.perusahaan ?? 'all');
         setRole(filters.role ?? 'all');
         setStatusAktif(
             filters.status_aktif !== undefined && filters.status_aktif !== null && filters.status_aktif !== ''
@@ -78,12 +87,13 @@ export default function PenggunaIndex({
         } else {
             setSorting([]);
         }
-    }, [filters.search, filters.role, filters.status_aktif, filters.sort, filters.direction]);
+    }, [filters.search, filters.perusahaan, filters.role, filters.status_aktif, filters.sort, filters.direction]);
 
     const applyFilters = (newFilters = {}) => {
         const activeSort = typeof sorting[0]?.id === 'string' ? sorting[0].id : undefined;
         const merged = {
             search: search.trim() || undefined,
+            perusahaan: is_superadmin && perusahaan !== 'all' ? perusahaan : undefined,
             role: role !== 'all' ? role : undefined,
             status_aktif: statusAktif !== 'all' ? statusAktif : undefined,
             sort: activeSort,
@@ -104,12 +114,12 @@ export default function PenggunaIndex({
             preserveState: true,
             preserveScroll: true,
             replace: true,
+            only: ['pegawai', 'filters'],
             onStart: () => setLoading(true),
             onFinish: () => setLoading(false),
         });
     };
 
-    // Debounced search
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -136,6 +146,12 @@ export default function PenggunaIndex({
         });
     };
 
+    const handlePerusahaanChange = (val) => {
+        const nextVal = !val || val === 'all' ? 'all' : val;
+        setPerusahaan(nextVal);
+        applyFilters({ perusahaan: nextVal !== 'all' ? nextVal : undefined, page: 1 });
+    };
+
     const handleRoleChange = (val) => {
         const nextVal = !val || val === 'all' ? 'all' : val;
         setRole(nextVal);
@@ -150,6 +166,7 @@ export default function PenggunaIndex({
 
     const handleResetFilters = () => {
         setSearch('');
+        setPerusahaan('all');
         setRole('all');
         setStatusAktif('all');
         setSorting([]);
@@ -160,13 +177,13 @@ export default function PenggunaIndex({
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
+                only: ['pegawai', 'filters'],
                 onStart: () => setLoading(true),
                 onFinish: () => setLoading(false),
             }
         );
     };
 
-    // Modal action handlers
     const handleOpenCreate = () => {
         setSelectedPegawai(null);
         setFormModalOpen(true);
@@ -187,28 +204,66 @@ export default function PenggunaIndex({
         setDeleteDialogOpen(true);
     };
 
-    // Memoized options untuk Combobox Filter Role
-    const roleComboboxOptions = useMemo(() => {
-        const options = [{ value: 'all', label: 'Semua Role' }];
-        const seen = new Set(['all']);
-        for (const opt of role_options) {
+    const assignableRoleSet = useMemo(
+        () => new Set(role_options.map((opt) => opt.value)),
+        [role_options]
+    );
+
+    const canEditPegawai = (item) => {
+        if (!item) return false;
+        if (is_superadmin) return true;
+        if (currentUserUuid && item.uuid === currentUserUuid) return true;
+        return assignableRoleSet.has(item.role?.name);
+    };
+
+    const canDeletePegawai = (item) => {
+        if (!item) return false;
+        if (currentUserUuid && item.uuid === currentUserUuid) return false;
+        if (is_superadmin) return true;
+        return assignableRoleSet.has(item.role?.name);
+    };
+
+    const perusahaanComboboxOptions = useMemo(() => {
+        const options = [
+            { value: 'all', label: 'Semua Perusahaan' },
+            { value: 'tanpa_perusahaan', label: 'Internal Platform (Tanpa Perusahaan)' },
+        ];
+        const seen = new Set(['all', 'tanpa_perusahaan']);
+        for (const opt of perusahaan_filter_options) {
             if (!seen.has(opt.value)) {
                 seen.add(opt.value);
                 options.push({ value: opt.value, label: opt.label });
             }
         }
         return options;
-    }, [role_options]);
+    }, [perusahaan_filter_options]);
+
+    const effectiveFilterRoleSource = filter_role_options.length > 0 ? filter_role_options : role_options;
+
+    const roleComboboxOptions = useMemo(() => {
+        const options = [{ value: 'all', label: 'Semua Role' }];
+        const seen = new Set(['all']);
+        for (const opt of effectiveFilterRoleSource) {
+            if (!seen.has(opt.value)) {
+                seen.add(opt.value);
+                options.push({ value: opt.value, label: opt.label });
+            }
+        }
+        return options;
+    }, [effectiveFilterRoleSource]);
 
     const columns = useMemo(
         () =>
             getColumns({
+                isSuperadmin: is_superadmin,
+                canEditPegawai,
+                canDeletePegawai,
                 onSortChange: handleSortChange,
                 onViewDetail: handleOpenDetail,
                 onEdit: handleOpenEdit,
                 onDelete: handleOpenDelete,
             }),
-        []
+        [is_superadmin, assignableRoleSet, currentUserUuid]
     );
 
     const table = useReactTable({
@@ -225,6 +280,12 @@ export default function PenggunaIndex({
         },
     });
 
+    const hasActiveFilter =
+        search.trim() !== '' ||
+        (is_superadmin && perusahaan !== 'all') ||
+        role !== 'all' ||
+        statusAktif !== 'all';
+
     const breadcrumbs = [
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Manajemen', href: '#' },
@@ -233,49 +294,77 @@ export default function PenggunaIndex({
 
     return (
         <DashboardLayout breadcrumbs={breadcrumbs}>
-            <Head title="Kelola Internal Perusahaan - PAGORA" />
+            <Head title="Manajemen Pengguna - PAGORA" />
 
             <div className="flex flex-col gap-6">
                 {/* Header Section */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2.5">
-                            <Users2 className="size-6 text-primary" />
-                            Kelola Internal Perusahaan
-                        </h1>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2.5">
+                                <Users2 className="size-6 text-primary" />
+                                {is_superadmin ? 'Manajemen Pengguna Sistem' : 'Kelola Pengguna Perusahaan'}
+                            </h1>
+                            {!is_superadmin && current_perusahaan?.nama && (
+                                <Badge variant="outline" className="gap-1.5 px-2.5 py-0.5 text-xs font-semibold bg-primary/5 border-primary/20 text-primary">
+                                    <Building2 className="size-3.5" />
+                                    {current_perusahaan.nama}
+                                </Badge>
+                            )}
+                        </div>
                         <p className="text-sm text-muted-foreground mt-1">
-                            Manajemen akun akses pegawai internal (Buyer dan QC Gudang) dengan otorisasi berbasis peran.
+                            {is_superadmin
+                                ? 'Kelola seluruh akun pengguna lintas perusahaan buyer, vendor rekanan, dan internal platform.'
+                                : current_perusahaan?.nama
+                                  ? `Kelola akun akses pengguna khusus untuk lingkungan perusahaan ${current_perusahaan.nama}.`
+                                  : 'Kelola akun akses pengguna di lingkungan perusahaan Anda.'}
                         </p>
                     </div>
-                    <div>
-                        <Button
-                            onClick={handleOpenCreate}
-                            className="gap-2 cursor-pointer shadow-sm"
-                        >
-                            <Plus className="size-4" />
-                            Tambah Pegawai Baru
-                        </Button>
-                    </div>
+                    {role_options.length > 0 && (
+                        <div>
+                            <Button
+                                onClick={handleOpenCreate}
+                                className="gap-2 cursor-pointer shadow-sm"
+                            >
+                                <Plus className="size-4" />
+                                Tambah Pengguna Baru
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Filter Toolbar */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 rounded-lg border bg-card/60 backdrop-blur-xs">
-                    <div className="flex flex-1 flex-col sm:flex-row items-center gap-3">
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 p-4 rounded-lg border bg-card/60 backdrop-blur-xs">
+                    <div className="flex flex-1 flex-col sm:flex-row flex-wrap items-center gap-3">
                         {/* Input Pencarian */}
-                        <div className="relative w-full sm:w-80">
+                        <div className="relative w-full sm:w-72">
                             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
                             <Input
-                                placeholder="Cari nama pegawai atau email..."
+                                placeholder="Cari nama pengguna atau email..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="pl-9 h-9"
                             />
                         </div>
 
-                        {/* Grup Dropdown Filter */}
-                        <div className="flex w-full sm:w-auto flex-col sm:flex-row items-center gap-3">
-                            {/* <-- Diubah menjadi Combobox --> */}
-                            <div className="w-full sm:w-56">
+                        {/* Filter Perusahaan (Hanya Superadmin) */}
+                        {is_superadmin && (
+                            <div className="w-full sm:w-64">
+                                <Combobox
+                                    options={perusahaanComboboxOptions}
+                                    value={perusahaan}
+                                    onChange={handlePerusahaanChange}
+                                    placeholder="Semua Perusahaan"
+                                    searchPlaceholder="Cari perusahaan..."
+                                    emptyMessage="Perusahaan tidak ditemukan."
+                                    className="h-9"
+                                />
+                            </div>
+                        )}
+
+                        {/* Filter Role */}
+                        {effectiveFilterRoleSource.length > 1 && (
+                            <div className="w-full sm:w-52">
                                 <Combobox
                                     options={roleComboboxOptions}
                                     value={role}
@@ -286,24 +375,25 @@ export default function PenggunaIndex({
                                     className="h-9"
                                 />
                             </div>
+                        )}
 
-                            <div className="w-full sm:w-40">
-                                <Select value={statusAktif} onValueChange={handleStatusChange}>
-                                    <SelectTrigger className="h-9">
-                                        <SelectValue placeholder="Semua Status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Semua Status</SelectItem>
-                                        <SelectItem value="true">Aktif</SelectItem>
-                                        <SelectItem value="false">Non-aktif</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                        {/* Filter Status */}
+                        <div className="w-full sm:w-40">
+                            <Select value={statusAktif} onValueChange={handleStatusChange}>
+                                <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Semua Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Status</SelectItem>
+                                    <SelectItem value="true">Aktif</SelectItem>
+                                    <SelectItem value="false">Non-aktif</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 
                     {/* Tombol Reset */}
-                    {(search.trim() !== '' || role !== 'all' || statusAktif !== 'all') && (
+                    {hasActiveFilter && (
                         <div>
                             <Button
                                 variant="ghost"
@@ -323,7 +413,7 @@ export default function PenggunaIndex({
                     <DataTable
                         table={table}
                         loading={loading}
-                        emptyMessage="Tidak ada data akun pegawai internal yang terdaftar."
+                        emptyMessage="Belum ada data pengguna yang sesuai."
                     />
 
                     <DataTablePagination
@@ -334,20 +424,26 @@ export default function PenggunaIndex({
                 </div>
             </div>
 
-            {/* Modal: Form Tambah / Ubah Pegawai */}
+            {/* Modal: Form Tambah / Ubah Pengguna */}
             <PegawaiFormModal
                 open={formModalOpen}
                 onOpenChange={setFormModalOpen}
                 pegawai={selectedPegawai}
                 role_options={role_options}
+                is_superadmin={is_superadmin}
+                current_perusahaan={current_perusahaan}
+                perusahaan_buyer_options={perusahaan_buyer_options}
+                vendor_options={vendor_options}
+                currentUserUuid={currentUserUuid}
                 default_password={default_password}
             />
 
-            {/* Modal: Detail Akun Pegawai */}
+            {/* Modal: Detail Akun Pengguna */}
             <PegawaiDetailModal
                 open={detailModalOpen}
                 onOpenChange={setDetailModalOpen}
                 pegawai={selectedPegawai}
+                canEdit={canEditPegawai(selectedPegawai)}
                 onEdit={handleOpenEdit}
             />
 

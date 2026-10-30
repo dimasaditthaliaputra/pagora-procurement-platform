@@ -1,4 +1,4 @@
-import { UserCircle, Mail, Shield, Calendar, Clock, Edit, CheckCircle2, XCircle } from 'lucide-react';
+import { UserCircle, Mail, Shield, Calendar, Clock, Edit, CheckCircle2, XCircle, Building2 } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -42,12 +42,14 @@ export function PegawaiDetailModal({
     open,
     onOpenChange,
     pegawai = null,
+    canEdit = true,
     onEdit,
 }) {
     if (!pegawai) return null;
 
     const roleName = pegawai.role?.name;
     const roleLabel = pegawai.role?.label ?? 'User';
+    const perusahaan = pegawai.perusahaan;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -59,10 +61,10 @@ export function PegawaiDetailModal({
                         </div>
                         <div>
                             <DialogTitle className="text-lg font-bold">
-                                Detail Akun Pegawai Internal
+                                Detail Akun Pengguna
                             </DialogTitle>
                             <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                                Kredensial dan hak akses pegawai pada sistem PAGORA.
+                                Kredensial, afiliasi perusahaan, dan hak akses pengguna pada sistem PAGORA.
                             </DialogDescription>
                         </div>
                     </div>
@@ -101,8 +103,27 @@ export function PegawaiDetailModal({
                         </div>
                     </div>
 
-                    {/* Role & Access Info */}
+                    {/* Company & Role Info */}
                     <div className="space-y-3">
+                        <div className="p-3.5 rounded-lg border bg-muted/20 flex items-center justify-between gap-3">
+                            <div className="space-y-0.5 min-w-0">
+                                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                                    <Building2 className="size-3.5 text-primary shrink-0" />
+                                    Perusahaan / Organisasi
+                                </span>
+                                <p className="text-sm font-semibold text-foreground truncate">
+                                    {perusahaan ? perusahaan.nama : 'Internal Platform (PAGORA)'}
+                                </p>
+                            </div>
+                            <Badge variant="secondary" className="text-[11px] shrink-0">
+                                {!perusahaan
+                                    ? 'Platform'
+                                    : perusahaan.tipe === 'vendor'
+                                      ? 'Rekanan Vendor'
+                                      : 'Perusahaan Buyer'}
+                            </Badge>
+                        </div>
+
                         <div className="p-3.5 rounded-lg border bg-muted/20 space-y-2">
                             <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
@@ -117,7 +138,7 @@ export function PegawaiDetailModal({
                                 {pegawai.role?.deskripsi ||
                                     (roleName === 'buyer'
                                         ? 'Bertanggung jawab atas pengadaan barang, penawaran harga acuan, dan penerbitan PO.'
-                                        : 'Bertanggung jawab atas inspeksi kualitas docking gudang dan penerimaan fisik komoditas.')}
+                                        : 'Bertanggung jawab atas operasional sesuai hak akses perusahaannya.')}
                             </p>
                         </div>
 
@@ -154,17 +175,19 @@ export function PegawaiDetailModal({
                     >
                         Tutup
                     </Button>
-                    <Button
-                        type="button"
-                        onClick={() => {
-                            onOpenChange(false);
-                            onEdit(pegawai);
-                        }}
-                        className="h-9 gap-1.5 cursor-pointer shadow-sm"
-                    >
-                        <Edit className="size-4" />
-                        Ubah Akun
-                    </Button>
+                    {canEdit && (
+                        <Button
+                            type="button"
+                            onClick={() => {
+                                onOpenChange(false);
+                                onEdit(pegawai);
+                            }}
+                            className="h-9 gap-1.5 cursor-pointer shadow-sm"
+                        >
+                            <Edit className="size-4" />
+                            Ubah Akun
+                        </Button>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

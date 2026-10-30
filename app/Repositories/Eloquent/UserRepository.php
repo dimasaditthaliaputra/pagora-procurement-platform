@@ -38,11 +38,15 @@ class UserRepository implements UserRepositoryInterface
      */
     public function findByUuid(string $uuid): ?User
     {
-        return User::with('role')->where('uuid', $uuid)->first();
+        return User::with([
+            'role',
+            'perusahaanBuyer:id,uuid,nama_perusahaan',
+            'vendor:id,uuid,nama_perusahaan',
+        ])->where('uuid', $uuid)->first();
     }
 
     /**
-     * Paginate internal employees with search, role filters, and sorting.
+     * Paginate users with search, role/company filters, sorting, and tenant scoping.
      *
      * @param  array<string, mixed>  $filters
      * @param  list<string>  $columns
@@ -57,12 +61,17 @@ class UserRepository implements UserRepositoryInterface
             'email',
             'avatar',
             'role_id',
+            'perusahaan_id',
             'vendor_id',
             'status_aktif',
             'created_at',
             'updated_at',
         ],
-        ?int $vendorId = null
+        ?int $vendorId = null,
+        ?int $perusahaanId = null,
+        bool $isSuperadmin = false,
+        bool $unassignedOnly = false,
+        bool $forceEmpty = false
     ): LengthAwarePaginator {
         $sort = in_array($filters['sort'] ?? null, self::SORTABLE, true)
             ? (string) $filters['sort']
@@ -74,21 +83,41 @@ class UserRepository implements UserRepositoryInterface
 
         return User::query()
             ->select($columns)
-            ->with('role')
-            ->when($vendorId !== null, function ($query) use ($vendorId): void {
-                // Scope to specific vendor's users only
-                $query->where('vendor_id', $vendorId);
-            }, function ($query) use ($filters): void {
-                // If filtering specifically by vendor, query vendor accounts; otherwise query internal accounts
-                if (($filters['role'] ?? null) === 'vendor') {
-                    $query->whereHas('role', function ($q): void {
-                        $q->where('nama_role', 'vendor');
-                    });
-                } else {
-                    $query->whereNull('vendor_id')
-                        ->whereHas('role', function ($q): void {
-                            $q->whereIn('nama_role', ['superadmin', 'owner', 'manajemen', 'buyer', 'qc_gudang']);
-                        });
+            ->with([
+                'role',
+                'perusahaanBuyer:id,uuid,nama_perusahaan',
+                'vendor:id,uuid,nama_perusahaan',
+            ])
+            ->when($forceEmpty, function ($query): void {
+                $query->whereRaw('1 = 0');
+            }, function ($query) use ($isSuperadmin, $vendorId, $perusahaanId, $unassignedOnly): void {
+                if (! $isSuperadmin) {
+                    if ($vendorId !== null) {
+                        $query->where('vendor_id', $vendorId)
+                            ->whereNull('perusahaan_id')
+                            ->whereHas('role', function ($q): void {
+                                $q->where('nama_role', '!=', 'superadmin');
+                            });
+                    } elseif ($perusahaanId !== null) {
+                        $query->where('perusahaan_id', $perusahaanId)
+                            ->whereNull('vendor_id')
+                            ->whereHas('role', function ($q): void {
+                                $q->where('nama_role', '!=', 'superadmin');
+                            });
+                    } else {
+                        $query->whereRaw('1 = 0');
+                    }
+
+                    return;
+                }
+
+                // Superadmin scope with optional company filter
+                if ($unassignedOnly) {
+                    $query->whereNull('perusahaan_id')->whereNull('vendor_id');
+                } elseif ($perusahaanId !== null) {
+                    $query->where('perusahaan_id', $perusahaanId);
+                } elseif ($vendorId !== null) {
+                    $query->where('vendor_id', $vendorId);
                 }
             })
             ->when(! empty($filters['search']), function ($query) use ($filters, $like): void {

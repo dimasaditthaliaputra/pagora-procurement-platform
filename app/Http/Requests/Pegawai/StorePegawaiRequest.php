@@ -36,6 +36,8 @@ class StorePegawaiRequest extends FormRequest
             ],
             // Role authorization (which roles are allowed per creator) is enforced in PegawaiService::create()
             'role' => ['required', 'string', 'in:superadmin,owner,manajemen,buyer,qc_gudang,vendor'],
+            'perusahaan_uuid' => ['nullable', 'uuid', 'exists:perusahaan_buyer,uuid'],
+            'vendor_uuid' => ['nullable', 'uuid', 'exists:vendor,uuid'],
         ];
     }
 
@@ -56,6 +58,10 @@ class StorePegawaiRequest extends FormRequest
             'email.unique' => 'Email sudah terdaftar dalam sistem.',
             'role.required' => 'Role pengguna wajib dipilih.',
             'role.in' => 'Role yang dipilih tidak valid.',
+            'perusahaan_uuid.uuid' => 'Format perusahaan buyer tidak valid.',
+            'perusahaan_uuid.exists' => 'Perusahaan buyer yang dipilih tidak ditemukan.',
+            'vendor_uuid.uuid' => 'Format perusahaan vendor tidak valid.',
+            'vendor_uuid.exists' => 'Perusahaan vendor yang dipilih tidak ditemukan.',
         ];
     }
 }

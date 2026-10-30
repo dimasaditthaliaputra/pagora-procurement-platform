@@ -13,6 +13,7 @@ import {
     ShieldCheck,
     Users,
     Clock,
+    MailPlus,
 } from 'lucide-react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { DataTable } from '@/Components/data-table/data-table';
@@ -31,11 +32,13 @@ import { getColumns } from './columns';
 import { BlokirDialog } from './components/BlokirDialog';
 import { BukaBlokirDialog } from './components/BukaBlokirDialog';
 import { VendorDetailDialog } from './components/VendorDetailDialog';
+import { UndangVendorDialog } from './components/UndangVendorDialog';
 
 export default function VendorIndex({
     vendors,
     filters = {},
     can_manage = false,
+    kategori_options = [],
 }) {
     const data = vendors?.data ?? [];
     const meta = vendors?.meta ?? {
@@ -57,6 +60,7 @@ export default function VendorIndex({
     const [blokirDialogOpen, setBlokirDialogOpen] = useState(false);
     const [bukaBlokirDialogOpen, setBukaBlokirDialogOpen] = useState(false);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+    const [undangDialogOpen, setUndangDialogOpen] = useState(false);
 
     const isFirstRender = useRef(true);
 
@@ -246,6 +250,17 @@ export default function VendorIndex({
                             Kelola status kemitraan rekanan, verifikasi legalitas, serta pengendalian pemblokiran vendor.
                         </p>
                     </div>
+                    {can_manage && (
+                        <div>
+                            <Button
+                                onClick={() => setUndangDialogOpen(true)}
+                                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-sm"
+                            >
+                                <MailPlus className="size-4" />
+                                Undang Vendor Baru
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Summary Stat Cards */}
@@ -421,6 +436,12 @@ export default function VendorIndex({
                 onBlock={handleOpenBlock}
                 onUnblock={handleOpenUnblock}
                 canManage={can_manage}
+            />
+
+            <UndangVendorDialog
+                open={undangDialogOpen}
+                onOpenChange={setUndangDialogOpen}
+                kategoriOptions={kategori_options}
             />
         </DashboardLayout>
     );

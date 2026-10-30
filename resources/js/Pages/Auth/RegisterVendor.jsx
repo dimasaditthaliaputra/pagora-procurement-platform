@@ -22,15 +22,16 @@ import {
 } from 'lucide-react';
 import Logo from '../../../assets/logo/logo.webp';
 
-export default function RegisterVendor({ kategori_options = [], status }) {
+export default function RegisterVendor({ kategori_options = [], status, invitation = null }) {
     const { data, setData, post, processing, errors, setError, clearErrors, reset } = useForm({
-        nama_perusahaan: '',
-        email_kontak: '',
+        nama_perusahaan: invitation?.nama_perusahaan ?? '',
+        email_kontak: invitation?.email_kontak ?? '',
         no_telepon: '',
-        kategori_komoditas: '',
+        kategori_komoditas: invitation?.kategori_komoditas ?? '',
         alamat: '',
         otp: '',
         dokumen_legalitas: null,
+        invitation_token: invitation?.token ?? '',
     });
 
     const [otpSent, setOtpSent] = useState(false);
@@ -216,6 +217,19 @@ export default function RegisterVendor({ kategori_options = [], status }) {
                                 <p className="font-semibold">{status}</p>
                                 <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-1">
                                     Silakan periksa email resmi perusahaan Anda secara berkala untuk pembaruan status pendaftaran dari tim Manajemen PAGORA.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Invitation Banner */}
+                    {invitation && (
+                        <div className="mb-8 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3 text-emerald-800 dark:text-emerald-300">
+                            <ShieldCheck className="size-5 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
+                            <div className="text-sm">
+                                <p className="font-semibold">Pendaftaran melalui Undangan Resmi</p>
+                                <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-1 leading-relaxed">
+                                    Anda mendaftar menggunakan tautan undangan resmi untuk rekanan <strong>{invitation.nama_perusahaan}</strong>. Silakan lengkapi kontak, alamat, kode OTP email, dan dokumen legalitas perusahaan.
                                 </p>
                             </div>
                         </div>

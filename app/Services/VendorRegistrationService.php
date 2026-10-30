@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\UndanganVendor;
 use App\Models\Vendor;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
+use App\Repositories\Contracts\UndanganVendorRepositoryInterface;
 use App\Repositories\Contracts\VendorRepositoryInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -35,8 +37,23 @@ class VendorRegistrationService
     public function __construct(
         private readonly VendorRepositoryInterface $vendorRepository,
         private readonly DokumenLegalitasVendorRepositoryInterface $dokumenRepository,
+        private readonly UndanganVendorRepositoryInterface $undanganRepository,
         private readonly OtpService $otpService
     ) {}
+
+    /**
+     * Find a valid, non-expired vendor invitation by its token.
+     */
+    public function findValidInvitationByToken(string $token): ?UndanganVendor
+    {
+        $invitation = $this->undanganRepository->findByToken($token);
+
+        if ($invitation === null || ! $invitation->isValid()) {
+            return null;
+        }
+
+        return $invitation;
+    }
 
     /**
      * Email a one-time code to prove the contact email is real.
@@ -55,7 +72,7 @@ class VendorRegistrationService
     /**
      * Register a new vendor candidate and its legal document.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      *
      * @throws ValidationException when the email OTP is wrong or expired
      */
@@ -68,7 +85,10 @@ class VendorRegistrationService
         );
         unset($data['otp']);
 
-        return DB::transaction(function () use ($data): Vendor {
+        $invitationToken = $data['invitation_token'] ?? null;
+        unset($data['invitation_token']);
+
+        return DB::transaction(function () use ($data, $invitationToken): Vendor {
             $file = $data['dokumen_legalitas'] ?? null;
             $documentPath = null;
 
@@ -109,6 +129,16 @@ class VendorRegistrationService
                     'diverifikasi_pada' => null,
                     'alasan_penolakan' => null,
                 ]);
+            }
+
+            if (is_string($invitationToken) && $invitationToken !== '') {
+                $invitation = $this->undanganRepository->findByToken($invitationToken);
+                if ($invitation !== null && $invitation->isValid()) {
+                    $this->undanganRepository->update($invitation, [
+                        'status' => 'terdaftar',
+                        'registered_at' => now(),
+                    ]);
+                }
             }
 
             return $vendor;

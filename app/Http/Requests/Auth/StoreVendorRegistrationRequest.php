@@ -44,6 +44,7 @@ class StoreVendorRegistrationRequest extends FormRequest
                 'mimes:pdf,jpg,jpeg,png',
                 'max:2048', // 2 MB
             ],
+            'invitation_token' => ['nullable', 'string', 'max:64'],
         ];
     }
 

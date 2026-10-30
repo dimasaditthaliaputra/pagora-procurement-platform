@@ -53,7 +53,7 @@ use Illuminate\Support\Str;
     'vendor_id',
     'status_aktif',
 ])]
-#[Hidden(['id', 'password', 'remember_token'])]
+#[Hidden(['id', 'perusahaan_id', 'vendor_id', 'password', 'remember_token'])]
 #[Appends(['avatar_url'])]
 class User extends Authenticatable
 {
@@ -142,6 +142,36 @@ class User extends Authenticatable
     {
         return $this->role?->nama_role === 'manajemen'
             || $this->role()->where('nama_role', 'manajemen')->exists();
+    }
+
+    /**
+     * Determine whether the user is an owner of a buyer company.
+     */
+    public function isOwner(): bool
+    {
+        return $this->role?->nama_role === 'owner'
+            || $this->role()->where('nama_role', 'owner')->exists();
+    }
+
+    /**
+     * Determine whether the user is a vendor user.
+     */
+    public function isVendor(): bool
+    {
+        return $this->role?->nama_role === 'vendor'
+            || $this->role()->where('nama_role', 'vendor')->exists();
+    }
+
+    /**
+     * Determine whether the user can access the Manajemen Pengguna feature.
+     */
+    public function canManagePengguna(): bool
+    {
+        if ($this->isSuperadmin() || $this->isOwner() || $this->isManajemen()) {
+            return true;
+        }
+
+        return $this->isVendor() && $this->vendor_id !== null;
     }
 
     /**

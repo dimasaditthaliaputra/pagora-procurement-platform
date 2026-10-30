@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from '@inertiajs/react';
-import { UserPlus, UserCog, Mail, ShieldAlert, KeyRound } from 'lucide-react';
+import { UserPlus, UserCog, Mail, KeyRound, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { notify } from '@/lib/notify';
+import { Combobox } from '@/Components/combobox';
 import {
     Dialog,
     DialogContent,
@@ -24,14 +25,22 @@ import {
 import { LoadingButton } from '@/Components/loading-button';
 import { Button } from '@/Components/ui/button';
 
+const BUYER_COMPANY_ROLES = new Set(['owner', 'manajemen', 'buyer', 'qc_gudang']);
+
 export function PegawaiFormModal({
     open,
     onOpenChange,
     pegawai = null,
     role_options = [],
-    default_password = 'Pagora@2026',
+    is_superadmin = false,
+    current_perusahaan = null,
+    perusahaan_buyer_options = [],
+    vendor_options = [],
+    currentUserUuid = null,
+    default_password = 'password123',
 }) {
     const isEdit = Boolean(pegawai);
+    const isEditingSelf = Boolean(isEdit && currentUserUuid && pegawai?.uuid === currentUserUuid);
 
     const {
         data,
@@ -47,11 +56,12 @@ export function PegawaiFormModal({
         nama_lengkap: '',
         email: '',
         role: '',
+        perusahaan_uuid: '',
+        vendor_uuid: '',
         password: '',
         status_aktif: true,
     });
 
-    // Reset or populate form when dialog opens or selected employee changes
     useEffect(() => {
         if (open) {
             if (pegawai) {
@@ -59,6 +69,10 @@ export function PegawaiFormModal({
                     nama_lengkap: pegawai.nama_lengkap ?? '',
                     email: pegawai.email ?? '',
                     role: pegawai.role?.name ?? '',
+                    perusahaan_uuid:
+                        pegawai.perusahaan?.tipe === 'buyer' ? (pegawai.perusahaan.uuid ?? '') : '',
+                    vendor_uuid:
+                        pegawai.perusahaan?.tipe === 'vendor' ? (pegawai.perusahaan.uuid ?? '') : '',
                     password: '',
                     status_aktif: pegawai.status_aktif ?? true,
                 });
@@ -66,7 +80,9 @@ export function PegawaiFormModal({
                 setData({
                     nama_lengkap: '',
                     email: '',
-                    role: '',
+                    role: role_options.length === 1 ? role_options[0].value : '',
+                    perusahaan_uuid: '',
+                    vendor_uuid: '',
                     password: '',
                     status_aktif: true,
                 });
@@ -75,6 +91,20 @@ export function PegawaiFormModal({
         }
     }, [open, pegawai]);
 
+    const effectiveRoleOptions = useMemo(() => {
+        const list = [...role_options];
+        if (isEdit && pegawai?.role?.name && !list.some((o) => o.value === pegawai.role.name)) {
+            list.unshift({
+                value: pegawai.role.name,
+                label: pegawai.role.label ?? pegawai.role.name,
+            });
+        }
+        return list;
+    }, [role_options, isEdit, pegawai]);
+
+    const needsBuyerCompany = is_superadmin && BUYER_COMPANY_ROLES.has(data.role);
+    const needsVendorCompany = is_superadmin && data.role === 'vendor';
+
     const handleClose = () => {
         if (processing) return;
         reset();
@@ -82,10 +112,28 @@ export function PegawaiFormModal({
         onOpenChange(false);
     };
 
+    const handleRoleChange = (val) => {
+        const nextUpdates = {
+            ...data,
+            role: val,
+        };
+
+        if (val === 'superadmin') {
+            nextUpdates.perusahaan_uuid = '';
+            nextUpdates.vendor_uuid = '';
+        } else if (val === 'vendor') {
+            nextUpdates.perusahaan_uuid = '';
+        } else if (BUYER_COMPANY_ROLES.has(val)) {
+            nextUpdates.vendor_uuid = '';
+        }
+
+        setData(nextUpdates);
+        clearErrors('role', 'perusahaan_uuid', 'vendor_uuid');
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        // Frontend validation
         let hasError = false;
 
         if (!data.nama_lengkap.trim()) {
@@ -107,6 +155,16 @@ export function PegawaiFormModal({
 
         if (!data.role) {
             setError('role', 'Role pengguna wajib dipilih.');
+            hasError = true;
+        }
+
+        if (needsBuyerCompany && perusahaan_buyer_options.length > 0 && !data.perusahaan_uuid) {
+            setError('perusahaan_uuid', 'Perusahaan buyer wajib dipilih untuk role ini.');
+            hasError = true;
+        }
+
+        if (needsVendorCompany && vendor_options.length > 0 && !data.vendor_uuid) {
+            setError('vendor_uuid', 'Perusahaan vendor wajib dipilih untuk role vendor.');
             hasError = true;
         }
 
@@ -177,12 +235,23 @@ export function PegawaiFormModal({
                                 <div className="text-xs space-y-1">
                                     <p className="font-semibold">Otomatisasi Kredensial Awal</p>
                                     <p className="leading-relaxed text-muted-foreground dark:text-sky-300">
-                                        Akun akan dibuat menggunakan email pegawai dan password default{' '}
+                                        Akun akan dibuat menggunakan email pengguna dan password default{' '}
                                         <code className="font-mono font-semibold px-1 py-0.5 rounded bg-background/80 text-foreground">
                                             {default_password}
                                         </code>
-                                        . Notifikasi aktivasi akun akan dikirim otomatis ke email pegawai.
+                                        . Notifikasi aktivasi akun akan dikirim otomatis ke email pengguna.
                                     </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Info Perusahaan Otomatis untuk Non-Superadmin */}
+                        {!is_superadmin && current_perusahaan?.nama && (
+                            <div className="flex items-center gap-2.5 p-3 rounded-lg border bg-muted/30 text-xs">
+                                <Building2 className="size-4 text-primary shrink-0" />
+                                <div className="min-w-0">
+                                    <span className="text-muted-foreground">Terdaftar pada perusahaan: </span>
+                                    <span className="font-semibold text-foreground">{current_perusahaan.nama}</span>
                                 </div>
                             </div>
                         )}
@@ -190,11 +259,11 @@ export function PegawaiFormModal({
                         {/* Nama Lengkap */}
                         <div className="space-y-1.5">
                             <Label htmlFor="nama_lengkap" className={cn('text-xs font-semibold', errors.nama_lengkap && 'text-destructive')}>
-                                Nama Lengkap Pegawai <span className="text-destructive">*</span>
+                                Nama Lengkap Pengguna <span className="text-destructive">*</span>
                             </Label>
                             <Input
                                 id="nama_lengkap"
-                                placeholder="Contoh: Budi Santoso, S.T."
+                                placeholder="Masukkan nama lengkap"
                                 value={data.nama_lengkap}
                                 onChange={(e) => {
                                     setData('nama_lengkap', e.target.value);
@@ -211,15 +280,15 @@ export function PegawaiFormModal({
                             )}
                         </div>
 
-                        {/* Email Pegawai */}
+                        {/* Email Pengguna */}
                         <div className="space-y-1.5">
                             <Label htmlFor="email" className={cn('text-xs font-semibold', errors.email && 'text-destructive')}>
-                                Email Perusahaan Pegawai <span className="text-destructive">*</span>
+                                Alamat Email <span className="text-destructive">*</span>
                             </Label>
                             <Input
                                 id="email"
                                 type="email"
-                                placeholder="budi.santoso@perusahaan.com"
+                                placeholder="Masukkan alamat email bisnis"
                                 value={data.email}
                                 onChange={(e) => {
                                     setData('email', e.target.value);
@@ -236,18 +305,15 @@ export function PegawaiFormModal({
                             )}
                         </div>
 
-                        {/* Role Pegawai */}
+                        {/* Role Pengguna */}
                         <div className="space-y-1.5">
                             <Label htmlFor="role" className={cn('text-xs font-semibold', errors.role && 'text-destructive')}>
                                 Role / Jabatan Akses <span className="text-destructive">*</span>
                             </Label>
                             <Select
                                 value={data.role}
-                                onValueChange={(val) => {
-                                    setData('role', val);
-                                    if (errors.role) clearErrors('role');
-                                }}
-                                disabled={processing}
+                                onValueChange={handleRoleChange}
+                                disabled={processing || (isEditingSelf && !is_superadmin)}
                             >
                                 <SelectTrigger
                                     id="role"
@@ -257,7 +323,7 @@ export function PegawaiFormModal({
                                     <SelectValue placeholder="Pilih Role Pengguna" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {role_options.map((opt) => (
+                                    {effectiveRoleOptions.map((opt) => (
                                         <SelectItem key={opt.value} value={opt.value}>
                                             {opt.label}
                                         </SelectItem>
@@ -270,6 +336,62 @@ export function PegawaiFormModal({
                                 </p>
                             )}
                         </div>
+
+                        {/* Superadmin Only: Pilih Perusahaan Buyer */}
+                        {needsBuyerCompany && (
+                            <div className="space-y-1.5">
+                                <Label className={cn('text-xs font-semibold', errors.perusahaan_uuid && 'text-destructive')}>
+                                    Perusahaan Buyer {perusahaan_buyer_options.length > 0 && <span className="text-destructive">*</span>}
+                                </Label>
+                                <Combobox
+                                    options={perusahaan_buyer_options}
+                                    value={data.perusahaan_uuid}
+                                    onChange={(val) => {
+                                        setData('perusahaan_uuid', val || '');
+                                        if (errors.perusahaan_uuid) clearErrors('perusahaan_uuid');
+                                    }}
+                                    placeholder="Pilih perusahaan buyer..."
+                                    searchPlaceholder="Cari perusahaan buyer..."
+                                    emptyMessage="Perusahaan buyer belum tersedia."
+                                    error={errors.perusahaan_uuid}
+                                    disabled={processing}
+                                    className="h-9"
+                                />
+                                {errors.perusahaan_uuid && (
+                                    <p className="text-xs font-medium text-destructive">
+                                        {errors.perusahaan_uuid}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Superadmin Only: Pilih Perusahaan Vendor */}
+                        {needsVendorCompany && (
+                            <div className="space-y-1.5">
+                                <Label className={cn('text-xs font-semibold', errors.vendor_uuid && 'text-destructive')}>
+                                    Perusahaan Vendor {vendor_options.length > 0 && <span className="text-destructive">*</span>}
+                                </Label>
+                                <Combobox
+                                    options={vendor_options}
+                                    value={data.vendor_uuid}
+                                    onChange={(val) => {
+                                        setData('vendor_uuid', val || '');
+                                        if (errors.vendor_uuid) clearErrors('vendor_uuid');
+                                    }}
+                                    placeholder="Pilih perusahaan vendor..."
+                                    searchPlaceholder="Cari perusahaan vendor..."
+                                    emptyMessage="Perusahaan vendor belum tersedia."
+                                    error={errors.vendor_uuid}
+                                    disabled={processing}
+                                    className="h-9"
+                                />
+                                {errors.vendor_uuid && (
+                                    <p className="text-xs font-medium text-destructive">
+                                        {errors.vendor_uuid}
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         {/* Edit Only: Password (Optional) */}
                         {isEdit && (
@@ -299,7 +421,7 @@ export function PegawaiFormModal({
                                     </p>
                                 ) : (
                                     <p className="text-[11px] text-muted-foreground">
-                                        Isi hanya jika pegawai meminta reset kata sandi akun secara manual.
+                                        Isi hanya jika pengguna meminta reset kata sandi akun secara manual.
                                     </p>
                                 )}
                             </div>
@@ -313,14 +435,14 @@ export function PegawaiFormModal({
                                         Status Keaktifan Akun
                                     </Label>
                                     <p className="text-[11px] text-muted-foreground leading-tight">
-                                        Jika dinonaktifkan, pegawai tidak dapat login ke sistem PAGORA.
+                                        Jika dinonaktifkan, pengguna tidak dapat login ke sistem PAGORA.
                                     </p>
                                 </div>
                                 <Switch
                                     id="status_aktif"
                                     checked={data.status_aktif}
                                     onCheckedChange={(checked) => setData('status_aktif', checked)}
-                                    disabled={processing}
+                                    disabled={processing || (isEditingSelf && !is_superadmin)}
                                 />
                             </div>
                         )}
@@ -339,10 +461,10 @@ export function PegawaiFormModal({
                         <LoadingButton
                             type="submit"
                             loading={processing}
-                            loadingText={isEdit ? 'Menyimpan Perubahan...' : 'Mendaftarkan Pegawai...'}
+                            loadingText={isEdit ? 'Menyimpan Perubahan...' : 'Mendaftarkan Pengguna...'}
                             className="h-9 cursor-pointer shadow-sm"
                         >
-                            {isEdit ? 'Simpan Perubahan' : 'Simpan Pegawai'}
+                            {isEdit ? 'Simpan Perubahan' : 'Simpan Pengguna'}
                         </LoadingButton>
                     </DialogFooter>
                 </form>

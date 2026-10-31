@@ -34,4 +34,14 @@ class PerusahaanBuyerRepository implements PerusahaanBuyerRepositoryInterface
             ->orderBy('nama_perusahaan')
             ->get();
     }
+
+    /**
+     * Create a new buyer company record.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function create(array $data): PerusahaanBuyer
+    {
+        return $this->model->newQuery()->create($data);
+    }
 }

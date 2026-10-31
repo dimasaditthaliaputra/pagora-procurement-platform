@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\PerusahaanBuyer;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Socialite\Contracts\User as SocialiteUserContract;
 use Laravel\Socialite\Facades\Socialite;
 use Mockery;
@@ -106,23 +109,45 @@ class AuthenticationTest extends TestCase
 
     public function test_register_creates_new_user_and_redirects_to_dashboard(): void
     {
+        Storage::fake('local');
+
+        $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
+
         $response = $this->post('/register', [
             'name' => 'Budi Santoso',
             'email' => 'budi@perusahaan.co.id',
             'password' => 'password123',
             'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Sumber Pangan Makmur',
+            'nomor_npwp' => '01.234.567.8-901.000',
+            'alamat' => 'Jl. Industri No. 10, Cikarang, Jawa Barat',
+            'dokumen_npwp' => $file,
         ]);
 
         $response->assertRedirect('/dashboard');
 
+        $this->assertDatabaseHas('perusahaan_buyer', [
+            'nama_perusahaan' => 'PT Sumber Pangan Makmur',
+            'nomor_npwp' => '01.234.567.8-901.000',
+            'alamat' => 'Jl. Industri No. 10, Cikarang, Jawa Barat',
+            'status_aktif' => true,
+        ]);
+
+        $perusahaan = PerusahaanBuyer::where('nama_perusahaan', 'PT Sumber Pangan Makmur')->first();
+        $this->assertNotNull($perusahaan);
+        $this->assertNotNull($perusahaan->file_url);
+        Storage::disk('local')->assertExists($perusahaan->file_url);
+
         $this->assertDatabaseHas('users', [
             'nama_lengkap' => 'Budi Santoso',
             'email' => 'budi@perusahaan.co.id',
+            'perusahaan_id' => $perusahaan->id,
             'status_aktif' => true,
         ]);
 
         $user = User::where('email', 'budi@perusahaan.co.id')->first();
         $this->assertNotNull($user);
+        $this->assertSame($perusahaan->id, $user->perusahaan_id);
         $this->assertAuthenticatedAs($user);
     }
 
@@ -135,10 +160,20 @@ class AuthenticationTest extends TestCase
             'email' => 'existing@pagora.id',
             'password' => 'short',
             'password_confirmation' => 'mismatch',
+            'nama_perusahaan' => '',
+            'nomor_npwp' => '',
+            'alamat' => '',
         ]);
 
         $response->assertRedirect('/register');
-        $response->assertSessionHasErrors(['name', 'email', 'password']);
+        $response->assertSessionHasErrors([
+            'name',
+            'email',
+            'password',
+            'nama_perusahaan',
+            'nomor_npwp',
+            'alamat',
+        ]);
         $this->assertGuest();
     }
 

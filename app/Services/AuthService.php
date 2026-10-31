@@ -6,11 +6,15 @@ namespace App\Services;
 
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Models\Role;
 use App\Models\User;
+use App\Repositories\Contracts\PerusahaanBuyerRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
@@ -18,6 +22,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\LoginRateLimiter;
 use Laravel\Socialite\Facades\Socialite;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Throwable;
 
@@ -29,7 +34,8 @@ class AuthService
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
         private readonly LoginRateLimiter $limiter,
-        private readonly OtpService $otpService
+        private readonly OtpService $otpService,
+        private readonly PerusahaanBuyerRepositoryInterface $perusahaanBuyerRepository
     ) {}
 
     /**
@@ -318,23 +324,60 @@ class AuthService
     }
 
     /**
-     * Register a new user with email and password.
+     * Register a new tenant company and its administrator account.
      *
      * @return array{success: bool, code: int, message: string, user: User}
      */
     public function register(RegisterRequest $request): array
     {
         $name = (string) ($request->input('name') ?? $request->input('nama_lengkap'));
-        $email = (string) $request->input('email');
+        $email = strtolower(trim((string) $request->input('email')));
         $password = (string) $request->input('password');
 
-        $user = $this->userRepository->create([
-            'nama_lengkap' => $name,
-            'email' => $email,
-            'password' => Hash::make($password),
-            'role_id' => 2,
-            'status_aktif' => true,
-        ]);
+        $namaPerusahaan = trim((string) $request->input('nama_perusahaan'));
+        $nomorNpwp = $request->filled('nomor_npwp') ? trim((string) $request->input('nomor_npwp')) : null;
+        $alamat = $request->filled('alamat') ? trim((string) $request->input('alamat')) : null;
+
+        $file = $request->file('dokumen_npwp');
+        $documentPath = null;
+
+        if ($file instanceof UploadedFile) {
+            $extension = strtolower($file->guessExtension() ?: 'bin');
+            $filename = Str::uuid()->toString().'.'.$extension;
+
+            $documentPath = $file->storeAs(
+                'perusahaan/npwp',
+                $filename,
+                'local'
+            );
+
+            if ($documentPath === false) {
+                throw new RuntimeException('Dokumen NPWP gagal disimpan.');
+            }
+        }
+
+        $user = DB::transaction(function () use ($name, $email, $password, $namaPerusahaan, $nomorNpwp, $alamat, $documentPath): User {
+            $perusahaan = $this->perusahaanBuyerRepository->create([
+                'nama_perusahaan' => $namaPerusahaan,
+                'nomor_npwp' => $nomorNpwp,
+                'file_url' => $documentPath,
+                'alamat' => $alamat,
+                'status_aktif' => true,
+            ]);
+
+            $ownerRole = Role::where('nama_role', 'owner')->first()
+                ?? Role::where('nama_role', 'buyer')->first();
+            $roleId = $ownerRole ? (int) $ownerRole->getKey() : 6;
+
+            return $this->userRepository->create([
+                'nama_lengkap' => $name,
+                'email' => $email,
+                'password' => Hash::make($password),
+                'role_id' => $roleId,
+                'perusahaan_id' => (int) $perusahaan->getKey(),
+                'status_aktif' => true,
+            ]);
+        });
 
         Auth::login($user);
         $request->session()->regenerate();
@@ -342,7 +385,7 @@ class AuthService
         return [
             'success' => true,
             'code' => 201,
-            'message' => 'Pendaftaran akun berhasil.',
+            'message' => 'Pendaftaran akun tenant berhasil.',
             'user' => $user,
         ];
     }

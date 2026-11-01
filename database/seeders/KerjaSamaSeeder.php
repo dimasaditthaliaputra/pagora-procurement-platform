@@ -24,19 +24,20 @@ class KerjaSamaSeeder extends Seeder
         $buyer = PerusahaanBuyer::where('company_name', 'PT Pagora Nusantara')->firstOrFail();
 
         $data = [
-            ['email' => 'kontak@mitra-agro.test',  'status' => StatusKerjaSama::Aktif, 'catatan' => null],
-            ['email' => 'info@sumber-pangan.test', 'status' => StatusKerjaSama::Aktif, 'catatan' => null],
-            ['email' => 'berkah@tani.test',        'status' => StatusKerjaSama::Diajukan, 'catatan' => null],
+            ['email' => 'kontak@mitra-agro.test',  'status' => StatusKerjaSama::Agreed, 'reason' => null],
+            ['email' => 'info@sumber-pangan.test', 'status' => StatusKerjaSama::Agreed, 'reason' => null],
+            ['email' => 'berkah@tani.test',        'status' => StatusKerjaSama::Pending, 'reason' => null],
         ];
 
         foreach ($data as $d) {
             $vendor = Vendor::where('contact_email', $d['email'])->firstOrFail();
 
             KerjaSama::updateOrCreate(
-                ['id_perusahaan' => $buyer->id, 'id_vendor' => $vendor->id],
+                ['tenant_id' => $buyer->id, 'vendor_id' => $vendor->id],
                 [
-                    'status_kerjasama' => $d['status']->value,
-                    'catatan_penolakan' => $d['catatan'],
+                    'requested_by' => 'tenant',
+                    'status' => $d['status']->value,
+                    'rejection_reason' => $d['reason'],
                 ]
             );
         }

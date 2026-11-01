@@ -73,7 +73,7 @@ class PerusahaanBuyer extends Model
 
     public function kerjaSama(): HasMany
     {
-        return $this->hasMany(KerjaSama::class, 'id_perusahaan');
+        return $this->hasMany(KerjaSama::class, 'tenant_id');
     }
 
     public function purchaseOrders(): HasMany

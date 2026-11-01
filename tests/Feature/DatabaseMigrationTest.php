@@ -23,7 +23,7 @@ class DatabaseMigrationTest extends TestCase
             'vendor_legal_documents',
             'vendor_invitations',
             'settings',
-            'kerja_sama',
+            'partnerships',
             'commodity_categories',
             'commodities',
             'tenant_commodities',
@@ -75,13 +75,17 @@ class DatabaseMigrationTest extends TestCase
         ]));
         $this->assertFalse(Schema::hasColumn('tenants', 'tipe_paket'));
 
-        $this->assertTrue(Schema::hasColumns('kerja_sama', [
+        $this->assertTrue(Schema::hasColumns('partnerships', [
             'id',
             'uuid',
-            'id_perusahaan',
-            'id_vendor',
-            'status_kerjasama',
-            'catatan_penolakan',
+            'tenant_id',
+            'vendor_id',
+            'requested_by',
+            'status',
+            'rejection_reason',
+            'block_reason',
+            'blocked_by',
+            'blocked_at',
             'created_at',
             'updated_at',
         ]));

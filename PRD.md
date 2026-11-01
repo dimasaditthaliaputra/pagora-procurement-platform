@@ -865,10 +865,10 @@ Tidak ada pertanyaan produk maupun teknis yang terbuka. Tindak lanjut: **validas
 - **Selisih kode vs PRD yang perlu dirapikan** (catatan agent, bukan kebutuhan baru):
   - **Penamaan**: tabel/kolom di database masih Indonesia → Inggris sesuai §8.3 lewat migration rename per modul (`design-db.md` §5); berdampak ke migration, model, repository, resource, seeder, dan props frontend. Nama class domain (`Komoditas`, `Pegawai`, dst.) **tetap**; Model mendeklarasikan `$table` ke nama tabel Inggris. Class untuk tabel baru berbahasa Inggris (Q-35). Dikerjakan **bertahap, satu modul per PR** (Q-37).
   - **Otorisasi**: belum ada `app/Policies`; izin masih dicek lewat `authorize()` + helper `User`, dan di `PegawaiController` langsung di controller → pindahkan ke Laravel Policy (`RULES.md` §4.5).
-  - **Role**: hanya `buyer` → `purchasing` (`manajemen` & `qc_gudang` tetap); perbarui `RoleSeeder`, `UserSeeder`, `User::is*()`, `PegawaiService` role constants. Deskripsi `owner` di seeder masih "read-only"; seharusnya akses penuh internal.
+  - ~~**Role**: `buyer` → `purchasing`~~ ✅ selesai (modul 1). Sisa: kode masih mengizinkan **Manajemen** membuat/mengelola akun staf (`PegawaiService::MANAJEMEN_ROLES`), padahal UC-08 hanya Owner.
   - **Enum**: `StatusPurchaseOrder`, `StatusKerjaSama`, `StatusSengketa` masih bernilai Indonesia → nilai §9.1/§9.3; hapus `MenungguTanggapan` & `Sengketa` dari enum PO.
   - **Tabel baru**: `commodity_categories`, `tenant_commodities`, `vendor_commodity_categories`, `invoice_items`, `payments`, `credit_notes`, `purchase_returns`, `purchase_return_items`; kolom baru di `purchase_order_items`, `negotiation_messages`, `goods_receipts`, `disputes`, `partnerships`, `vendors`, `tenants`.
-  - `config/session.php` `lifetime` default 120 menit → 30 menit; Ingat Saya dibatasi 30 hari.
+  - ~~Session 30 menit, Ingat Saya 30 hari~~ ✅ selesai (modul 1); nilai `SESSION_LIFETIME` di `.env` tiap developer/server harus disesuaikan.
   - Undangan email untuk staf (UC-03) belum ada di kode → tabel `tenant_invitations` (Q-32); yang sudah ada undangan vendor dan akun pegawai + password default.
   - `undangan_vendor.status` memakai `terdaftar` → `accepted`; `expired`/`cancelled` belum disimpan (Q-33).
   - `vendors.dokumen_legalitas` duplikat dengan `vendor_legal_documents` → pindahkan lalu hapus (Q-34).

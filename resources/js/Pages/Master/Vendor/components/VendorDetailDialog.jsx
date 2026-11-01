@@ -124,7 +124,7 @@ export function VendorDetailDialog({ vendor, open, onOpenChange, onBlock, onUnbl
                             </p>
                             <div className="flex flex-wrap items-center justify-between text-xs text-muted-foreground pt-1">
                                 <span>
-                                    Eksekutor: <strong className="text-foreground">{vendor.blocked_by_user?.nama_lengkap ?? 'Manajemen'}</strong>
+                                    Eksekutor: <strong className="text-foreground">{vendor.blocked_by_user?.name ?? 'Manajemen'}</strong>
                                 </span>
                                 <span>
                                     Waktu: {vendor.diblokir_pada ? new Date(vendor.diblokir_pada).toLocaleString('id-ID') : '-'}

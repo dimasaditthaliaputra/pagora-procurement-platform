@@ -15,33 +15,33 @@ class RoleSeeder extends Seeder
         $roles = [
             [
                 'id' => 1,
-                'nama_role' => 'superadmin',
-                'deskripsi' => 'Akses penuh ke seluruh sistem, master data, konfigurasi, dan audit trail.',
+                'name' => 'superadmin',
+                'description' => 'Akses penuh ke seluruh sistem, master data, konfigurasi, dan audit trail.',
             ],
             [
                 'id' => 2,
-                'nama_role' => 'buyer',
-                'deskripsi' => 'Tim purchasing manufaktur: memantau harga acuan BI, menerbitkan PO, dan negosiasi.',
+                'name' => 'purchasing',
+                'description' => 'Tim Purchasing / Finance: pantau Harga Pagu, kelola PO & negosiasi, verifikasi tagihan (3-Way Matching), pelunasan, dan buka sengketa.',
             ],
             [
                 'id' => 3,
-                'nama_role' => 'qc_gudang',
-                'deskripsi' => 'Petugas inspeksi docking gudang: memeriksa fisik, unggah bukti foto, dan rilis GRN.',
+                'name' => 'qc_gudang',
+                'description' => 'Petugas inspeksi docking gudang: memeriksa fisik, unggah bukti foto, dan rilis GRN.',
             ],
             [
                 'id' => 4,
-                'nama_role' => 'vendor',
-                'deskripsi' => 'Pemasok bahan baku mitra: guided bidding, pelaporan armada ekspedisi, dan pengajuan invoice.',
+                'name' => 'vendor',
+                'description' => 'Pemasok bahan baku mitra: guided bidding, pelaporan armada ekspedisi, dan pengajuan invoice.',
             ],
             [
                 'id' => 5,
-                'nama_role' => 'manajemen',
-                'deskripsi' => 'Admin internal perusahaan buyer: verifikasi vendor rekanan, tinjau sengketa, kelola staf buyer/QC.',
+                'name' => 'manajemen',
+                'description' => 'Admin internal Tenant: aktivasi komoditas & toleransi susut, kelola kerja sama, undang & blokir vendor per Tenant, tinjau dan tetapkan sengketa Selesai.',
             ],
             [
                 'id' => 6,
-                'nama_role' => 'owner',
-                'deskripsi' => 'Pemilik perusahaan buyer: pantau dasbor, PO, anggaran, invoice, dan sengketa (read-only).',
+                'name' => 'owner',
+                'description' => 'Pemilik perusahaan Tenant: manajemen perusahaan & anggota, seluruh aktivitas internal Tenant, dan menetapkan sengketa Selesai.',
             ],
         ];
 
@@ -49,8 +49,8 @@ class RoleSeeder extends Seeder
             Role::updateOrCreate(
                 ['id' => $role['id']],
                 [
-                    'nama_role' => $role['nama_role'],
-                    'deskripsi' => $role['deskripsi'],
+                    'name' => $role['name'],
+                    'description' => $role['description'],
                 ]
             );
         }

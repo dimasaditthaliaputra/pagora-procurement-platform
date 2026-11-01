@@ -39,7 +39,7 @@ function Field({ id, label, required = false, hint, error, className, children }
 function ProfilForm({ profil }) {
     const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
         _method: 'put',
-        nama_lengkap: profil.nama_lengkap ?? '',
+        name: profil.name ?? '',
         avatar: null,
         hapus_avatar: false,
     });
@@ -49,9 +49,9 @@ function ProfilForm({ profil }) {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        if (!data.nama_lengkap.trim()) {
-            setError('nama_lengkap', 'Nama lengkap wajib diisi.');
-            document.getElementById('nama_lengkap')?.focus();
+        if (!data.name.trim()) {
+            setError('name', 'Nama lengkap wajib diisi.');
+            document.getElementById('name')?.focus();
             notify.validationFailed();
             return;
         }
@@ -104,17 +104,17 @@ function ProfilForm({ profil }) {
                     </Field>
 
                     <div className="md:col-span-2 space-y-4">
-                        <Field id="nama_lengkap" label="Nama Lengkap" required error={errors.nama_lengkap}>
+                        <Field id="name" label="Nama Lengkap" required error={errors.name}>
                             <Input
-                                id="nama_lengkap"
-                                value={data.nama_lengkap}
+                                id="name"
+                                value={data.name}
                                 onChange={(e) => {
-                                    setData('nama_lengkap', e.target.value);
-                                    if (errors.nama_lengkap) clearErrors('nama_lengkap');
+                                    setData('name', e.target.value);
+                                    if (errors.name) clearErrors('name');
                                 }}
-                                aria-invalid={Boolean(errors.nama_lengkap)}
+                                aria-invalid={Boolean(errors.name)}
                                 disabled={processing}
-                                className={cn('h-9', errors.nama_lengkap && 'border-destructive focus-visible:ring-destructive')}
+                                className={cn('h-9', errors.name && 'border-destructive focus-visible:ring-destructive')}
                             />
                         </Field>
 

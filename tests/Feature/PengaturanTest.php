@@ -30,12 +30,12 @@ class PengaturanTest extends TestCase
 
         $this->superadmin = User::factory()->create([
             'role_id' => 1, // Superadmin
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $this->buyer = User::factory()->create([
             'role_id' => 2, // Buyer
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
     }
 

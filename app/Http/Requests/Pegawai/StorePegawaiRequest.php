@@ -26,7 +26,7 @@ class StorePegawaiRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nama_lengkap' => ['required', 'string', 'min:3', 'max:150'],
+            'name' => ['required', 'string', 'min:3', 'max:150'],
             'email' => [
                 'required',
                 'string',
@@ -35,7 +35,7 @@ class StorePegawaiRequest extends FormRequest
                 Rule::unique('users', 'email')->whereNull('deleted_at'),
             ],
             // Role authorization (which roles are allowed per creator) is enforced in PegawaiService::create()
-            'role' => ['required', 'string', 'in:superadmin,owner,manajemen,buyer,qc_gudang,vendor'],
+            'role' => ['required', 'string', 'in:superadmin,owner,manajemen,purchasing,qc_gudang,vendor'],
             'perusahaan_uuid' => ['nullable', 'uuid', 'exists:perusahaan_buyer,uuid'],
             'vendor_uuid' => ['nullable', 'uuid', 'exists:vendor,uuid'],
         ];
@@ -49,9 +49,9 @@ class StorePegawaiRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nama_lengkap.required' => 'Nama lengkap pegawai wajib diisi.',
-            'nama_lengkap.min' => 'Nama lengkap minimal 3 karakter.',
-            'nama_lengkap.max' => 'Nama lengkap maksimal 150 karakter.',
+            'name.required' => 'Nama lengkap pegawai wajib diisi.',
+            'name.min' => 'Nama lengkap minimal 3 karakter.',
+            'name.max' => 'Nama lengkap maksimal 150 karakter.',
             'email.required' => 'Email pegawai wajib diisi.',
             'email.email' => 'Format email pegawai tidak valid.',
             'email.max' => 'Email maksimal 150 karakter.',

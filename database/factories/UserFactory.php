@@ -26,12 +26,12 @@ class UserFactory extends Factory
     {
         return [
             'uuid' => (string) Str::uuid(),
-            'nama_lengkap' => fake()->name(),
+            'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'password' => static::$password ??= Hash::make('password'),
             'role_id' => 1,
             'vendor_id' => null,
-            'status_aktif' => true,
+            'is_active' => true,
             'remember_token' => Str::random(10),
         ];
     }

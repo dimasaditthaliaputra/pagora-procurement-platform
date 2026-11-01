@@ -42,7 +42,7 @@ class ProfilController extends Controller
         try {
             $user = $this->service->updateProfil(
                 $request->user(),
-                $request->safe()->only(['nama_lengkap']),
+                $request->safe()->only(['name']),
                 $request->file('avatar'),
                 $request->boolean('hapus_avatar')
             );

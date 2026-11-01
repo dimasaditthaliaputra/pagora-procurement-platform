@@ -71,7 +71,7 @@ class AuthService
             ];
         }
 
-        if (! $user->status_aktif && $user->email_verified_at !== null) {
+        if (! $user->is_active && $user->email_verified_at !== null) {
             $this->limiter->increment($request);
 
             return [
@@ -100,7 +100,7 @@ class AuthService
 
         $remember = $request->boolean('remember');
 
-        if (! $user->status_aktif) {
+        if (! $user->is_active) {
             $this->limiter->clear($request);
 
             return $this->startLoginOtp($request, $user, $remember);
@@ -153,7 +153,7 @@ class AuthService
         $this->otpService->verify(OtpService::PURPOSE_LOGIN, $user->email, $code);
 
         $this->userRepository->update($user, [
-            'status_aktif' => true,
+            'is_active' => true,
             'email_verified_at' => now(),
         ]);
 
@@ -225,7 +225,7 @@ class AuthService
 
         $user = $this->userRepository->findByUuid($uuid);
 
-        return $user && ! $user->status_aktif && $user->email_verified_at === null ? $user : null;
+        return $user && ! $user->is_active && $user->email_verified_at === null ? $user : null;
     }
 
     private function maskEmail(string $email): string
@@ -310,7 +310,7 @@ class AuthService
             ]);
         }
 
-        if (! $user->status_aktif) {
+        if (! $user->is_active) {
             throw ValidationException::withMessages([
                 'email' => 'Akun Anda dinonaktifkan. Silakan hubungi administrator.',
             ]);
@@ -324,16 +324,16 @@ class AuthService
      */
     public function register(RegisterRequest $request): array
     {
-        $name = (string) ($request->input('name') ?? $request->input('nama_lengkap'));
+        $name = (string) $request->input('name');
         $email = (string) $request->input('email');
         $password = (string) $request->input('password');
 
         $user = $this->userRepository->create([
-            'nama_lengkap' => $name,
+            'name' => $name,
             'email' => $email,
             'password' => Hash::make($password),
             'role_id' => 2,
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         Auth::login($user);
@@ -403,7 +403,7 @@ class AuthService
             ];
         }
 
-        if (! $user->status_aktif) {
+        if (! $user->is_active) {
             $needsActivation = $user->email_verified_at === null;
 
             return [

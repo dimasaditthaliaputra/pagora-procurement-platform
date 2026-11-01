@@ -30,7 +30,7 @@ class ProfilService
         $avatarLama = $user->avatar;
         $avatarBaru = $avatar?->store(self::AVATAR_DIRECTORY, self::AVATAR_DISK);
 
-        $payload = ['nama_lengkap' => $data['nama_lengkap']];
+        $payload = ['name' => $data['name']];
 
         if (is_string($avatarBaru)) {
             $payload['avatar'] = $avatarBaru;

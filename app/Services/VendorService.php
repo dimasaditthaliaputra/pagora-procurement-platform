@@ -76,7 +76,7 @@ class VendorService
 
             // Deactivate all user logins belonging to this vendor
             $vendor->users()->update([
-                'status_aktif' => false,
+                'is_active' => false,
             ]);
 
             return $vendor->fresh(['blockedByUser']);
@@ -109,7 +109,7 @@ class VendorService
 
             // Reactivate user logins belonging to this vendor
             $vendor->users()->update([
-                'status_aktif' => true,
+                'is_active' => true,
             ]);
 
             return $vendor->fresh(['blockedByUser']);
@@ -173,11 +173,11 @@ class VendorService
         });
 
         // Send email via Dimas' module
-        $roleName = $actor->role?->nama_role;
+        $roleName = $actor->role?->name;
         $roleLabel = match ($roleName) {
             'superadmin' => 'Superadmin',
             'manajemen' => 'Manajemen Internal',
-            'buyer' => 'Tim Purchasing / Buyer',
+            'purchasing' => 'Purchasing / Finance',
             default => 'Manajemen PAGORA',
         };
 
@@ -186,7 +186,7 @@ class VendorService
         Mail::to($undangan->email)->send(
             new UndanganVendorMail(
                 invitation: $undangan,
-                inviterName: $actor->nama_lengkap,
+                inviterName: $actor->name,
                 inviterRole: $roleLabel,
                 registrationUrl: $registrationUrl,
             )

@@ -18,18 +18,6 @@ class RegisterRequest extends FormRequest
     }
 
     /**
-     * Prepare the data for validation.
-     */
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('nama_lengkap') && ! $this->filled('name')) {
-            $this->merge([
-                'name' => $this->input('nama_lengkap'),
-            ]);
-        }
-    }
-
-    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>

@@ -16,7 +16,7 @@ class DatabaseMigrationTest extends TestCase
     public function test_all_design_db_tables_exist(): void
     {
         $tables = [
-            'role',
+            'roles',
             'perusahaan_buyer',
             'vendor',
             'users',
@@ -46,10 +46,10 @@ class DatabaseMigrationTest extends TestCase
      */
     public function test_table_columns_match_design(): void
     {
-        $this->assertTrue(Schema::hasColumns('role', [
+        $this->assertTrue(Schema::hasColumns('roles', [
             'id',
-            'nama_role',
-            'deskripsi',
+            'name',
+            'description',
             'created_at',
         ]));
 
@@ -100,15 +100,15 @@ class DatabaseMigrationTest extends TestCase
         $this->assertTrue(Schema::hasColumns('users', [
             'id',
             'uuid',
-            'nama_lengkap',
+            'name',
             'email',
             'password',
             'google_id',
             'avatar',
             'role_id',
+            'tenant_id',
             'vendor_id',
-            'vendor_id',
-            'status_aktif',
+            'is_active',
             'created_at',
             'updated_at',
             'deleted_at',

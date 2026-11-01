@@ -24,7 +24,7 @@ class KomoditasTest extends TestCase
 
         $this->user = User::factory()->create([
             'role_id' => 1, // Superadmin
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
     }
 

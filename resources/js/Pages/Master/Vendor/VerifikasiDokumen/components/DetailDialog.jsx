@@ -145,8 +145,8 @@ export function DetailDialog({ document, open, onOpenChange, onApprove, onReject
                                 <span className="font-medium text-foreground">
                                     {new Date(document.diverifikasi_pada).toLocaleString('id-ID')}
                                 </span>
-                                {document.verifier?.nama_lengkap && (
-                                    <> oleh {document.verifier.nama_lengkap}</>
+                                {document.verifier?.name && (
+                                    <> oleh {document.verifier.name}</>
                                 )}
                             </div>
                         )}

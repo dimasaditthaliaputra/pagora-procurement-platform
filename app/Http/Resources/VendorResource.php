@@ -34,7 +34,7 @@ class VendorResource extends JsonResource
             'diblokir_pada' => $this->diblokir_pada?->toISOString(),
             'blocked_by_user' => $this->blockedByUser ? [
                 'uuid' => $this->blockedByUser->uuid,
-                'nama_lengkap' => $this->blockedByUser->nama_lengkap,
+                'name' => $this->blockedByUser->name,
                 'email' => $this->blockedByUser->email,
             ] : null,
             'created_at' => $this->created_at?->toISOString(),

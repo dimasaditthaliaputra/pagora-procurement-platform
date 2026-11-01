@@ -74,21 +74,21 @@ export function PegawaiDetailModal({
                     {/* Header Profile Section */}
                     <div className="flex items-center gap-4 p-4 rounded-xl border bg-card/60 backdrop-blur-xs">
                         <Avatar className="size-14 rounded-full border-2 border-primary/20">
-                            <AvatarImage src={pegawai.avatar} alt={pegawai.nama_lengkap} />
+                            <AvatarImage src={pegawai.avatar} alt={pegawai.name} />
                             <AvatarFallback className="text-base font-bold bg-primary/10 text-primary">
-                                {getInitials(pegawai.nama_lengkap)}
+                                {getInitials(pegawai.name)}
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col gap-1 min-w-0">
                             <h3 className="font-bold text-base text-foreground truncate">
-                                {pegawai.nama_lengkap}
+                                {pegawai.name}
                             </h3>
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
                                 <Mail className="size-3.5 shrink-0" />
                                 <span className="truncate">{pegawai.email}</span>
                             </div>
                             <div className="flex items-center gap-2 mt-1">
-                                {pegawai.status_aktif ? (
+                                {pegawai.is_active ? (
                                     <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-[11px] font-medium py-0 h-5">
                                         <CheckCircle2 className="size-3 mr-1" />
                                         Akun Aktif
@@ -135,8 +135,8 @@ export function PegawaiDetailModal({
                                 </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground leading-relaxed">
-                                {pegawai.role?.deskripsi ||
-                                    (roleName === 'buyer'
+                                {pegawai.role?.description ||
+                                    (roleName === 'purchasing'
                                         ? 'Bertanggung jawab atas pengadaan barang, penawaran harga acuan, dan penerbitan PO.'
                                         : 'Bertanggung jawab atas operasional sesuai hak akses perusahaannya.')}
                             </p>

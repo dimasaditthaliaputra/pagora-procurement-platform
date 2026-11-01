@@ -58,7 +58,7 @@ class PegawaiController extends Controller
 
         return Inertia::render('Manajemen/Pengguna/Index', [
             'pegawai' => PegawaiResource::collection($pegawai),
-            'filters' => $request->only('search', 'role', 'perusahaan', 'status_aktif', 'sort', 'direction', 'per_page'),
+            'filters' => $request->only('search', 'role', 'perusahaan', 'is_active', 'sort', 'direction', 'per_page'),
             'role_options' => $this->service->getRoleOptionsForUser($authUser),
             'filter_role_options' => $this->service->getFilterRoleOptionsForUser($authUser),
             'is_superadmin' => $isSuperadmin,

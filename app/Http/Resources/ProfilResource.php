@@ -20,15 +20,15 @@ class ProfilResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $roleName = $this->role?->nama_role;
+        $roleName = $this->role?->name;
 
         return [
             'uuid' => $this->uuid,
-            'nama_lengkap' => $this->nama_lengkap,
+            'name' => $this->name,
             'email' => $this->email,
             'avatar_url' => $this->avatar_url,
             'role' => match ($roleName) {
-                'buyer' => 'Buyer',
+                'purchasing' => 'Purchasing / Finance',
                 'qc_gudang' => 'QC Gudang',
                 'superadmin' => 'Superadmin',
                 'manajemen' => 'Manajemen',

@@ -152,7 +152,7 @@ export function getColumns({ onApprove, onReject, onViewDetail }) {
             cell: ({ row }) => {
                 const doc = row.original;
                 const verifDate = doc.diverifikasi_pada;
-                const verifier = doc.verifier?.nama_lengkap;
+                const verifier = doc.verifier?.name;
 
                 if (!verifDate) {
                     return (

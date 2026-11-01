@@ -58,7 +58,7 @@ class PerusahaanBuyer extends Model
 
     public function users(): HasMany
     {
-        return $this->hasMany(User::class, 'perusahaan_id');
+        return $this->hasMany(User::class, 'tenant_id');
     }
 
     public function kerjaSama(): HasMany

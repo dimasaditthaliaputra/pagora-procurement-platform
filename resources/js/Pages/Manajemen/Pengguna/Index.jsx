@@ -54,8 +54,8 @@ export default function PenggunaIndex({
     const [perusahaan, setPerusahaan] = useState(filters.perusahaan ?? 'all');
     const [role, setRole] = useState(filters.role ?? 'all');
     const [statusAktif, setStatusAktif] = useState(
-        filters.status_aktif !== undefined && filters.status_aktif !== null && filters.status_aktif !== ''
-            ? String(filters.status_aktif)
+        filters.is_active !== undefined && filters.is_active !== null && filters.is_active !== ''
+            ? String(filters.is_active)
             : 'all'
     );
     const [loading, setLoading] = useState(false);
@@ -78,8 +78,8 @@ export default function PenggunaIndex({
         setPerusahaan(filters.perusahaan ?? 'all');
         setRole(filters.role ?? 'all');
         setStatusAktif(
-            filters.status_aktif !== undefined && filters.status_aktif !== null && filters.status_aktif !== ''
-                ? String(filters.status_aktif)
+            filters.is_active !== undefined && filters.is_active !== null && filters.is_active !== ''
+                ? String(filters.is_active)
                 : 'all'
         );
         if (typeof filters.sort === 'string' && filters.sort) {
@@ -87,7 +87,7 @@ export default function PenggunaIndex({
         } else {
             setSorting([]);
         }
-    }, [filters.search, filters.perusahaan, filters.role, filters.status_aktif, filters.sort, filters.direction]);
+    }, [filters.search, filters.perusahaan, filters.role, filters.is_active, filters.sort, filters.direction]);
 
     const applyFilters = (newFilters = {}) => {
         const activeSort = typeof sorting[0]?.id === 'string' ? sorting[0].id : undefined;
@@ -95,7 +95,7 @@ export default function PenggunaIndex({
             search: search.trim() || undefined,
             perusahaan: is_superadmin && perusahaan !== 'all' ? perusahaan : undefined,
             role: role !== 'all' ? role : undefined,
-            status_aktif: statusAktif !== 'all' ? statusAktif : undefined,
+            is_active: statusAktif !== 'all' ? statusAktif : undefined,
             sort: activeSort,
             direction: activeSort && sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
             per_page: meta.per_page,
@@ -161,7 +161,7 @@ export default function PenggunaIndex({
     const handleStatusChange = (val) => {
         const nextVal = !val || val === 'all' ? 'all' : val;
         setStatusAktif(nextVal);
-        applyFilters({ status_aktif: nextVal !== 'all' ? nextVal : undefined, page: 1 });
+        applyFilters({ is_active: nextVal !== 'all' ? nextVal : undefined, page: 1 });
     };
 
     const handleResetFilters = () => {

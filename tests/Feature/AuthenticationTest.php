@@ -36,7 +36,7 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create([
             'email' => 'buyer@pagora.id',
             'password' => Hash::make('password123'),
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $response = $this->post('/login', [
@@ -48,6 +48,26 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect('/dashboard');
         $this->assertAuthenticatedAs($user);
         $response->assertCookie(Auth::guard()->getRecallerName());
+    }
+
+    public function test_remember_me_cookie_expires_after_at_most_thirty_days(): void
+    {
+        User::factory()->create([
+            'email' => 'buyer@pagora.id',
+            'password' => Hash::make('password123'),
+            'is_active' => true,
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => 'buyer@pagora.id',
+            'password' => 'password123',
+            'remember' => true,
+        ]);
+
+        $cookie = $response->getCookie(Auth::guard()->getRecallerName(), false);
+
+        $this->assertNotNull($cookie);
+        $this->assertEqualsWithDelta(now()->addDays(30)->getTimestamp(), $cookie->getExpiresTime(), 60);
     }
 
     public function test_login_fails_when_email_not_registered_and_does_not_create_user(): void
@@ -71,7 +91,7 @@ class AuthenticationTest extends TestCase
         User::factory()->create([
             'email' => 'buyer@pagora.id',
             'password' => Hash::make('correct_password'),
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $response = $this->from('/login')->post('/login', [
@@ -116,9 +136,9 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect('/dashboard');
 
         $this->assertDatabaseHas('users', [
-            'nama_lengkap' => 'Budi Santoso',
+            'name' => 'Budi Santoso',
             'email' => 'budi@perusahaan.co.id',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $user = User::where('email', 'budi@perusahaan.co.id')->first();
@@ -155,7 +175,7 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create([
             'email' => 'partner@pagora.id',
             'google_id' => null,
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $socialiteUser = Mockery::mock(SocialiteUserContract::class);
@@ -201,7 +221,7 @@ class AuthenticationTest extends TestCase
 
     public function test_logout_invalidates_session_and_redirects(): void
     {
-        $user = User::factory()->create(['status_aktif' => true]);
+        $user = User::factory()->create(['is_active' => true]);
 
         $response = $this->actingAs($user)->post('/logout');
 

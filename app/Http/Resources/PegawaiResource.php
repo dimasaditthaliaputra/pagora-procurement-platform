@@ -20,7 +20,7 @@ class PegawaiResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $roleName = $this->role?->nama_role;
+        $roleName = $this->role?->name;
         $perusahaan = null;
 
         if ($this->perusahaanBuyer !== null) {
@@ -39,13 +39,13 @@ class PegawaiResource extends JsonResource
 
         return [
             'uuid' => $this->uuid,
-            'nama_lengkap' => $this->nama_lengkap,
+            'name' => $this->name,
             'email' => $this->email,
             'avatar' => $this->avatar_url,
             'role' => [
                 'name' => $roleName,
                 'label' => match ($roleName) {
-                    'buyer' => 'Buyer',
+                    'purchasing' => 'Purchasing / Finance',
                     'qc_gudang' => 'QC Gudang',
                     'superadmin' => 'Superadmin',
                     'manajemen' => 'Manajemen',
@@ -53,10 +53,10 @@ class PegawaiResource extends JsonResource
                     'vendor' => 'Vendor',
                     default => ucfirst((string) ($roleName ?? '-')),
                 },
-                'deskripsi' => $this->role?->deskripsi,
+                'description' => $this->role?->description,
             ],
             'perusahaan' => $perusahaan,
-            'status_aktif' => (bool) $this->status_aktif,
+            'is_active' => (bool) $this->is_active,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

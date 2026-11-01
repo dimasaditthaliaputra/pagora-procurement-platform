@@ -18,6 +18,6 @@ class RoleRepository implements RoleRepositoryInterface
      */
     public function findByName(string $roleName): ?Role
     {
-        return $this->model->newQuery()->where('nama_role', $roleName)->first();
+        return $this->model->newQuery()->where('name', $roleName)->first();
     }
 }

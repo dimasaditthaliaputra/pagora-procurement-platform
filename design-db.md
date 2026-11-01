@@ -42,8 +42,8 @@
 
 | # | Tabel target | Nama saat ini | Model | Ringkas |
 |---|---|---|---|---|
-| 1 | `roles` | `role` | `Role` | 6 role RBAC |
-| 2 | `users` | `users` | `User` | Akun semua role |
+| 1 | `roles` | ✅ `roles` (modul 1) | `Role` | 6 role RBAC |
+| 2 | `users` | ✅ `users` (modul 1) | `User` | Akun semua role |
 | 3 | `tenants` | `perusahaan_buyer` | `PerusahaanBuyer` | Perusahaan pembeli |
 | 4 | `vendors` | `vendor` | `Vendor` | Perusahaan pemasok |
 | 5 | `vendor_legal_documents` | `dokumen_legalitas_vendor` | `DokumenLegalitasVendor` | NPWP/SIUP vendor |
@@ -135,7 +135,7 @@ erDiagram
 Notasi: `FK→tabel`, `NN` = not null, `U` = unique, `idx` = index. Semua tabel entitas punya `id` (PK) + `uuid` (U NN); tidak ditulis ulang.
 Kolom `timestamps` tidak ditulis ulang kecuali tabel immutable. Kolom "Saat ini" kosong = sama atau baru.
 
-### 4.1 `roles` (saat ini `role`)
+### 4.1 `roles` ✅ (sudah dimigrasikan, modul 1; dulu `role`)
 | Kolom | Tipe | Saat ini | Catatan |
 |---|---|---|---|
 | name | string(50) U NN | `nama_role` | `superadmin`, `owner`, `manajemen`, `purchasing`, `qc_gudang`, `vendor` |
@@ -143,7 +143,7 @@ Kolom `timestamps` tidak ditulis ulang kecuali tabel immutable. Kolom "Saat ini"
 
 `id` tetap: 1 superadmin, 2 purchasing (sebelumnya `buyer`), 3 qc_gudang, 4 vendor, 5 manajemen, 6 owner. Tabel ini **tidak** punya `uuid`.
 
-### 4.2 `users` (softDeletes)
+### 4.2 `users` ✅ (softDeletes; kolom sudah dimigrasikan, modul 1)
 | Kolom | Tipe | Saat ini | Catatan |
 |---|---|---|---|
 | name | string(150) NN | `nama_lengkap` | |
@@ -512,7 +512,7 @@ Karena migration lama sudah di `main`, refactor dilakukan **per modul** dengan m
 5. Catat di §11.
 
 **Urutan modul (mengikuti ketergantungan FK)**
-1. `roles` (+ ubah `buyer` → `purchasing`), `users`
+1. ✅ `roles` (+ ubah `buyer` → `purchasing`), `users`
 2. `tenants`, `vendors`, `vendor_legal_documents`, `vendor_invitations`, `settings`
 3. `commodity_categories` [baru] → `commodities` (pindahkan `kategori` string ke FK) → `tenant_commodities` [baru], `vendor_commodity_categories` [baru]
 4. `partnerships`
@@ -683,6 +683,7 @@ Cocok bila untuk setiap item: `invoice_items.quantity ≤ kuantitas diterima yan
 | 2026-10-30 | Tabel `undangan_vendor` | — |
 | 2026-10-31 | **Dokumen diselaraskan ke PRD rev. 5** (skema target, belum dimigrasikan): penamaan Inggris; role `buyer` → `purchasing`; tabel baru `commodity_categories`, `tenant_commodities`, `vendor_commodity_categories`, `invoice_items`, `payments`, `credit_notes`, `purchase_returns`, `purchase_return_items`, `tenant_invitations` ⚠️; kolom baru di `tenants`, `vendors`, `partnerships`, `purchase_orders`, `purchase_order_items`, `negotiation_messages`, `shipments`, `goods_receipts`, `invoices`, `disputes`, `dispute_logs`; enum Inggris; hapus `tipe_paket`; strategi migrasi per modul (§5) | — |
 | 2026-10-31 | Keputusan teknis §12: `tenant_invitations` disetujui; status `vendor_invitations` = `pending`/`accepted`/`expired`/`cancelled`; `invoices.vendor_id` [baru] + UNIQUE (`vendor_id`, `vendor_invoice_number`); prosedur hapus `vendors.dokumen_legalitas`; class baru berbahasa Inggris; Harga Pagu sementara × 1.05; toleransi matching 0; refactor bertahap per PR | — |
+| 2026-10-31 | **Modul 1 selesai**: `role` → `roles` (`name`, `description`), nilai `buyer` → `purchasing`; `users`: `nama_lengkap` → `name`, `perusahaan_id` → `tenant_id`, `status_aktif` → `is_active` + index `role_id`/`tenant_id`/`vendor_id`. Migration `2026_10_31_120942_*`, `2026_10_31_120943_*`. `session.lifetime` default 30 menit, Ingat Saya 30 hari (`auth.guards.web.remember`) | — |
 
 ## 12. Keputusan Teknis (2026-10-31)
 

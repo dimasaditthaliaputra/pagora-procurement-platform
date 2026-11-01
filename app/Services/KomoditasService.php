@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Komoditas;
+use App\Repositories\Contracts\CommodityCategoryRepositoryInterface;
 use App\Repositories\Contracts\KomoditasRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -28,50 +29,19 @@ class KomoditasService
         'gram',
     ];
 
-    /**
-     * Standard categories for food procurement commodities.
-     *
-     * @var list<string>
-     */
-    public const KATEGORI_OPTIONS = [
-        'Beras & Padi',
-        'Biji-bijian & Jagung',
-        'Minyak & Lemak',
-        'Gula & Pemanis',
-        'Bumbu & Rempah',
-        'Sayuran & Buah',
-        'Daging & Unggas',
-        'Tepung & Olahan',
-        'Lainnya',
-    ];
-
     public function __construct(
-        protected KomoditasRepositoryInterface $repository
+        protected KomoditasRepositoryInterface $repository,
+        protected CommodityCategoryRepositoryInterface $categoryRepository
     ) {}
 
     /**
      * Paginate commodities.
      *
      * @param  array<string, mixed>  $filters
-     * @param  list<string>  $columns
      */
-    public function paginate(
-        array $filters,
-        int $perPage = 10,
-        array $columns = [
-            'id',
-            'uuid',
-            'nama_komoditas',
-            'sku',
-            'kategori',
-            'satuan',
-            'batas_susut',
-            'kode_referensi_api',
-            'status',
-            'created_at',
-        ]
-    ): LengthAwarePaginator {
-        return $this->repository->paginate($filters, $perPage, $columns);
+    public function paginate(array $filters, int $perPage = 10): LengthAwarePaginator
+    {
+        return $this->repository->paginate($filters, $perPage);
     }
 
     /**
@@ -98,19 +68,17 @@ class KomoditasService
     public function create(array $data): Komoditas
     {
         return DB::transaction(function () use ($data): Komoditas {
-            $nama = (string) ($data['nama_komoditas'] ?? '');
-            $data['slug'] = $this->generateUniqueSlug($nama);
+            $data = $this->resolveCategory($data);
+            $data['slug'] = $this->generateUniqueSlug((string) ($data['name'] ?? ''));
             $data['uuid'] = (string) Str::uuid();
 
-            if (! isset($data['status'])) {
-                $data['status'] = true;
+            if (! isset($data['is_active'])) {
+                $data['is_active'] = true;
             }
 
-            if (array_key_exists('batas_susut', $data)) {
-                $data['batas_susut'] = $this->normalizeBatasSusut($data['batas_susut']);
-            } else {
-                $data['batas_susut'] = 0.0;
-            }
+            $data['default_shrinkage_tolerance'] = array_key_exists('default_shrinkage_tolerance', $data)
+                ? $this->normalizeShrinkageTolerance($data['default_shrinkage_tolerance'])
+                : 0.0;
 
             return $this->repository->create($data);
         });
@@ -129,12 +97,14 @@ class KomoditasService
         $komoditas = $this->findByUuid($uuid);
 
         return DB::transaction(function () use ($komoditas, $data, $uuid): Komoditas {
-            if (isset($data['nama_komoditas']) && $data['nama_komoditas'] !== $komoditas->nama_komoditas) {
-                $data['slug'] = $this->generateUniqueSlug((string) $data['nama_komoditas'], $uuid);
+            $data = $this->resolveCategory($data);
+
+            if (isset($data['name']) && $data['name'] !== $komoditas->name) {
+                $data['slug'] = $this->generateUniqueSlug((string) $data['name'], $uuid);
             }
 
-            if (array_key_exists('batas_susut', $data)) {
-                $data['batas_susut'] = $this->normalizeBatasSusut($data['batas_susut']);
+            if (array_key_exists('default_shrinkage_tolerance', $data)) {
+                $data['default_shrinkage_tolerance'] = $this->normalizeShrinkageTolerance($data['default_shrinkage_tolerance']);
             }
 
             $this->repository->update($komoditas, $data);
@@ -144,11 +114,31 @@ class KomoditasService
     }
 
     /**
-     * Guard and normalize batas_susut to ensure decimal dot format and range.
+     * Replace `commodity_category_uuid` with `commodity_category_id`.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function resolveCategory(array $data): array
+    {
+        if (! array_key_exists('commodity_category_uuid', $data)) {
+            return $data;
+        }
+
+        $uuid = $data['commodity_category_uuid'];
+        unset($data['commodity_category_uuid']);
+
+        $data['commodity_category_id'] = $uuid ? $this->categoryRepository->findByUuid((string) $uuid)?->id : null;
+
+        return $data;
+    }
+
+    /**
+     * Guard and normalize the shrinkage tolerance to ensure decimal dot format and range.
      *
      * @throws ValidationException
      */
-    private function normalizeBatasSusut(mixed $value): float
+    private function normalizeShrinkageTolerance(mixed $value): float
     {
         if ($value === null || $value === '') {
             return 0.0;
@@ -158,7 +148,7 @@ class KomoditasService
             $trimmed = trim($value);
             if (str_contains($trimmed, ',') || ! preg_match('/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/', $trimmed)) {
                 throw ValidationException::withMessages([
-                    'batas_susut' => 'Batas susut hanya menerima format angka desimal dengan titik (contoh: 2.5).',
+                    'default_shrinkage_tolerance' => 'Batas susut hanya menerima format angka desimal dengan titik (contoh: 2.5).',
                 ]);
             }
 
@@ -169,7 +159,7 @@ class KomoditasService
             $num = (float) $value;
             if ($num < 0 || $num > 100) {
                 throw ValidationException::withMessages([
-                    'batas_susut' => 'Batas susut harus berada dalam rentang 0 hingga 100 persen.',
+                    'default_shrinkage_tolerance' => 'Batas susut harus berada dalam rentang 0 hingga 100 persen.',
                 ]);
             }
 
@@ -177,7 +167,7 @@ class KomoditasService
         }
 
         throw ValidationException::withMessages([
-            'batas_susut' => 'Format batas susut tidak valid.',
+            'default_shrinkage_tolerance' => 'Format batas susut tidak valid.',
         ]);
     }
 
@@ -225,12 +215,14 @@ class KomoditasService
     }
 
     /**
-     * Get available category options.
+     * Get active category options for selects.
      *
-     * @return list<string>
+     * @return list<array{uuid: string, name: string}>
      */
-    public function getKategoriOptions(): array
+    public function getCategoryOptions(): array
     {
-        return self::KATEGORI_OPTIONS;
+        return $this->categoryRepository->getActive()
+            ->map(fn ($category): array => ['uuid' => $category->uuid, 'name' => $category->name])
+            ->all();
     }
 }

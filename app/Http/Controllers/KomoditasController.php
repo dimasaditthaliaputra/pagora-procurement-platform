@@ -30,18 +30,7 @@ class KomoditasController extends Controller
     {
         $filters = $request->validated();
         $perPage = (int) $request->input('per_page', 10);
-        $komoditas = $this->service->paginate($filters, $perPage, [
-            'id',
-            'uuid',
-            'nama_komoditas',
-            'sku',
-            'kategori',
-            'satuan',
-            'batas_susut',
-            'kode_referensi_api',
-            'status',
-            'created_at',
-        ]);
+        $komoditas = $this->service->paginate($filters, $perPage);
 
         if ($request->expectsJson()) {
             return ResponseHelper::success(
@@ -53,11 +42,11 @@ class KomoditasController extends Controller
         return Inertia::render('Master/Komoditas/Index', [
             'komoditas' => KomoditasResource::collection($komoditas),
             'filters' => (object) array_filter(
-                $request->only('search', 'sort', 'direction', 'kategori', 'status', 'per_page'),
+                $request->only('search', 'sort', 'direction', 'commodity_category_uuid', 'status', 'per_page'),
                 fn ($val) => $val !== null && $val !== ''
             ),
             'satuan_options' => $this->service->getSatuanOptions(),
-            'kategori_options' => $this->service->getKategoriOptions(),
+            'category_options' => $this->service->getCategoryOptions(),
         ]);
     }
 
@@ -68,7 +57,7 @@ class KomoditasController extends Controller
     {
         return Inertia::render('Master/Komoditas/Create', [
             'satuan_options' => $this->service->getSatuanOptions(),
-            'kategori_options' => $this->service->getKategoriOptions(),
+            'category_options' => $this->service->getCategoryOptions(),
         ]);
     }
 
@@ -101,7 +90,7 @@ class KomoditasController extends Controller
             return Inertia::render('Master/Komoditas/Edit', [
                 'komoditas' => new KomoditasResource($komoditas),
                 'satuan_options' => $this->service->getSatuanOptions(),
-                'kategori_options' => $this->service->getKategoriOptions(),
+                'category_options' => $this->service->getCategoryOptions(),
             ]);
         } catch (ModelNotFoundException) {
             return ResponseHelper::notFound('Komoditas tidak ditemukan.');

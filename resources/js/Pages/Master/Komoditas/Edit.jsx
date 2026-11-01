@@ -7,7 +7,7 @@ import { KomoditasForm } from '@/Pages/Master/Komoditas/KomoditasForm';
 export default function KomoditasEdit({
     komoditas,
     satuan_options = [],
-    kategori_options = [],
+    category_options = [],
 }) {
     const item = komoditas?.data ?? komoditas;
 
@@ -15,12 +15,12 @@ export default function KomoditasEdit({
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Master Data', href: '#' },
         { label: 'Komoditas', href: '/master/komoditas' },
-        { label: `Ubah ${item?.nama_komoditas ?? ''}`, href: '#' },
+        { label: `Ubah ${item?.name ?? ''}`, href: '#' },
     ];
 
     return (
         <DashboardLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Ubah ${item?.nama_komoditas ?? 'Komoditas'} - PAGORA`} />
+            <Head title={`Ubah ${item?.name ?? 'Komoditas'} - PAGORA`} />
 
             <div className="flex flex-col gap-4 w-full">
                 {/* 1 Row Heading with Back Button at Top-Right */}
@@ -31,7 +31,7 @@ export default function KomoditasEdit({
                             Ubah Data Komoditas
                         </h1>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                            Perbarui informasi bahan baku <strong className="text-foreground">{item?.nama_komoditas}</strong>.
+                            Perbarui informasi bahan baku <strong className="text-foreground">{item?.name}</strong>.
                         </p>
                     </div>
 
@@ -47,7 +47,7 @@ export default function KomoditasEdit({
                     initialData={item}
                     isEdit={true}
                     satuan_options={satuan_options}
-                    kategori_options={kategori_options}
+                    category_options={category_options}
                 />
             </div>
         </DashboardLayout>

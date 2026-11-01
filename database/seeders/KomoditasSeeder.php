@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\CommodityCategory;
 use App\Models\Komoditas;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
  * Reference seeder: harus jalan di semua environment termasuk production.
- * Idempotent: updateOrCreate dengan kunci 'sku'.
+ * Idempotent: updateOrCreate dengan kunci 'sku'. Membutuhkan CommodityCategorySeeder.
  */
 class KomoditasSeeder extends Seeder
 {
@@ -29,17 +30,19 @@ class KomoditasSeeder extends Seeder
             ['sku' => 'MINYAK_GORENG', 'nama' => 'Minyak Goreng', 'kategori' => 'Pangan Pokok',    'satuan' => 'liter', 'batas_susut' => 0.5],
         ];
 
+        $categories = CommodityCategory::pluck('id', 'name');
+
         foreach ($komoditas as $data) {
             Komoditas::updateOrCreate(
                 ['sku' => $data['sku']],
                 [
                     'slug' => Str::slug($data['nama']),
-                    'nama_komoditas' => $data['nama'],
-                    'kategori' => $data['kategori'],
-                    'satuan' => $data['satuan'],
-                    'batas_susut' => $data['batas_susut'],
-                    'kode_referensi_api' => null, // TODO: isi setelah pemetaan ke API BI dikonfirmasi
-                    'status' => true,
+                    'name' => $data['nama'],
+                    'commodity_category_id' => $categories[$data['kategori']],
+                    'unit' => $data['satuan'],
+                    'default_shrinkage_tolerance' => $data['batas_susut'],
+                    'api_reference_code' => null, // TODO: isi setelah pemetaan ke API BI dikonfirmasi
+                    'is_active' => true,
                 ]
             );
         }

@@ -6,7 +6,7 @@ import { KomoditasForm } from '@/Pages/Master/Komoditas/KomoditasForm';
 
 export default function KomoditasCreate({
     satuan_options = [],
-    kategori_options = [],
+    category_options = [],
 }) {
     const breadcrumbs = [
         { label: 'Dashboard', href: '/dashboard' },
@@ -43,7 +43,7 @@ export default function KomoditasCreate({
                 <KomoditasForm
                     isEdit={false}
                     satuan_options={satuan_options}
-                    kategori_options={kategori_options}
+                    category_options={category_options}
                 />
             </div>
         </DashboardLayout>

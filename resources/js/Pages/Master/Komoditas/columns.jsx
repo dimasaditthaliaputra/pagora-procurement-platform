@@ -48,7 +48,7 @@ export function getColumns({ onSortChange }) {
             },
         },
         {
-            accessorKey: 'nama_komoditas',
+            accessorKey: 'name',
             header: ({ column }) => (
                 <DataTableColumnHeader
                     column={column}
@@ -59,21 +59,15 @@ export function getColumns({ onSortChange }) {
             cell: ({ row }) => {
                 const komoditas = row.original;
                 return (
-                    <span className="font-medium text-foreground">{komoditas.nama_komoditas}</span>
+                    <span className="font-medium text-foreground">{komoditas.name}</span>
                 );
             },
         },
         {
-            accessorKey: 'kategori',
-            header: ({ column }) => (
-                <DataTableColumnHeader
-                    column={column}
-                    title="Kategori"
-                    onSortChange={onSortChange}
-                />
-            ),
+            accessorKey: 'category_name',
+            header: 'Kategori',
             cell: ({ row }) => {
-                const kategori = row.getValue('kategori');
+                const kategori = row.getValue('category_name');
                 return kategori ? (
                     <Badge variant="outline" className="font-normal">
                         {kategori}
@@ -84,7 +78,7 @@ export function getColumns({ onSortChange }) {
             },
         },
         {
-            accessorKey: 'satuan',
+            accessorKey: 'unit',
             header: ({ column }) => (
                 <DataTableColumnHeader
                     column={column}
@@ -94,15 +88,15 @@ export function getColumns({ onSortChange }) {
             ),
             cell: ({ row }) => (
                 <span className="text-sm uppercase font-semibold text-muted-foreground">
-                    {row.getValue('satuan')}
+                    {row.getValue('unit')}
                 </span>
             ),
         },
         {
-            accessorKey: 'kode_referensi_api',
+            accessorKey: 'api_reference_code',
             header: 'Ref. API Pangan',
             cell: ({ row }) => {
-                const ref = row.getValue('kode_referensi_api');
+                const ref = row.getValue('api_reference_code');
                 return ref ? (
                     <Badge variant="secondary" className="font-mono text-xs">
                         ID: {ref}
@@ -113,7 +107,7 @@ export function getColumns({ onSortChange }) {
             },
         },
         {
-            accessorKey: 'status',
+            accessorKey: 'is_active',
             header: ({ column }) => (
                 <DataTableColumnHeader
                     column={column}
@@ -122,7 +116,7 @@ export function getColumns({ onSortChange }) {
                 />
             ),
             cell: ({ row }) => {
-                const isActive = row.getValue('status');
+                const isActive = row.getValue('is_active');
                 return isActive ? (
                     <Badge variant='green'>
                         Aktif
@@ -196,7 +190,7 @@ function ActionCell({ komoditas }) {
                         <AlertDialogTitle>Hapus Komoditas</AlertDialogTitle>
                         <AlertDialogDescription>
                             Apakah Anda yakin ingin menghapus komoditas{' '}
-                            <strong>{komoditas.nama_komoditas}</strong>? Tindakan ini dapat
+                            <strong>{komoditas.name}</strong>? Tindakan ini dapat
                             dibatalkan kembali melalui arsip data.
                         </AlertDialogDescription>
                     </AlertDialogHeader>

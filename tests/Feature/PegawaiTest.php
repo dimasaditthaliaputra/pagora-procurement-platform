@@ -344,11 +344,11 @@ class PegawaiTest extends TestCase
         Notification::fake();
 
         $perusahaan = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Pagora Owner Test',
-            'nomor_npwp' => '01.111.222.3-444.000',
-            'alamat' => 'Jl. Industri No. 10',
+            'company_name' => 'PT Pagora Owner Test',
+            'tax_number' => '01.111.222.3-444.000',
+            'address' => 'Jl. Industri No. 10',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $owner = User::factory()->create([
@@ -395,11 +395,11 @@ class PegawaiTest extends TestCase
         Notification::fake();
 
         $perusahaan = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Pagora Manajemen Test',
-            'nomor_npwp' => '02.111.222.3-444.000',
-            'alamat' => 'Jl. Industri No. 20',
+            'company_name' => 'PT Pagora Manajemen Test',
+            'tax_number' => '02.111.222.3-444.000',
+            'address' => 'Jl. Industri No. 20',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $manajemen = User::factory()->create([
@@ -446,19 +446,19 @@ class PegawaiTest extends TestCase
         Notification::fake();
 
         $companyA = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Alpha Manufaktur',
-            'nomor_npwp' => '11.111.111.1-111.000',
-            'alamat' => 'Surabaya',
+            'company_name' => 'PT Alpha Manufaktur',
+            'tax_number' => '11.111.111.1-111.000',
+            'address' => 'Surabaya',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $companyB = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Beta Pangan',
-            'nomor_npwp' => '22.222.222.2-222.000',
-            'alamat' => 'Jakarta',
+            'company_name' => 'PT Beta Pangan',
+            'tax_number' => '22.222.222.2-222.000',
+            'address' => 'Jakarta',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $ownerA = User::factory()->create([
@@ -509,13 +509,13 @@ class PegawaiTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page->has('pegawai.data', 2));
 
-        // 3. Creating a user while spoofing perusahaan_uuid of Company B still binds to Company A
+        // 3. Creating a user while spoofing tenant_uuid of Company B still binds to Company A
         $this->actingAs($ownerA)
             ->post('/manajemen/pengguna', [
                 'name' => 'QC Alpha Baru',
                 'email' => 'qc.baru@alpha.test',
                 'role' => 'qc_gudang',
-                'perusahaan_uuid' => $companyB->uuid,
+                'tenant_uuid' => $companyB->uuid,
             ])
             ->assertRedirect('/manajemen/pengguna');
 
@@ -571,11 +571,11 @@ class PegawaiTest extends TestCase
     public function test_manajemen_cannot_modify_or_delete_owner_or_fellow_manajemen_in_same_company(): void
     {
         $company = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Hirarki Test',
-            'nomor_npwp' => '33.333.333.3-333.000',
-            'alamat' => 'Bandung',
+            'company_name' => 'PT Hirarki Test',
+            'tax_number' => '33.333.333.3-333.000',
+            'address' => 'Bandung',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $owner = User::factory()->create([
@@ -620,24 +620,24 @@ class PegawaiTest extends TestCase
 
         $vendor1 = Vendor::create([
             'slug' => 'vendor-satu',
-            'nama_perusahaan' => 'CV Vendor Satu',
-            'email_kontak' => 'kontak@vendor1.test',
-            'no_telepon' => '0811111111',
-            'alamat' => 'Malang',
+            'company_name' => 'CV Vendor Satu',
+            'contact_email' => 'kontak@vendor1.test',
+            'phone' => '0811111111',
+            'address' => 'Malang',
             'kategori_komoditas' => 'Pangan Pokok',
-            'status_verifikasi' => 'approved',
-            'status_aktif' => true,
+            'verification_status' => 'approved',
+            'is_active' => true,
         ]);
 
         $vendor2 = Vendor::create([
             'slug' => 'vendor-dua',
-            'nama_perusahaan' => 'CV Vendor Dua',
-            'email_kontak' => 'kontak@vendor2.test',
-            'no_telepon' => '0822222222',
-            'alamat' => 'Kediri',
+            'company_name' => 'CV Vendor Dua',
+            'contact_email' => 'kontak@vendor2.test',
+            'phone' => '0822222222',
+            'address' => 'Kediri',
             'kategori_komoditas' => 'Pangan Pokok',
-            'status_verifikasi' => 'approved',
-            'status_aktif' => true,
+            'verification_status' => 'approved',
+            'is_active' => true,
         ]);
 
         $userV1 = User::factory()->create([
@@ -685,22 +685,22 @@ class PegawaiTest extends TestCase
         Notification::fake();
 
         $companyA = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Super Buyer A',
-            'nomor_npwp' => '44.444.444.4-444.000',
-            'alamat' => 'Semarang',
+            'company_name' => 'PT Super Buyer A',
+            'tax_number' => '44.444.444.4-444.000',
+            'address' => 'Semarang',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $vendorA = Vendor::create([
             'slug' => 'pt-super-vendor-a',
-            'nama_perusahaan' => 'PT Super Vendor A',
-            'email_kontak' => 'info@supervendora.test',
-            'no_telepon' => '0833333333',
-            'alamat' => 'Solo',
+            'company_name' => 'PT Super Vendor A',
+            'contact_email' => 'info@supervendora.test',
+            'phone' => '0833333333',
+            'address' => 'Solo',
             'kategori_komoditas' => 'Pangan Pokok',
-            'status_verifikasi' => 'approved',
-            'status_aktif' => true,
+            'verification_status' => 'approved',
+            'is_active' => true,
         ]);
 
         // Superadmin creates a Buyer Company Owner assigned to Company A via UUID
@@ -709,7 +709,7 @@ class PegawaiTest extends TestCase
                 'name' => 'Owner Super Buyer A',
                 'email' => 'owner@superbuyera.test',
                 'role' => 'owner',
-                'perusahaan_uuid' => $companyA->uuid,
+                'tenant_uuid' => $companyA->uuid,
             ])
             ->assertRedirect('/manajemen/pengguna');
 
@@ -778,11 +778,11 @@ class PegawaiTest extends TestCase
     public function test_staff_roles_purchasing_and_qc_cannot_access_manajemen_pengguna(): void
     {
         $company = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Staff Test',
-            'nomor_npwp' => '55.555.555.5-555.000',
-            'alamat' => 'Yogyakarta',
+            'company_name' => 'PT Staff Test',
+            'tax_number' => '55.555.555.5-555.000',
+            'address' => 'Yogyakarta',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $buyer = User::factory()->create([

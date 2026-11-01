@@ -208,10 +208,10 @@ class PengaturanService
                 $terenkripsi = self::DEFINISI[$kunci]['terenkripsi'] ?? false;
 
                 $this->repository->upsert($kunci, [
-                    'grup' => self::DEFINISI[$kunci]['grup'],
-                    'nilai' => $this->serialize($kunci, $nilai, $terenkripsi),
-                    'terenkripsi' => $terenkripsi,
-                    'diubah_oleh' => $userId,
+                    'group' => self::DEFINISI[$kunci]['grup'],
+                    'value' => $this->serialize($kunci, $nilai, $terenkripsi),
+                    'is_encrypted' => $terenkripsi,
+                    'updated_by' => $userId,
                 ]);
             }
         });
@@ -238,8 +238,8 @@ class PengaturanService
             // (serializable_classes = false), so a cached Collection would come back broken.
             $rows = Cache::rememberForever(self::CACHE_KEY, fn (): array => $this->repository->allKeyed()
                 ->map(fn (Pengaturan $row): array => [
-                    'nilai' => $row->nilai,
-                    'terenkripsi' => $row->terenkripsi,
+                    'nilai' => $row->value,
+                    'terenkripsi' => $row->is_encrypted,
                 ])
                 ->all());
 

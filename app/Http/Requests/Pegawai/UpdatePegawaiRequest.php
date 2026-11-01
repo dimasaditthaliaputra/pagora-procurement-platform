@@ -38,8 +38,8 @@ class UpdatePegawaiRequest extends FormRequest
             ],
             // Which roles are actually permitted depends on the actor's role (enforced in PegawaiService::update())
             'role' => ['required', 'string', 'in:superadmin,owner,manajemen,purchasing,qc_gudang,vendor'],
-            'perusahaan_uuid' => ['nullable', 'uuid', 'exists:perusahaan_buyer,uuid'],
-            'vendor_uuid' => ['nullable', 'uuid', 'exists:vendor,uuid'],
+            'tenant_uuid' => ['nullable', 'uuid', 'exists:tenants,uuid'],
+            'vendor_uuid' => ['nullable', 'uuid', 'exists:vendors,uuid'],
             'password' => ['nullable', 'string', 'min:8'],
             'is_active' => ['required', 'boolean'],
         ];
@@ -62,8 +62,8 @@ class UpdatePegawaiRequest extends FormRequest
             'email.unique' => 'Email sudah terdaftar pada akun lain.',
             'role.required' => 'Role pegawai wajib dipilih.',
             'role.in' => 'Role yang dipilih tidak valid.',
-            'perusahaan_uuid.uuid' => 'Format perusahaan buyer tidak valid.',
-            'perusahaan_uuid.exists' => 'Perusahaan buyer yang dipilih tidak ditemukan.',
+            'tenant_uuid.uuid' => 'Format perusahaan buyer tidak valid.',
+            'tenant_uuid.exists' => 'Perusahaan buyer yang dipilih tidak ditemukan.',
             'vendor_uuid.uuid' => 'Format perusahaan vendor tidak valid.',
             'vendor_uuid.exists' => 'Perusahaan vendor yang dipilih tidak ditemukan.',
             'password.min' => 'Kata sandi baru minimal 8 karakter.',

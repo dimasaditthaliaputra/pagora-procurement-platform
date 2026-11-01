@@ -13,6 +13,7 @@ export function SidebarLink({
     title,
     children,
     routeName,
+    exact = false,
     active: explicitActive,
     badge,
     className,
@@ -30,7 +31,7 @@ export function SidebarLink({
             // Cek jika Ziggy route() tersedia dan routeName diberikan
             if (typeof route === 'function' && routeName) {
                 try {
-                    if (route().current(routeName) || route().current(`${routeName}.*`)) {
+                    if (route().current(routeName) || (!exact && route().current(`${routeName}.*`))) {
                         return true;
                     }
                 } catch {
@@ -47,7 +48,7 @@ export function SidebarLink({
             const currentPath = (url || '').split('?')[0].split('#')[0];
             const targetPath = href.split('?')[0].split('#')[0];
 
-            if (targetPath === '/' || targetPath === '/dashboard') {
+            if (exact || targetPath === '/' || targetPath === '/dashboard') {
                 return currentPath === targetPath;
             }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\VerificationStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -16,17 +17,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'uuid',
     'slug',
-    'nama_perusahaan',
-    'email_kontak',
-    'no_telepon',
-    'alamat',
+    'company_name',
+    'tax_number',
+    'contact_email',
+    'phone',
+    'address',
     'kategori_komoditas',
-    'dokumen_legalitas',
-    'status_verifikasi',
-    'status_aktif',
-    'alasan_pemblokiran',
+    'verification_status',
+    'is_active',
+    'block_reason',
     'blocked_by',
-    'diblokir_pada',
+    'blocked_at',
 ])]
 #[Hidden(['id'])]
 class Vendor extends Model
@@ -38,7 +39,7 @@ class Vendor extends Model
      *
      * @var string
      */
-    protected $table = 'vendor';
+    protected $table = 'vendors';
 
     /**
      * The attributes that are mass assignable.
@@ -48,17 +49,17 @@ class Vendor extends Model
     protected $fillable = [
         'uuid',
         'slug',
-        'nama_perusahaan',
-        'email_kontak',
-        'no_telepon',
-        'alamat',
+        'company_name',
+        'tax_number',
+        'contact_email',
+        'phone',
+        'address',
         'kategori_komoditas',
-        'dokumen_legalitas',
-        'status_verifikasi',
-        'status_aktif',
-        'alasan_pemblokiran',
+        'verification_status',
+        'is_active',
+        'block_reason',
         'blocked_by',
-        'diblokir_pada',
+        'blocked_at',
     ];
 
     /**
@@ -96,8 +97,9 @@ class Vendor extends Model
     protected function casts(): array
     {
         return [
-            'status_aktif' => 'boolean',
-            'diblokir_pada' => 'datetime',
+            'verification_status' => VerificationStatus::class,
+            'is_active' => 'boolean',
+            'blocked_at' => 'datetime',
         ];
     }
 
@@ -107,6 +109,14 @@ class Vendor extends Model
     public function blockedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'blocked_by');
+    }
+
+    /**
+     * Legal documents submitted by this vendor.
+     */
+    public function legalDocuments(): HasMany
+    {
+        return $this->hasMany(DokumenLegalitasVendor::class, 'vendor_id');
     }
 
     /**

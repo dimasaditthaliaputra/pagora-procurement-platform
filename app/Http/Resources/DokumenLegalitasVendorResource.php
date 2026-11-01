@@ -22,26 +22,26 @@ class DokumenLegalitasVendorResource extends JsonResource
     {
         return [
             'uuid' => $this->uuid,
-            'jenis_dokumen' => $this->jenis_dokumen,
-            'nomor_dokumen' => $this->nomor_dokumen,
-            'status_verifikasi' => $this->status_verifikasi,
-            'alasan_penolakan' => $this->alasan_penolakan,
-            'diverifikasi_pada' => $this->diverifikasi_pada?->toISOString(),
+            'document_type' => $this->document_type,
+            'document_number' => $this->document_number,
+            'verification_status' => $this->verification_status->value,
+            'rejection_reason' => $this->rejection_reason,
+            'verified_at' => $this->verified_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
             'file_url' => route(
                 'master.vendor.verifikasi-dokumen.download',
                 $this->uuid
             ),
-            'vendor' => $this->vendor ? [
+            'vendor' => $this->relationLoaded('vendor') && $this->vendor ? [
                 'uuid' => $this->vendor->uuid,
-                'nama_perusahaan' => $this->vendor->nama_perusahaan,
-                'email_kontak' => $this->vendor->email_kontak,
-                'no_telepon' => $this->vendor->no_telepon,
+                'company_name' => $this->vendor->company_name,
+                'contact_email' => $this->vendor->contact_email,
+                'phone' => $this->vendor->phone,
                 'kategori_komoditas' => $this->vendor->kategori_komoditas,
-                'alamat' => $this->vendor->alamat,
-                'status_verifikasi' => $this->vendor->status_verifikasi,
+                'address' => $this->vendor->address,
+                'verification_status' => $this->vendor->verification_status->value,
             ] : null,
-            'verifier' => $this->verifier ? [
+            'verifier' => $this->relationLoaded('verifier') && $this->verifier ? [
                 'uuid' => $this->verifier->uuid,
                 'name' => $this->verifier->name,
                 'email' => $this->verifier->email,

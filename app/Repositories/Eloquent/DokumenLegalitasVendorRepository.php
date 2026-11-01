@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Repositories\Eloquent;
 
 use App\Models\DokumenLegalitasVendor;
+use App\Models\Vendor;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 
 class DokumenLegalitasVendorRepository implements DokumenLegalitasVendorRepositoryInterface
 {
@@ -15,36 +17,43 @@ class DokumenLegalitasVendorRepository implements DokumenLegalitasVendorReposito
     ) {}
 
     /**
-     * Get paginated vendor legal documents.
+     * Get paginated vendors that submitted legal documents, each with all of its documents.
      *
      * @param  array<string, mixed>  $filters
      */
-    public function paginate(array $filters, int $perPage = 10): LengthAwarePaginator
+    public function paginateVendors(array $filters, int $perPage = 10): LengthAwarePaginator
     {
-        return $this->model
-            ->newQuery()
-            ->with(['vendor', 'verifier'])
+        return Vendor::query()
+            ->whereHas('legalDocuments')
+            ->with(['legalDocuments' => fn ($query) => $query->orderBy('id'), 'legalDocuments.verifier'])
             ->when(
-                ! empty($filters['status_verifikasi']) && $filters['status_verifikasi'] !== 'all',
-                fn ($query) => $query->where(
-                    'status_verifikasi',
-                    $filters['status_verifikasi']
-                )
+                ! empty($filters['verification_status']) && $filters['verification_status'] !== 'all',
+                fn ($query) => $query->where('verification_status', $filters['verification_status'])
             )
             ->when(
                 ! empty($filters['search']),
                 fn ($query) => $query->where(function ($q) use ($filters) {
                     $term = '%'.$filters['search'].'%';
-                    $q->where('nomor_dokumen', 'like', $term)
-                        ->orWhere('jenis_dokumen', 'like', $term)
-                        ->orWhereHas('vendor', fn ($vq) => $vq->where('nama_perusahaan', 'like', $term)
-                            ->orWhere('email_kontak', 'like', $term)
-                            ->orWhere('kategori_komoditas', 'like', $term));
+                    $q->where('company_name', 'like', $term)
+                        ->orWhere('contact_email', 'like', $term)
+                        ->orWhere('kategori_komoditas', 'like', $term)
+                        ->orWhereHas('legalDocuments', fn ($dq) => $dq->where('document_number', 'like', $term)
+                            ->orWhere('document_type', 'like', $term));
                 })
             )
             ->latest('created_at')
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    /**
+     * Get every legal document of a vendor.
+     *
+     * @return Collection<int, DokumenLegalitasVendor>
+     */
+    public function getByVendorId(int $vendorId): Collection
+    {
+        return $this->model->newQuery()->where('vendor_id', $vendorId)->get();
     }
 
     public function findByUuid(string $uuid): ?DokumenLegalitasVendor

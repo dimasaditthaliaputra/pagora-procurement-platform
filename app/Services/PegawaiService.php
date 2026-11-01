@@ -332,8 +332,8 @@ class PegawaiService
 
             return $user->load([
                 'role',
-                'perusahaanBuyer:id,uuid,nama_perusahaan',
-                'vendor:id,uuid,nama_perusahaan',
+                'perusahaanBuyer:id,uuid,company_name',
+                'vendor:id,uuid,company_name',
             ]);
         });
     }
@@ -419,8 +419,8 @@ class PegawaiService
 
             return $user->fresh()->load([
                 'role',
-                'perusahaanBuyer:id,uuid,nama_perusahaan',
-                'vendor:id,uuid,nama_perusahaan',
+                'perusahaanBuyer:id,uuid,company_name',
+                'vendor:id,uuid,company_name',
             ]);
         });
     }
@@ -507,14 +507,14 @@ class PegawaiService
         foreach ($this->perusahaanBuyerRepository->getAllOrdered() as $perusahaan) {
             $options[] = [
                 'value' => $perusahaan->uuid,
-                'label' => "{$perusahaan->nama_perusahaan} (Buyer)",
+                'label' => "{$perusahaan->company_name} (Buyer)",
             ];
         }
 
         foreach ($this->vendorRepository->getAllOrdered() as $vendor) {
             $options[] = [
                 'value' => $vendor->uuid,
-                'label' => "{$vendor->nama_perusahaan} (Vendor)",
+                'label' => "{$vendor->company_name} (Vendor)",
             ];
         }
 
@@ -533,7 +533,7 @@ class PegawaiService
         foreach ($this->perusahaanBuyerRepository->getAllOrdered() as $perusahaan) {
             $options[] = [
                 'value' => $perusahaan->uuid,
-                'label' => $perusahaan->nama_perusahaan,
+                'label' => $perusahaan->company_name,
             ];
         }
 
@@ -552,7 +552,7 @@ class PegawaiService
         foreach ($this->vendorRepository->getAllOrdered() as $vendor) {
             $options[] = [
                 'value' => $vendor->uuid,
-                'label' => $vendor->nama_perusahaan,
+                'label' => $vendor->company_name,
             ];
         }
 
@@ -566,12 +566,12 @@ class PegawaiService
      */
     public function getCurrentPerusahaanPayload(User $user): ?array
     {
-        $user->loadMissing(['perusahaanBuyer:id,uuid,nama_perusahaan', 'vendor:id,uuid,nama_perusahaan']);
+        $user->loadMissing(['perusahaanBuyer:id,uuid,company_name', 'vendor:id,uuid,company_name']);
 
         if ($user->perusahaanBuyer !== null) {
             return [
                 'uuid' => $user->perusahaanBuyer->uuid,
-                'nama' => $user->perusahaanBuyer->nama_perusahaan,
+                'nama' => $user->perusahaanBuyer->company_name,
                 'tipe' => 'buyer',
             ];
         }
@@ -579,7 +579,7 @@ class PegawaiService
         if ($user->vendor !== null) {
             return [
                 'uuid' => $user->vendor->uuid,
-                'nama' => $user->vendor->nama_perusahaan,
+                'nama' => $user->vendor->company_name,
                 'tipe' => 'vendor',
             ];
         }
@@ -636,7 +636,7 @@ class PegawaiService
                 return [null, $this->resolveVendorId($data['vendor_uuid'] ?? null)];
             }
 
-            return [$this->resolvePerusahaanBuyerId($data['perusahaan_uuid'] ?? null), null];
+            return [$this->resolvePerusahaanBuyerId($data['tenant_uuid'] ?? null), null];
         }
 
         if ($creator->isVendor()) {
@@ -685,8 +685,8 @@ class PegawaiService
         }
 
         $updates = ['vendor_id' => null];
-        if (array_key_exists('perusahaan_uuid', $data)) {
-            $updates['tenant_id'] = $this->resolvePerusahaanBuyerId($data['perusahaan_uuid']);
+        if (array_key_exists('tenant_uuid', $data)) {
+            $updates['tenant_id'] = $this->resolvePerusahaanBuyerId($data['tenant_uuid']);
         }
 
         return $updates;
@@ -707,7 +707,7 @@ class PegawaiService
         $perusahaan = $this->perusahaanBuyerRepository->findByUuid($clean);
         if (! $perusahaan) {
             throw ValidationException::withMessages([
-                'perusahaan_uuid' => 'Perusahaan buyer yang dipilih tidak ditemukan.',
+                'tenant_uuid' => 'Perusahaan buyer yang dipilih tidak ditemukan.',
             ]);
         }
 

@@ -55,18 +55,18 @@ export function BukaBlokirDialog({ vendor, open, onOpenChange }) {
                     </div>
                     <AlertDialogDescription className="pt-2 text-sm text-muted-foreground leading-relaxed">
                         Apakah Anda yakin ingin memulihkan status rekanan{' '}
-                        <strong className="text-foreground">{vendor.nama_perusahaan}</strong>?
+                        <strong className="text-foreground">{vendor.company_name}</strong>?
                         Vendor ini akan kembali aktif dan akun penggunanya dapat login kembali ke platform Pagora.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
 
-                {vendor.alasan_pemblokiran && (
+                {vendor.block_reason && (
                     <div className="mt-3 rounded-md border border-destructive/20 bg-destructive/5 p-3 text-xs text-muted-foreground">
                         <span className="font-semibold text-destructive block mb-1">
                             Alasan pemblokiran sebelumnya:
                         </span>
                         <p className="italic text-foreground">
-                            "{vendor.alasan_pemblokiran}"
+                            "{vendor.block_reason}"
                         </p>
                     </div>
                 )}

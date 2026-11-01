@@ -10,23 +10,23 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
-    'grup',
-    'kunci',
-    'nilai',
-    'terenkripsi',
-    'diubah_oleh',
+    'group',
+    'key',
+    'value',
+    'is_encrypted',
+    'updated_by',
 ])]
-#[Hidden(['id', 'nilai'])]
+#[Hidden(['id', 'value'])]
 class Pengaturan extends Model
 {
-    protected $table = 'pengaturan';
+    protected $table = 'settings';
 
     /**
      * Get the user who last changed this setting.
      */
-    public function pengubah(): BelongsTo
+    public function updater(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'diubah_oleh');
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     /**
@@ -37,7 +37,7 @@ class Pengaturan extends Model
     protected function casts(): array
     {
         return [
-            'terenkripsi' => 'boolean',
+            'is_encrypted' => 'boolean',
         ];
     }
 }

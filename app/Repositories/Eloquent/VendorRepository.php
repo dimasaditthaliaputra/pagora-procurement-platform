@@ -13,13 +13,13 @@ use Illuminate\Database\Eloquent\Collection;
 class VendorRepository implements VendorRepositoryInterface
 {
     private const SORTABLE = [
-        'nama_perusahaan',
-        'email_kontak',
+        'company_name',
+        'contact_email',
         'kategori_komoditas',
-        'status_verifikasi',
-        'status_aktif',
+        'verification_status',
+        'is_active',
         'created_at',
-        'diblokir_pada',
+        'blocked_at',
     ];
 
     public function __construct(
@@ -46,24 +46,24 @@ class VendorRepository implements VendorRepositoryInterface
             ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
                 $trimmed = trim($search);
                 $query->where(function (Builder $subQuery) use ($trimmed): void {
-                    $subQuery->where('nama_perusahaan', 'like', "%{$trimmed}%")
-                        ->orWhere('email_kontak', 'like', "%{$trimmed}%")
-                        ->orWhere('no_telepon', 'like', "%{$trimmed}%")
+                    $subQuery->where('company_name', 'like', "%{$trimmed}%")
+                        ->orWhere('contact_email', 'like', "%{$trimmed}%")
+                        ->orWhere('phone', 'like', "%{$trimmed}%")
                         ->orWhere('kategori_komoditas', 'like', "%{$trimmed}%");
                 });
             })
             ->when(
-                isset($filters['status_aktif']) && $filters['status_aktif'] !== '' && $filters['status_aktif'] !== 'all',
+                isset($filters['is_active']) && $filters['is_active'] !== '' && $filters['is_active'] !== 'all',
                 function (Builder $query) use ($filters): void {
-                    $val = filter_var($filters['status_aktif'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                    $val = filter_var($filters['is_active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
                     if ($val !== null) {
-                        $query->where('status_aktif', $val);
+                        $query->where('is_active', $val);
                     }
                 }
             )
             ->when(
-                ! empty($filters['status_verifikasi']) && $filters['status_verifikasi'] !== 'all',
-                fn (Builder $query) => $query->where('status_verifikasi', $filters['status_verifikasi'])
+                ! empty($filters['verification_status']) && $filters['verification_status'] !== 'all',
+                fn (Builder $query) => $query->where('verification_status', $filters['verification_status'])
             )
             ->orderBy($sort, $direction)
             ->paginate(min(max($perPage, 1), 100))
@@ -85,7 +85,7 @@ class VendorRepository implements VendorRepositoryInterface
      */
     public function findByEmail(string $email): ?Vendor
     {
-        return $this->model->newQuery()->where('email_kontak', $email)->first();
+        return $this->model->newQuery()->where('contact_email', $email)->first();
     }
 
     /**
@@ -117,8 +117,8 @@ class VendorRepository implements VendorRepositoryInterface
     public function getAllOrdered(): Collection
     {
         return $this->model->newQuery()
-            ->select(['id', 'uuid', 'nama_perusahaan', 'status_aktif'])
-            ->orderBy('nama_perusahaan')
+            ->select(['id', 'uuid', 'company_name', 'is_active'])
+            ->orderBy('company_name')
             ->get();
     }
 }

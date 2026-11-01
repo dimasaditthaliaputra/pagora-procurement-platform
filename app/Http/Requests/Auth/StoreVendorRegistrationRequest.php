@@ -26,19 +26,19 @@ class StoreVendorRegistrationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nama_perusahaan' => ['required', 'string', 'max:200'],
-            'email_kontak' => [
+            'company_name' => ['required', 'string', 'max:200'],
+            'contact_email' => [
                 'required',
                 'string',
                 'email',
                 'max:150',
-                Rule::unique('vendor', 'email_kontak')->whereNull('deleted_at'),
+                Rule::unique('vendors', 'contact_email')->whereNull('deleted_at'),
             ],
-            'no_telepon' => ['required', 'string', 'max:30'],
-            'alamat' => ['required', 'string', 'max:1000'],
+            'phone' => ['required', 'string', 'max:30'],
+            'address' => ['required', 'string', 'max:1000'],
             'kategori_komoditas' => ['required', 'string', 'max:100'],
             'otp' => ['required', 'digits:6'],
-            'dokumen_legalitas' => [
+            'legal_document' => [
                 'required',
                 'file',
                 'mimes:pdf,jpg,jpeg,png',
@@ -56,22 +56,22 @@ class StoreVendorRegistrationRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nama_perusahaan.required' => 'Nama perusahaan wajib diisi.',
-            'nama_perusahaan.string' => 'Nama perusahaan harus berupa teks.',
-            'nama_perusahaan.max' => 'Nama perusahaan tidak boleh lebih dari 200 karakter.',
+            'company_name.required' => 'Nama perusahaan wajib diisi.',
+            'company_name.string' => 'Nama perusahaan harus berupa teks.',
+            'company_name.max' => 'Nama perusahaan tidak boleh lebih dari 200 karakter.',
 
-            'email_kontak.required' => 'Email bisnis wajib diisi.',
-            'email_kontak.email' => 'Format email bisnis tidak valid.',
-            'email_kontak.max' => 'Email bisnis tidak boleh lebih dari 150 karakter.',
-            'email_kontak.unique' => 'Email bisnis ini sudah terdaftar sebagai vendor.',
+            'contact_email.required' => 'Email bisnis wajib diisi.',
+            'contact_email.email' => 'Format email bisnis tidak valid.',
+            'contact_email.max' => 'Email bisnis tidak boleh lebih dari 150 karakter.',
+            'contact_email.unique' => 'Email bisnis ini sudah terdaftar sebagai vendor.',
 
-            'no_telepon.required' => 'Nomor telepon wajib diisi.',
-            'no_telepon.string' => 'Nomor telepon harus berupa teks.',
-            'no_telepon.max' => 'Nomor telepon tidak boleh lebih dari 30 karakter.',
+            'phone.required' => 'Nomor telepon wajib diisi.',
+            'phone.string' => 'Nomor telepon harus berupa teks.',
+            'phone.max' => 'Nomor telepon tidak boleh lebih dari 30 karakter.',
 
-            'alamat.required' => 'Alamat lengkap wajib diisi.',
-            'alamat.string' => 'Alamat lengkap harus berupa teks.',
-            'alamat.max' => 'Alamat lengkap tidak boleh lebih dari 1000 karakter.',
+            'address.required' => 'Alamat lengkap wajib diisi.',
+            'address.string' => 'Alamat lengkap harus berupa teks.',
+            'address.max' => 'Alamat lengkap tidak boleh lebih dari 1000 karakter.',
 
             'kategori_komoditas.required' => 'Kategori komoditas wajib dipilih.',
             'kategori_komoditas.string' => 'Kategori komoditas tidak valid.',
@@ -80,10 +80,10 @@ class StoreVendorRegistrationRequest extends FormRequest
             'otp.required' => 'Kode OTP wajib diisi.',
             'otp.digits' => 'Kode OTP harus terdiri dari 6 digit angka.',
 
-            'dokumen_legalitas.required' => 'Dokumen legalitas (NPWP/SIUP) wajib diunggah.',
-            'dokumen_legalitas.file' => 'Dokumen legalitas harus berupa file yang valid.',
-            'dokumen_legalitas.mimes' => 'Format file dokumen legalitas harus berupa PDF, JPG, JPEG, atau PNG.',
-            'dokumen_legalitas.max' => 'Ukuran file dokumen legalitas tidak boleh lebih dari 2 MB.',
+            'legal_document.required' => 'Dokumen legalitas (NPWP/SIUP) wajib diunggah.',
+            'legal_document.file' => 'Dokumen legalitas harus berupa file yang valid.',
+            'legal_document.mimes' => 'Format file dokumen legalitas harus berupa PDF, JPG, JPEG, atau PNG.',
+            'legal_document.max' => 'Ukuran file dokumen legalitas tidak boleh lebih dari 2 MB.',
         ];
     }
 }

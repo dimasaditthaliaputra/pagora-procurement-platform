@@ -45,16 +45,16 @@ class VerifikasiDokumenTest extends TestCase
 
     private function createVendor(array $attributes = []): Vendor
     {
-        $name = $attributes['nama_perusahaan'] ?? 'PT Vendor Uji';
+        $name = $attributes['company_name'] ?? 'PT Vendor Uji';
         $slug = Str::slug($name).'-'.Str::lower(Str::random(6));
 
         return Vendor::create(array_merge([
-            'nama_perusahaan' => $name,
+            'company_name' => $name,
             'slug' => $slug,
-            'email_kontak' => 'vendor@test.com',
-            'no_telepon' => '08123456789',
-            'status_verifikasi' => 'pending',
-            'status_aktif' => false,
+            'contact_email' => 'vendor@test.com',
+            'phone' => '08123456789',
+            'verification_status' => 'pending',
+            'is_active' => false,
         ], $attributes));
     }
 
@@ -91,7 +91,7 @@ class VerifikasiDokumenTest extends TestCase
     public function test_superadmin_can_filter_by_status(): void
     {
         $response = $this->actingAs($this->superadmin)
-            ->get('/master/vendor/verifikasi-dokumen?status_verifikasi=pending');
+            ->get('/master/vendor/verifikasi-dokumen?verification_status=pending');
 
         $response->assertOk();
     }
@@ -100,17 +100,17 @@ class VerifikasiDokumenTest extends TestCase
     {
         Mail::fake();
         $vendor = $this->createVendor([
-            'nama_perusahaan' => 'PT Mitra Sejahtera',
-            'email_kontak' => 'mitra@sejahtera.com',
-            'no_telepon' => '08111222333',
+            'company_name' => 'PT Mitra Sejahtera',
+            'contact_email' => 'mitra@sejahtera.com',
+            'phone' => '08111222333',
         ]);
 
         $document = DokumenLegalitasVendor::create([
             'vendor_id' => $vendor->id,
-            'jenis_dokumen' => 'NIB / SIUP',
-            'nomor_dokumen' => 'NIB-99281-2026',
-            'file_url' => 'vendor_legal_documents/test.pdf',
-            'status_verifikasi' => 'pending',
+            'document_type' => 'NIB / SIUP',
+            'document_number' => 'NIB-99281-2026',
+            'file_path' => 'vendor_legal_documents/test.pdf',
+            'verification_status' => 'pending',
         ]);
 
         $response = $this->actingAs($this->superadmin)
@@ -120,24 +120,24 @@ class VerifikasiDokumenTest extends TestCase
 
         $response->assertRedirect('/master/vendor/verifikasi-dokumen');
 
-        $this->assertDatabaseHas('dokumen_legalitas_vendor', [
+        $this->assertDatabaseHas('vendor_legal_documents', [
             'id' => $document->id,
-            'status_verifikasi' => 'approved',
-            'verif_by' => $this->superadmin->id,
-            'alasan_penolakan' => null,
+            'verification_status' => 'approved',
+            'verified_by' => $this->superadmin->id,
+            'rejection_reason' => null,
         ]);
 
-        $this->assertDatabaseHas('vendor', [
+        $this->assertDatabaseHas('vendors', [
             'id' => $vendor->id,
-            'status_verifikasi' => 'approved',
+            'verification_status' => 'approved',
         ]);
 
         Mail::assertSent(
             VendorApprovalMail::class,
             function (VendorApprovalMail $mail) use ($vendor): bool {
-                return $mail->hasTo($vendor->email_kontak)
-                    && $mail->vendorName === $vendor->nama_perusahaan
-                    && $mail->companyName === $vendor->nama_perusahaan;
+                return $mail->hasTo($vendor->contact_email)
+                    && $mail->vendorName === $vendor->company_name
+                    && $mail->companyName === $vendor->company_name;
             }
         );
     }
@@ -146,80 +146,163 @@ class VerifikasiDokumenTest extends TestCase
     {
         Mail::fake();
         $vendor = $this->createVendor([
-            'nama_perusahaan' => 'CV Logistik Prima',
-            'email_kontak' => 'info@logistikprima.com',
+            'company_name' => 'CV Logistik Prima',
+            'contact_email' => 'info@logistikprima.com',
         ]);
 
         $document = DokumenLegalitasVendor::create([
             'vendor_id' => $vendor->id,
-            'jenis_dokumen' => 'NPWP Badan Usaha',
-            'nomor_dokumen' => '01.234.567.8-901.000',
-            'file_url' => 'vendor_legal_documents/npwp.pdf',
-            'status_verifikasi' => 'pending',
+            'document_type' => 'NPWP Badan Usaha',
+            'document_number' => '01.234.567.8-901.000',
+            'file_path' => 'vendor_legal_documents/npwp.pdf',
+            'verification_status' => 'pending',
         ]);
 
         $response = $this->actingAs($this->superadmin)
             ->post("/master/vendor/verifikasi-dokumen/{$document->uuid}/verifikasi", [
                 'aksi' => 'reject',
-                'alasan_penolakan' => 'Dokumen lampiran buram dan tidak dapat dibaca.',
+                'rejection_reason' => 'Dokumen lampiran buram dan tidak dapat dibaca.',
             ]);
 
         $response->assertRedirect('/master/vendor/verifikasi-dokumen');
 
-        $this->assertDatabaseHas('dokumen_legalitas_vendor', [
+        $this->assertDatabaseHas('vendor_legal_documents', [
             'id' => $document->id,
-            'status_verifikasi' => 'rejected',
-            'verif_by' => $this->superadmin->id,
-            'alasan_penolakan' => 'Dokumen lampiran buram dan tidak dapat dibaca.',
+            'verification_status' => 'rejected',
+            'verified_by' => $this->superadmin->id,
+            'rejection_reason' => 'Dokumen lampiran buram dan tidak dapat dibaca.',
         ]);
 
-        $this->assertDatabaseHas('vendor', [
+        $this->assertDatabaseHas('vendors', [
             'id' => $vendor->id,
-            'status_verifikasi' => 'rejected',
+            'verification_status' => 'rejected',
         ]);
         Mail::assertNotSent(VendorApprovalMail::class);
+    }
+
+    public function test_approval_email_is_sent_only_after_all_documents_are_approved(): void
+    {
+        Mail::fake();
+        $vendor = $this->createVendor(['company_name' => 'PT Dua Dokumen', 'contact_email' => 'dua@dokumen.test']);
+
+        $npwp = DokumenLegalitasVendor::create([
+            'vendor_id' => $vendor->id,
+            'document_type' => 'npwp',
+            'file_path' => 'vendor_legal_documents/npwp.pdf',
+            'verification_status' => 'pending',
+        ]);
+        $siup = DokumenLegalitasVendor::create([
+            'vendor_id' => $vendor->id,
+            'document_type' => 'siup',
+            'file_path' => 'vendor_legal_documents/siup.pdf',
+            'verification_status' => 'pending',
+        ]);
+
+        $this->actingAs($this->superadmin)
+            ->post("/master/vendor/verifikasi-dokumen/{$npwp->uuid}/verifikasi", ['aksi' => 'approve']);
+
+        $this->assertDatabaseHas('vendors', ['id' => $vendor->id, 'verification_status' => 'pending']);
+        Mail::assertNotSent(VendorApprovalMail::class);
+
+        $this->actingAs($this->superadmin)
+            ->post("/master/vendor/verifikasi-dokumen/{$siup->uuid}/verifikasi", ['aksi' => 'approve']);
+
+        $this->assertDatabaseHas('vendors', ['id' => $vendor->id, 'verification_status' => 'approved']);
+        Mail::assertSent(VendorApprovalMail::class, 1);
+    }
+
+    public function test_vendor_is_rejected_without_email_when_any_document_is_rejected(): void
+    {
+        Mail::fake();
+        $vendor = $this->createVendor(['company_name' => 'PT Satu Ditolak', 'contact_email' => 'ditolak@dokumen.test']);
+
+        $npwp = DokumenLegalitasVendor::create([
+            'vendor_id' => $vendor->id,
+            'document_type' => 'npwp',
+            'file_path' => 'vendor_legal_documents/npwp.pdf',
+            'verification_status' => 'pending',
+        ]);
+        $siup = DokumenLegalitasVendor::create([
+            'vendor_id' => $vendor->id,
+            'document_type' => 'siup',
+            'file_path' => 'vendor_legal_documents/siup.pdf',
+            'verification_status' => 'pending',
+        ]);
+
+        $this->actingAs($this->superadmin)
+            ->post("/master/vendor/verifikasi-dokumen/{$npwp->uuid}/verifikasi", ['aksi' => 'approve']);
+        $this->actingAs($this->superadmin)
+            ->post("/master/vendor/verifikasi-dokumen/{$siup->uuid}/verifikasi", [
+                'aksi' => 'reject',
+                'rejection_reason' => 'Berkas tidak terbaca.',
+            ]);
+
+        $this->assertDatabaseHas('vendors', ['id' => $vendor->id, 'verification_status' => 'rejected']);
+        Mail::assertNotSent(VendorApprovalMail::class);
+    }
+
+    public function test_index_lists_one_record_per_vendor_with_all_of_its_documents(): void
+    {
+        $vendor = $this->createVendor(['company_name' => 'PT Satu Record']);
+        foreach (['npwp', 'siup'] as $type) {
+            DokumenLegalitasVendor::create([
+                'vendor_id' => $vendor->id,
+                'document_type' => $type,
+                'file_path' => "vendor_legal_documents/{$type}.pdf",
+                'verification_status' => 'pending',
+            ]);
+        }
+
+        $this->actingAs($this->superadmin)
+            ->get('/master/vendor/verifikasi-dokumen')
+            ->assertInertia(fn ($page) => $page
+                ->component('Master/Vendor/VerifikasiDokumen/Index')
+                ->has('vendors.data', 1)
+                ->has('vendors.data.0.documents', 2)
+                ->where('vendors.data.0.company_name', 'PT Satu Record')
+            );
     }
 
     public function test_reject_requires_rejection_reason(): void
     {
         $vendor = $this->createVendor([
-            'nama_perusahaan' => 'UD Berkah',
-            'email_kontak' => 'berkah@gmail.com',
+            'company_name' => 'UD Berkah',
+            'contact_email' => 'berkah@gmail.com',
         ]);
 
         $document = DokumenLegalitasVendor::create([
             'vendor_id' => $vendor->id,
-            'jenis_dokumen' => 'NIB',
-            'nomor_dokumen' => 'NIB-12345',
-            'file_url' => 'vendor_legal_documents/berkah.pdf',
-            'status_verifikasi' => 'pending',
+            'document_type' => 'NIB',
+            'document_number' => 'NIB-12345',
+            'file_path' => 'vendor_legal_documents/berkah.pdf',
+            'verification_status' => 'pending',
         ]);
 
         $response = $this->actingAs($this->superadmin)
             ->post("/master/vendor/verifikasi-dokumen/{$document->uuid}/verifikasi", [
                 'aksi' => 'reject',
-                'alasan_penolakan' => '',
+                'rejection_reason' => '',
             ]);
 
-        $response->assertSessionHasErrors(['alasan_penolakan']);
+        $response->assertSessionHasErrors(['rejection_reason']);
     }
 
     public function test_cannot_reverify_already_approved_document(): void
     {
         $vendor = $this->createVendor([
-            'nama_perusahaan' => 'PT Sudah Terverifikasi',
-            'email_kontak' => 'terverifikasi@pt.com',
-            'status_verifikasi' => 'approved',
-            'status_aktif' => true,
+            'company_name' => 'PT Sudah Terverifikasi',
+            'contact_email' => 'terverifikasi@pt.com',
+            'verification_status' => 'approved',
+            'is_active' => true,
         ]);
 
         $document = DokumenLegalitasVendor::create([
             'vendor_id' => $vendor->id,
-            'jenis_dokumen' => 'NIB',
-            'file_url' => 'vendor_legal_documents/ok.pdf',
-            'status_verifikasi' => 'approved',
-            'verif_by' => $this->superadmin->id,
-            'diverifikasi_pada' => now(),
+            'document_type' => 'NIB',
+            'file_path' => 'vendor_legal_documents/ok.pdf',
+            'verification_status' => 'approved',
+            'verified_by' => $this->superadmin->id,
+            'verified_at' => now(),
         ]);
 
         $response = $this->actingAs($this->superadmin)
@@ -227,7 +310,7 @@ class VerifikasiDokumenTest extends TestCase
                 'aksi' => 'approve',
             ]);
 
-        $response->assertSessionHasErrors(['status_verifikasi']);
+        $response->assertSessionHasErrors(['verification_status']);
     }
 
     public function test_superadmin_can_download_document_file(): void
@@ -236,15 +319,15 @@ class VerifikasiDokumenTest extends TestCase
         Storage::disk('local')->put('vendor_legal_documents/test_file.pdf', 'Sample content');
 
         $vendor = $this->createVendor([
-            'nama_perusahaan' => 'PT File Download',
-            'email_kontak' => 'download@pt.com',
+            'company_name' => 'PT File Download',
+            'contact_email' => 'download@pt.com',
         ]);
 
         $document = DokumenLegalitasVendor::create([
             'vendor_id' => $vendor->id,
-            'jenis_dokumen' => 'SIUP',
-            'file_url' => 'vendor_legal_documents/test_file.pdf',
-            'status_verifikasi' => 'pending',
+            'document_type' => 'SIUP',
+            'file_path' => 'vendor_legal_documents/test_file.pdf',
+            'verification_status' => 'pending',
         ]);
 
         $response = $this->actingAs($this->superadmin)

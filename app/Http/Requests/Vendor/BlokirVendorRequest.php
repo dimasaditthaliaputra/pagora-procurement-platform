@@ -26,7 +26,7 @@ class BlokirVendorRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'alasan_pemblokiran' => [
+            'block_reason' => [
                 'required',
                 'string',
                 'min:5',
@@ -41,9 +41,9 @@ class BlokirVendorRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'alasan_pemblokiran.required' => 'Alasan pemblokiran wajib diisi.',
-            'alasan_pemblokiran.min' => 'Alasan pemblokiran minimal 5 karakter.',
-            'alasan_pemblokiran.max' => 'Alasan pemblokiran maksimal 1000 karakter.',
+            'block_reason.required' => 'Alasan pemblokiran wajib diisi.',
+            'block_reason.min' => 'Alasan pemblokiran minimal 5 karakter.',
+            'block_reason.max' => 'Alasan pemblokiran maksimal 1000 karakter.',
         ];
     }
 }

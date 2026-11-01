@@ -9,7 +9,7 @@ use Illuminate\Database\Seeder;
 
 /**
  * Demo seeder: hanya local/testing.
- * Idempotent: updateOrCreate dengan kunci 'email_kontak'.
+ * Idempotent: updateOrCreate dengan kunci 'contact_email'.
  */
 class VendorSeeder extends Seeder
 {
@@ -22,37 +22,37 @@ class VendorSeeder extends Seeder
         $vendors = [
             [
                 'slug' => 'cv-mitra-agro-sejahtera',
-                'nama_perusahaan' => 'CV Mitra Agro Sejahtera',
-                'email_kontak' => 'kontak@mitra-agro.test',
-                'no_telepon' => '0341-111222',
-                'alamat' => 'Jl. Pahlawan No. 10, Malang, Jawa Timur',
+                'company_name' => 'CV Mitra Agro Sejahtera',
+                'contact_email' => 'kontak@mitra-agro.test',
+                'phone' => '0341-111222',
+                'address' => 'Jl. Pahlawan No. 10, Malang, Jawa Timur',
                 'kategori_komoditas' => 'Pangan Pokok',
-                'status_verifikasi' => 'approved',
+                'verification_status' => 'approved',
             ],
             [
                 'slug' => 'pt-sumber-pangan-utama',
-                'nama_perusahaan' => 'PT Sumber Pangan Utama',
-                'email_kontak' => 'info@sumber-pangan.test',
-                'no_telepon' => '024-333444',
-                'alamat' => 'Jl. Diponegoro No. 25, Semarang, Jawa Tengah',
+                'company_name' => 'PT Sumber Pangan Utama',
+                'contact_email' => 'info@sumber-pangan.test',
+                'phone' => '024-333444',
+                'address' => 'Jl. Diponegoro No. 25, Semarang, Jawa Tengah',
                 'kategori_komoditas' => 'Bumbu & Rempah',
-                'status_verifikasi' => 'approved',
+                'verification_status' => 'approved',
             ],
             [
                 'slug' => 'ud-berkah-tani-mandiri',
-                'nama_perusahaan' => 'UD Berkah Tani Mandiri',
-                'email_kontak' => 'berkah@tani.test',
-                'no_telepon' => '0354-555666',
-                'alamat' => 'Jl. Merdeka No. 5, Kediri, Jawa Timur',
+                'company_name' => 'UD Berkah Tani Mandiri',
+                'contact_email' => 'berkah@tani.test',
+                'phone' => '0354-555666',
+                'address' => 'Jl. Merdeka No. 5, Kediri, Jawa Timur',
                 'kategori_komoditas' => 'Bumbu & Rempah',
-                'status_verifikasi' => 'pending',
+                'verification_status' => 'pending',
             ],
         ];
 
         foreach ($vendors as $data) {
             Vendor::updateOrCreate(
-                ['email_kontak' => $data['email_kontak']],
-                $data + ['status_aktif' => true]
+                ['contact_email' => $data['contact_email']],
+                $data + ['is_active' => true]
             );
         }
     }

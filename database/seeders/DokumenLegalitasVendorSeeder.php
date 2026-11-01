@@ -20,11 +20,11 @@ class DokumenLegalitasVendorSeeder extends Seeder
             return;
         }
 
-        $vendors = Vendor::whereIn('email_kontak', [
+        $vendors = Vendor::whereIn('contact_email', [
             'kontak@mitra-agro.test',
             'info@sumber-pangan.test',
             'berkah@tani.test',
-        ])->get()->keyBy('email_kontak');
+        ])->get()->keyBy('contact_email');
 
         $superadmin = User::where('email', 'superadmin@pagora.test')->firstOrFail();
 
@@ -41,13 +41,13 @@ class DokumenLegalitasVendorSeeder extends Seeder
             $approved = $d['status'] === 'approved';
 
             DokumenLegalitasVendor::updateOrCreate(
-                ['vendor_id' => $vendors[$d['vendor']]->id, 'jenis_dokumen' => $d['jenis']],
+                ['vendor_id' => $vendors[$d['vendor']]->id, 'document_type' => $d['jenis']],
                 [
-                    'nomor_dokumen' => $d['nomor'],
-                    'file_url' => $d['file'],
-                    'status_verifikasi' => $d['status'],
-                    'verif_by' => $approved ? $superadmin->id : null,
-                    'diverifikasi_pada' => $approved ? now()->subDays(30) : null,
+                    'document_number' => $d['nomor'],
+                    'file_path' => $d['file'],
+                    'verification_status' => $d['status'],
+                    'verified_by' => $approved ? $superadmin->id : null,
+                    'verified_at' => $approved ? now()->subDays(30) : null,
                 ]
             );
         }

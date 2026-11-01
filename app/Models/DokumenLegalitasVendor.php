@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\VerificationStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,13 +15,13 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $uuid
  * @property int $vendor_id
- * @property string $jenis_dokumen
- * @property string|null $nomor_dokumen
- * @property string $file_url
- * @property string $status_verifikasi
- * @property int|null $verif_by
- * @property Carbon|null $diverifikasi_pada
- * @property string|null $alasan_penolakan
+ * @property string $document_type
+ * @property string|null $document_number
+ * @property string $file_path
+ * @property VerificationStatus $verification_status
+ * @property int|null $verified_by
+ * @property Carbon|null $verified_at
+ * @property string|null $rejection_reason
  * @property Carbon|null $created_at
  * @property-read Vendor|null $vendor
  * @property-read User|null $verifier
@@ -29,9 +30,7 @@ class DokumenLegalitasVendor extends Model
 {
     use HasUuids, SoftDeletes;
 
-    protected $table = 'dokumen_legalitas_vendor';
-
-    public $timestamps = false;
+    protected $table = 'vendor_legal_documents';
 
     /**
      * Attributes that can be mass assigned.
@@ -41,13 +40,13 @@ class DokumenLegalitasVendor extends Model
     protected $fillable = [
         'uuid',
         'vendor_id',
-        'jenis_dokumen',
-        'nomor_dokumen',
-        'file_url',
-        'status_verifikasi',
-        'verif_by',
-        'diverifikasi_pada',
-        'alasan_penolakan',
+        'document_type',
+        'document_number',
+        'file_path',
+        'verification_status',
+        'verified_by',
+        'verified_at',
+        'rejection_reason',
     ];
 
     /**
@@ -57,7 +56,7 @@ class DokumenLegalitasVendor extends Model
      */
     protected $hidden = [
         'id',
-        'file_url',
+        'file_path',
     ];
 
     /**
@@ -83,8 +82,10 @@ class DokumenLegalitasVendor extends Model
     protected function casts(): array
     {
         return [
-            'diverifikasi_pada' => 'datetime',
+            'verification_status' => VerificationStatus::class,
+            'verified_at' => 'datetime',
             'created_at' => 'datetime',
+            'updated_at' => 'datetime',
         ];
     }
 
@@ -95,6 +96,6 @@ class DokumenLegalitasVendor extends Model
 
     public function verifier(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'verif_by');
+        return $this->belongsTo(User::class, 'verified_by');
     }
 }

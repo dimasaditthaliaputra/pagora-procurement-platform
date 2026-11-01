@@ -31,9 +31,9 @@ class UndanganVendorMail extends Mailable
             view: 'emails.undangan-vendor',
             with: [
                 'invitation' => $this->invitation,
-                'companyName' => $this->invitation->nama_perusahaan,
+                'companyName' => $this->invitation->company_name,
                 'commodityCategory' => $this->invitation->kategori_komoditas,
-                'notes' => $this->invitation->pesan,
+                'notes' => $this->invitation->message,
                 'inviterName' => $this->inviterName,
                 'inviterRole' => $this->inviterRole,
                 'registrationUrl' => $this->registrationUrl,

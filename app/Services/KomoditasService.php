@@ -23,6 +23,11 @@ class KomoditasService
      *
      * @var list<string>
      */
+    /**
+     * 0-100 with up to two decimals using a dot (e.g. 2.5). Mirrored in resources/js/lib/validators.js.
+     */
+    public const SHRINKAGE_TOLERANCE_PATTERN = '/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/';
+
     public const SATUAN_OPTIONS = [
         'kg',
         'ton',

@@ -7,6 +7,7 @@ import { FlashHandler } from '@/Components/flash-handler';
 import { Toaster } from '@/Components/ui/sonner';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
+import { isEmail } from '@/lib/validators';
 
 export default function ForgotPassword() {
     const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
@@ -19,7 +20,7 @@ export default function ForgotPassword() {
         const trimmedEmail = data.email.trim();
         if (!trimmedEmail) {
             setError('email', 'Alamat email wajib diisi.');
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        } else if (!isEmail(trimmedEmail)) {
             setError('email', 'Format alamat email tidak valid.');
         } else {
             return true;

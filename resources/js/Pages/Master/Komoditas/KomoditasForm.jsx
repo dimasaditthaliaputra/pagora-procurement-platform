@@ -16,6 +16,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { LoadingButton } from '@/Components/loading-button';
+import { isShrinkageTolerance } from '@/lib/validators';
 
 export function KomoditasForm({
     initialData = null,
@@ -54,7 +55,7 @@ export function KomoditasForm({
             if (batasSusutStr.includes(',')) {
                 setError('default_shrinkage_tolerance', 'Batas susut hanya menerima format angka desimal dengan titik (contoh: 2.5).');
                 hasError = true;
-            } else if (!/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/.test(batasSusutStr)) {
+            } else if (!isShrinkageTolerance(batasSusutStr)) {
                 setError('default_shrinkage_tolerance', 'Batas susut harus berupa angka antara 0 hingga 100 dengan format titik (contoh: 2.5).');
                 hasError = true;
             }

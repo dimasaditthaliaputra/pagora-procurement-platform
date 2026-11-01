@@ -23,6 +23,7 @@ import {
     AlertCircle,
 } from 'lucide-react';
 import Logo from '../../../assets/logo/logo.webp';
+import { isEmail, isPhoneNumber, normalizePhoneNumber } from '@/lib/validators';
 
 export default function RegisterVendor({ kategori_options = [], status, invitation = null }) {
     const form = useForm({
@@ -62,7 +63,7 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
             notify.validationFailed();
             return;
         }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (!isEmail(email)) {
             setError('contact_email', 'Format email bisnis tidak valid.');
             notify.validationFailed();
             return;
@@ -97,14 +98,17 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
         if (!emailTrimmed) {
             setError('contact_email', 'Email bisnis wajib diisi.');
             hasError = true;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
+        } else if (!isEmail(emailTrimmed)) {
             setError('contact_email', 'Format email bisnis tidak valid.');
             hasError = true;
         }
 
-        const telpTrimmed = data.phone.trim();
+        const telpTrimmed = normalizePhoneNumber(data.phone);
         if (!telpTrimmed) {
             setError('phone', 'Nomor telepon wajib diisi.');
+            hasError = true;
+        } else if (!isPhoneNumber(telpTrimmed)) {
+            setError('phone', 'Format nomor telepon tidak valid. Gunakan 8–15 digit angka, contoh: 081234567890.');
             hasError = true;
         }
 
@@ -341,6 +345,7 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
                                         setData('phone', e.target.value);
                                         clearErrors('phone');
                                     }}
+                                    onBlur={() => setData('phone', normalizePhoneNumber(data.phone))}
                                     aria-invalid={!!errors.phone}
                                     className={cn('h-10 w-full', errors.phone && 'border-destructive focus-visible:ring-destructive')}
                                 />

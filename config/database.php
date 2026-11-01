@@ -21,6 +21,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Slow Query Threshold
+    |--------------------------------------------------------------------------
+    |
+    | Queries taking at least this many milliseconds are logged as warnings
+    | (see AppServiceProvider). Set to 0 to disable.
+    |
+    */
+
+    'slow_query_ms' => (int) env('DB_SLOW_QUERY_MS', 1000),
+
+    /*
+    |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------
     |

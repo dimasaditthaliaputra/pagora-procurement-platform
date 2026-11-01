@@ -16,6 +16,7 @@ import { LoadingButton } from '@/Components/loading-button';
 import { MailPlus, Info } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
+import { isEmail } from '@/lib/validators';
 
 export function UndangVendorDialog({ open, onOpenChange, kategoriOptions = [] }) {
     const { data, setData, post, processing, errors, setError, clearErrors, reset } = useForm({
@@ -53,7 +54,7 @@ export function UndangVendorDialog({ open, onOpenChange, kategoriOptions = [] })
         if (!email) {
             setError('email', 'Email kontak vendor wajib diisi.');
             hasError = true;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        } else if (!isEmail(email)) {
             setError('email', 'Format email kontak tidak valid.');
             hasError = true;
         }

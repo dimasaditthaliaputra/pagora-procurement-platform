@@ -180,7 +180,7 @@ class VendorRegistrationTest extends TestCase
         $this->assertDatabaseHas('vendors', [
             'company_name' => 'PT Agro Pangan Nusantara',
             'contact_email' => 'procurement@agropangan.co.id',
-            'phone' => '081234567890',
+            'phone' => '+6281234567890',
             'kategori_komoditas' => 'Agroindustri & Pangan',
             'verification_status' => 'pending',
             'is_active' => true,
@@ -286,5 +286,27 @@ class VendorRegistrationTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors(['legal_document']);
+    }
+
+    public function test_phone_number_is_stored_in_e164_format(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $code = $this->requestOtp('telepon@perusahaan.com');
+
+        $this->from('/register/vendor')->post('/register/vendor', [
+            'company_name' => 'PT Telepon Rapi',
+            'contact_email' => 'telepon@perusahaan.com',
+            'phone' => '0812-3456-7890',
+            'address' => 'Bandung',
+            'kategori_komoditas' => 'Beras & Biji-bijian',
+            'otp' => $code,
+            'legal_document' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('vendors', [
+            'company_name' => 'PT Telepon Rapi',
+            'phone' => '+6281234567890',
+        ]);
     }
 }

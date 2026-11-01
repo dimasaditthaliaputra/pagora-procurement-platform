@@ -6,6 +6,8 @@ import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { Combobox } from '@/Components/combobox';
 import { FileDropzone } from '@/Components/file-dropzone';
+import { uploadingLabel } from '@/lib/file';
+import { useUploadFeedback } from '@/hooks/use-upload-feedback';
 import { LoadingButton } from '@/Components/loading-button';
 import { FlashHandler } from '@/Components/flash-handler';
 import { OtpField, OTP_LENGTH } from '@/Components/otp-field';
@@ -23,7 +25,7 @@ import {
 import Logo from '../../../assets/logo/logo.webp';
 
 export default function RegisterVendor({ kategori_options = [], status, invitation = null }) {
-    const { data, setData, post, processing, errors, setError, clearErrors, reset } = useForm({
+    const form = useForm({
         company_name: invitation?.company_name ?? '',
         contact_email: invitation?.contact_email ?? '',
         phone: '',
@@ -33,6 +35,8 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
         legal_document: null,
         invitation_token: invitation?.token ?? '',
     });
+    const { data, setData, post, processing, errors, setError, clearErrors, reset } = form;
+    const legalDocumentFeedback = useUploadFeedback(form, 'legal_document');
 
     const [otpSent, setOtpSent] = useState(false);
     const resend = useCountdown();
@@ -432,7 +436,7 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
                                     notify.validationFailed();
                                 }}
                                 error={errors.legal_document}
-                                disabled={processing}
+                                {...legalDocumentFeedback}
                                 accept={{
                                     'application/pdf': ['.pdf'],
                                     'image/jpeg': ['.jpg', '.jpeg'],
@@ -448,7 +452,7 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
                             <LoadingButton
                                 type="submit"
                                 loading={processing}
-                                loadingText="Mengirim Pendaftaran..."
+                                loadingText={uploadingLabel(legalDocumentFeedback.progress, 'Mengirim Pendaftaran...')}
                                 className="w-full h-11 text-sm font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
                             >
                                 <span>Kirim Pendaftaran Calon Vendor</span>

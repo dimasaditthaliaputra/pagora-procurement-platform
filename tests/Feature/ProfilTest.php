@@ -26,17 +26,17 @@ class ProfilTest extends TestCase
 
         $this->user = User::factory()->create([
             'role_id' => 2, // Buyer
-            'nama_lengkap' => 'Staff Buyer',
+            'name' => 'Staff Buyer',
             'email' => 'buyer@pagora.test',
             'password' => 'password-lama',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
     }
 
     public function test_guest_is_redirected_to_login(): void
     {
         $this->get('/profil')->assertRedirect('/login');
-        $this->put('/profil', ['nama_lengkap' => 'X'])->assertRedirect('/login');
+        $this->put('/profil', ['name' => 'X'])->assertRedirect('/login');
         $this->put('/profil/password', [])->assertRedirect('/login');
     }
 
@@ -47,9 +47,9 @@ class ProfilTest extends TestCase
         $response->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('Profil/Index')
             ->where('profil.data.uuid', $this->user->uuid)
-            ->where('profil.data.nama_lengkap', 'Staff Buyer')
+            ->where('profil.data.name', 'Staff Buyer')
             ->where('profil.data.email', 'buyer@pagora.test')
-            ->where('profil.data.role', 'Buyer')
+            ->where('profil.data.role', 'Purchasing / Finance')
             ->where('profil.data.punya_password', true)
             ->missing('profil.data.id')
             ->missing('profil.data.password'));
@@ -62,14 +62,14 @@ class ProfilTest extends TestCase
         $this->actingAs($this->user)
             ->post('/profil', [
                 '_method' => 'put',
-                'nama_lengkap' => 'Nama Baru',
+                'name' => 'Nama Baru',
                 'avatar' => UploadedFile::fake()->image('foto.jpg', 300, 300),
             ])
             ->assertRedirect('/profil')
             ->assertSessionHas('success');
 
         $this->user->refresh();
-        $this->assertSame('Nama Baru', $this->user->nama_lengkap);
+        $this->assertSame('Nama Baru', $this->user->name);
         Storage::disk('public')->assertExists($this->user->avatar);
         $this->assertSame(Storage::disk('public')->url($this->user->avatar), $this->user->avatar_url);
     }
@@ -77,16 +77,16 @@ class ProfilTest extends TestCase
     public function test_email_and_role_cannot_be_changed_from_profil(): void
     {
         $this->actingAs($this->user)->put('/profil', [
-            'nama_lengkap' => 'Nama Baru',
+            'name' => 'Nama Baru',
             'email' => 'ganti@pagora.test',
             'role_id' => 1,
-            'status_aktif' => false,
+            'is_active' => false,
         ]);
 
         $this->user->refresh();
         $this->assertSame('buyer@pagora.test', $this->user->email);
         $this->assertSame(2, $this->user->role_id);
-        $this->assertTrue($this->user->status_aktif);
+        $this->assertTrue($this->user->is_active);
     }
 
     public function test_replacing_and_removing_avatar_deletes_old_file(): void
@@ -94,13 +94,13 @@ class ProfilTest extends TestCase
         Storage::fake('public');
 
         $this->actingAs($this->user)->put('/profil', [
-            'nama_lengkap' => 'Staff Buyer',
+            'name' => 'Staff Buyer',
             'avatar' => UploadedFile::fake()->image('lama.png'),
         ]);
         $lama = $this->user->refresh()->avatar;
 
         $this->put('/profil', [
-            'nama_lengkap' => 'Staff Buyer',
+            'name' => 'Staff Buyer',
             'avatar' => UploadedFile::fake()->image('baru.png'),
         ]);
         $baru = $this->user->refresh()->avatar;
@@ -108,7 +108,7 @@ class ProfilTest extends TestCase
         Storage::disk('public')->assertMissing($lama);
         Storage::disk('public')->assertExists($baru);
 
-        $this->put('/profil', ['nama_lengkap' => 'Staff Buyer', 'hapus_avatar' => true]);
+        $this->put('/profil', ['name' => 'Staff Buyer', 'hapus_avatar' => true]);
 
         $this->assertNull($this->user->refresh()->avatar);
         Storage::disk('public')->assertMissing($baru);
@@ -122,7 +122,7 @@ class ProfilTest extends TestCase
         $this->assertSame('https://lh3.googleusercontent.com/a/foto', $this->user->avatar_url);
 
         $this->actingAs($this->user)
-            ->put('/profil', ['nama_lengkap' => 'Staff Buyer', 'hapus_avatar' => true])
+            ->put('/profil', ['name' => 'Staff Buyer', 'hapus_avatar' => true])
             ->assertSessionHasNoErrors();
 
         $this->assertNull($this->user->refresh()->avatar);
@@ -132,10 +132,10 @@ class ProfilTest extends TestCase
     {
         $this->actingAs($this->user)
             ->put('/profil', [
-                'nama_lengkap' => '',
+                'name' => '',
                 'avatar' => UploadedFile::fake()->create('foto.pdf', 100, 'application/pdf'),
             ])
-            ->assertSessionHasErrors(['nama_lengkap', 'avatar']);
+            ->assertSessionHasErrors(['name', 'avatar']);
     }
 
     public function test_user_can_change_password_with_correct_current_password(): void
@@ -182,7 +182,7 @@ class ProfilTest extends TestCase
             'role_id' => 2,
             'password' => null,
             'google_id' => 'google-123',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $this->actingAs($googleUser)

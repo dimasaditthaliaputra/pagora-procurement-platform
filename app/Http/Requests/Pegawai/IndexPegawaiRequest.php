@@ -28,7 +28,7 @@ class IndexPegawaiRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:100'],
-            'role' => ['nullable', 'string', 'in:all,superadmin,owner,manajemen,buyer,qc_gudang,vendor'],
+            'role' => ['nullable', 'string', 'in:all,superadmin,owner,manajemen,purchasing,qc_gudang,vendor'],
             'perusahaan' => [
                 'nullable',
                 'string',
@@ -42,8 +42,8 @@ class IndexPegawaiRequest extends FormRequest
                     $fail('Filter perusahaan tidak valid.');
                 },
             ],
-            'status_aktif' => ['nullable', 'string', 'in:all,true,false,1,0'],
-            'sort' => ['nullable', 'string', 'in:nama_lengkap,email,role_id,status_aktif,created_at'],
+            'is_active' => ['nullable', 'string', 'in:all,true,false,1,0'],
+            'sort' => ['nullable', 'string', 'in:name,email,role_id,is_active,created_at'],
             'direction' => ['nullable', 'string', 'in:asc,desc'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];
@@ -59,7 +59,7 @@ class IndexPegawaiRequest extends FormRequest
         return [
             'search.max' => 'Kata kunci pencarian maksimal 100 karakter.',
             'role.in' => 'Filter role tidak valid.',
-            'status_aktif.in' => 'Filter status aktif tidak valid.',
+            'is_active.in' => 'Filter status aktif tidak valid.',
             'sort.in' => 'Kolom pengurutan tidak valid.',
             'direction.in' => 'Arah pengurutan tidak valid.',
             'per_page.integer' => 'Jumlah data per halaman harus berupa angka.',

@@ -28,7 +28,7 @@ class PurchaseOrderPageTest extends TestCase
     public function test_pages_render_expected_components(): void
     {
         $this->seed(RoleSeeder::class);
-        $user = User::factory()->create(['role_id' => 2, 'status_aktif' => true]);
+        $user = User::factory()->create(['role_id' => 2, 'is_active' => true]);
 
         $pages = [
             '/purchase-order' => 'PurchaseOrder/Index',
@@ -46,7 +46,7 @@ class PurchaseOrderPageTest extends TestCase
     public function test_non_uuid_parameter_is_rejected(): void
     {
         $this->seed(RoleSeeder::class);
-        $user = User::factory()->create(['role_id' => 2, 'status_aktif' => true]);
+        $user = User::factory()->create(['role_id' => 2, 'is_active' => true]);
 
         $this->actingAs($user)->get('/purchase-order/123')->assertNotFound();
     }

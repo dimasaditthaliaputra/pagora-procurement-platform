@@ -77,7 +77,7 @@ const managementNavItems = [
 function getRoleName(roleId) {
     switch (roleId) {
         case 1: return 'Superadmin';
-        case 2: return 'Buyer';
+        case 2: return 'Purchasing / Finance';
         case 3: return 'QC Gudang';
         case 4: return 'Vendor';
         default: return 'User';
@@ -270,14 +270,14 @@ export function AppSidebar({ className, ...props }) {
                                     className="group flex h-12 w-full items-center gap-3 rounded-lg p-2 transition-all hover:bg-zinc-900 data-[state=open]:bg-zinc-900"
                                 >
                                     <Avatar className="size-9 rounded-lg border border-zinc-800 shrink-0">
-                                        <AvatarImage src={user?.avatar_url} alt={user?.nama_lengkap} />
+                                        <AvatarImage src={user?.avatar_url} alt={user?.name} />
                                         <AvatarFallback className="rounded-lg bg-zinc-800 font-bold text-white text-xs border border-zinc-700">
-                                            {getInitials(user?.nama_lengkap)}
+                                            {getInitials(user?.name)}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="grid flex-1 text-left text-sm leading-tight overflow-hidden group-data-[collapsible=icon]:hidden">
                                         <span className="truncate font-semibold text-white text-xs">
-                                            {user?.nama_lengkap ?? 'Pengguna'}
+                                            {user?.name ?? 'Pengguna'}
                                         </span>
                                         <span className="truncate text-[11px] text-zinc-400">
                                             {user?.email ?? getRoleName(user?.role_id)}
@@ -295,14 +295,14 @@ export function AppSidebar({ className, ...props }) {
                                 <DropdownMenuLabel className="p-0 font-normal">
                                     <div className="flex items-center gap-2.5 px-2 py-2 text-left text-sm">
                                         <Avatar className="size-8 rounded-lg border border-zinc-800">
-                                            <AvatarImage src={user?.avatar_url} alt={user?.nama_lengkap} />
+                                            <AvatarImage src={user?.avatar_url} alt={user?.name} />
                                             <AvatarFallback className="rounded-lg bg-zinc-800 font-bold text-white text-xs">
-                                                {getInitials(user?.nama_lengkap)}
+                                                {getInitials(user?.name)}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="grid flex-1 text-left text-xs leading-tight">
                                             <span className="truncate font-semibold text-white">
-                                                {user?.nama_lengkap}
+                                                {user?.name}
                                             </span>
                                             <span className="truncate text-[10px] text-zinc-400">
                                                 {getRoleName(user?.role_id)}

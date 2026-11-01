@@ -43,7 +43,7 @@ class DokumenLegalitasVendorResource extends JsonResource
             ] : null,
             'verifier' => $this->verifier ? [
                 'uuid' => $this->verifier->uuid,
-                'nama_lengkap' => $this->verifier->nama_lengkap,
+                'name' => $this->verifier->name,
                 'email' => $this->verifier->email,
             ] : null,
         ];

@@ -36,7 +36,7 @@ class AkunPegawaiDibuatNotification extends Notification
     {
         return (new MailMessage)
             ->subject('Aktivasi Akun Pegawai Internal PAGORA')
-            ->greeting('Halo, '.$this->user->nama_lengkap.'!')
+            ->greeting('Halo, '.$this->user->name.'!')
             ->line('Akun Anda untuk sistem E-Procurement PAGORA telah berhasil dibuat oleh Manajemen.')
             ->line('Berikut kredensial masuk akun Anda:')
             ->line('• Email: '.$this->user->email)

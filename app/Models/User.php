@@ -23,7 +23,7 @@ use Illuminate\Support\Str;
 /**
  * @property int $id
  * @property string $uuid
- * @property string $nama_lengkap
+ * @property string $name
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string $password
@@ -31,9 +31,9 @@ use Illuminate\Support\Str;
  * @property string|null $avatar
  * @property-read string|null $avatar_url
  * @property int $role_id
- * @property int|null $perusahaan_id
+ * @property int|null $tenant_id
  * @property int|null $vendor_id
- * @property bool $status_aktif
+ * @property bool $is_active
  * @property-read Role|null $role
  * @property-read PerusahaanBuyer|null $perusahaanBuyer
  * @property-read Vendor|null $vendor
@@ -42,18 +42,18 @@ use Illuminate\Support\Str;
  */
 #[Fillable([
     'uuid',
-    'nama_lengkap',
+    'name',
     'email',
     'email_verified_at',
     'password',
     'google_id',
     'avatar',
     'role_id',
-    'perusahaan_id',
+    'tenant_id',
     'vendor_id',
-    'status_aktif',
+    'is_active',
 ])]
-#[Hidden(['id', 'perusahaan_id', 'vendor_id', 'password', 'remember_token'])]
+#[Hidden(['id', 'tenant_id', 'vendor_id', 'password', 'remember_token'])]
 #[Appends(['avatar_url'])]
 class User extends Authenticatable
 {
@@ -88,7 +88,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'status_aktif' => 'boolean',
+            'is_active' => 'boolean',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
@@ -107,7 +107,7 @@ class User extends Authenticatable
      */
     public function perusahaanBuyer(): BelongsTo
     {
-        return $this->belongsTo(PerusahaanBuyer::class, 'perusahaan_id');
+        return $this->belongsTo(PerusahaanBuyer::class, 'tenant_id');
     }
 
     /**
@@ -131,8 +131,8 @@ class User extends Authenticatable
      */
     public function isSuperadmin(): bool
     {
-        return $this->role?->nama_role === 'superadmin'
-            || $this->role()->where('nama_role', 'superadmin')->exists();
+        return $this->role?->name === 'superadmin'
+            || $this->role()->where('name', 'superadmin')->exists();
     }
 
     /**
@@ -140,8 +140,8 @@ class User extends Authenticatable
      */
     public function isManajemen(): bool
     {
-        return $this->role?->nama_role === 'manajemen'
-            || $this->role()->where('nama_role', 'manajemen')->exists();
+        return $this->role?->name === 'manajemen'
+            || $this->role()->where('name', 'manajemen')->exists();
     }
 
     /**
@@ -149,8 +149,8 @@ class User extends Authenticatable
      */
     public function isOwner(): bool
     {
-        return $this->role?->nama_role === 'owner'
-            || $this->role()->where('nama_role', 'owner')->exists();
+        return $this->role?->name === 'owner'
+            || $this->role()->where('name', 'owner')->exists();
     }
 
     /**
@@ -158,8 +158,8 @@ class User extends Authenticatable
      */
     public function isVendor(): bool
     {
-        return $this->role?->nama_role === 'vendor'
-            || $this->role()->where('nama_role', 'vendor')->exists();
+        return $this->role?->name === 'vendor'
+            || $this->role()->where('name', 'vendor')->exists();
     }
 
     /**

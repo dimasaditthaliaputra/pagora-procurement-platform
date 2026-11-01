@@ -34,23 +34,23 @@ class UndangVendorTest extends TestCase
 
         $this->superadmin = User::factory()->create([
             'role_id' => 1, // Superadmin
-            'nama_lengkap' => 'Super Administrator',
+            'name' => 'Super Administrator',
             'email' => 'superadmin@pagora.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $this->manajemen = User::factory()->create([
             'role_id' => 5, // Manajemen
-            'nama_lengkap' => 'Admin Manajemen',
+            'name' => 'Admin Manajemen',
             'email' => 'manajemen@pagora.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $this->buyer = User::factory()->create([
             'role_id' => 2, // Buyer
-            'nama_lengkap' => 'Staff Buyer',
+            'name' => 'Staff Buyer',
             'email' => 'buyer@pagora.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
     }
 

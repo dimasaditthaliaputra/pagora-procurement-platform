@@ -36,7 +36,7 @@ class PegawaiService
         'superadmin' => 'Super Administrator',
         'owner' => 'Owner (Pemilik Perusahaan)',
         'manajemen' => 'Manajemen (Admin Internal)',
-        'buyer' => 'Buyer (Tim Purchasing)',
+        'purchasing' => 'Purchasing / Finance',
         'qc_gudang' => 'QC Gudang (Inspeksi Mutu)',
         'vendor' => 'Vendor',
     ];
@@ -49,7 +49,7 @@ class PegawaiService
     public const BUYER_COMPANY_FILTER_ROLES = [
         'owner' => 'Owner (Pemilik Perusahaan)',
         'manajemen' => 'Manajemen (Admin Internal)',
-        'buyer' => 'Buyer (Tim Purchasing)',
+        'purchasing' => 'Purchasing / Finance',
         'qc_gudang' => 'QC Gudang (Inspeksi Mutu)',
     ];
 
@@ -60,7 +60,7 @@ class PegawaiService
      */
     public const OWNER_ROLES = [
         'manajemen' => 'Manajemen (Admin Internal)',
-        'buyer' => 'Buyer (Tim Purchasing)',
+        'purchasing' => 'Purchasing / Finance',
         'qc_gudang' => 'QC Gudang (Inspeksi Mutu)',
     ];
 
@@ -70,7 +70,7 @@ class PegawaiService
      * @var array<string, string>
      */
     public const MANAJEMEN_ROLES = [
-        'buyer' => 'Buyer (Tim Purchasing)',
+        'purchasing' => 'Purchasing / Finance',
         'qc_gudang' => 'QC Gudang (Inspeksi Mutu)',
     ];
 
@@ -105,13 +105,13 @@ class PegawaiService
     private const DEFAULT_COLUMNS = [
         'id',
         'uuid',
-        'nama_lengkap',
+        'name',
         'email',
         'avatar',
         'role_id',
-        'perusahaan_id',
+        'tenant_id',
         'vendor_id',
-        'status_aktif',
+        'is_active',
         'created_at',
         'updated_at',
     ];
@@ -189,8 +189,8 @@ class PegawaiService
                 $forceEmpty = true;
             }
         } elseif ($actor->isOwner() || $actor->isManajemen()) {
-            if ($actor->perusahaan_id !== null) {
-                $perusahaanId = (int) $actor->perusahaan_id;
+            if ($actor->tenant_id !== null) {
+                $perusahaanId = (int) $actor->tenant_id;
             } else {
                 $forceEmpty = true;
             }
@@ -247,15 +247,15 @@ class PegawaiService
      * Determine which roles a creator is allowed to assign.
      *
      * - superadmin: semua roles
-     * - owner: manajemen, buyer, qc_gudang
-     * - manajemen: buyer, qc_gudang
+     * - owner: manajemen, purchasing, qc_gudang
+     * - manajemen: purchasing, qc_gudang
      * - vendor user: vendor
      *
      * @return array<string, string>
      */
     public function getAllowedRolesForUser(User $user): array
     {
-        $roleName = $user->role?->nama_role ?? '';
+        $roleName = $user->role?->name ?? '';
 
         return match (true) {
             $roleName === 'superadmin' => self::ALL_ROLES,
@@ -306,14 +306,14 @@ class PegawaiService
 
             $payload = [
                 'uuid' => (string) Str::uuid(),
-                'nama_lengkap' => trim((string) $data['nama_lengkap']),
+                'name' => trim((string) $data['name']),
                 'email' => strtolower(trim((string) $data['email'])),
                 'password' => Hash::make($defaultPassword),
                 'role_id' => $role->getKey(),
-                'perusahaan_id' => $perusahaanId,
+                'tenant_id' => $perusahaanId,
                 'vendor_id' => $vendorId,
                 // Stays inactive until the user passes the first-login OTP.
-                'status_aktif' => false,
+                'is_active' => false,
                 'email_verified_at' => null,
             ];
 
@@ -358,7 +358,7 @@ class PegawaiService
 
         $roleName = (string) ($data['role'] ?? '');
         $allowedRoles = array_keys($this->getAllowedRolesForUser($actor));
-        $targetCurrentRole = $user->role?->nama_role ?? '';
+        $targetCurrentRole = $user->role?->name ?? '';
 
         if (! $isSuperadmin) {
             if ($user->getKey() === $actor->getKey()) {
@@ -368,9 +368,9 @@ class PegawaiService
                     ]);
                 }
 
-                if (isset($data['status_aktif']) && ! (bool) $data['status_aktif']) {
+                if (isset($data['is_active']) && ! (bool) $data['is_active']) {
                     throw ValidationException::withMessages([
-                        'status_aktif' => 'Anda tidak dapat menonaktifkan akun Anda sendiri.',
+                        'is_active' => 'Anda tidak dapat menonaktifkan akun Anda sendiri.',
                     ]);
                 }
             } else {
@@ -404,10 +404,10 @@ class PegawaiService
 
         return DB::transaction(function () use ($user, $data, $role, $companyUpdates): User {
             $payload = [
-                'nama_lengkap' => trim((string) $data['nama_lengkap']),
+                'name' => trim((string) $data['name']),
                 'email' => strtolower(trim((string) $data['email'])),
                 'role_id' => $role->getKey(),
-                'status_aktif' => (bool) ($data['status_aktif'] ?? true),
+                'is_active' => (bool) ($data['is_active'] ?? true),
                 ...$companyUpdates,
             ];
 
@@ -446,7 +446,7 @@ class PegawaiService
             $this->ensureActorSameCompany($currentUser, $user, 'menghapus');
 
             $allowedRoles = array_keys($this->getAllowedRolesForUser($currentUser));
-            $targetCurrentRole = $user->role?->nama_role ?? '';
+            $targetCurrentRole = $user->role?->name ?? '';
 
             if (! in_array($targetCurrentRole, $allowedRoles, true)) {
                 throw new AuthorizationException('Anda tidak memiliki izin untuk menghapus akun dengan jabatan tersebut.');
@@ -483,7 +483,7 @@ class PegawaiService
      */
     public function getFilterRoleOptionsForUser(User $user): array
     {
-        $roleName = $user->role?->nama_role ?? '';
+        $roleName = $user->role?->name ?? '';
 
         $map = match (true) {
             $roleName === 'superadmin' => self::ALL_ROLES,
@@ -599,7 +599,7 @@ class PegawaiService
         }
 
         if ($actor->isVendor()) {
-            if ($actor->vendor_id === null || $target->vendor_id !== $actor->vendor_id || $target->perusahaan_id !== null) {
+            if ($actor->vendor_id === null || $target->vendor_id !== $actor->vendor_id || $target->tenant_id !== null) {
                 throw new AuthorizationException("Anda tidak memiliki izin untuk {$actionVerb} akun dari perusahaan lain.");
             }
 
@@ -607,7 +607,7 @@ class PegawaiService
         }
 
         if ($actor->isOwner() || $actor->isManajemen()) {
-            if ($actor->perusahaan_id === null || $target->perusahaan_id !== $actor->perusahaan_id || $target->vendor_id !== null) {
+            if ($actor->tenant_id === null || $target->tenant_id !== $actor->tenant_id || $target->vendor_id !== null) {
                 throw new AuthorizationException("Anda tidak memiliki izin untuk {$actionVerb} akun dari perusahaan lain.");
             }
 
@@ -618,7 +618,7 @@ class PegawaiService
     }
 
     /**
-     * Resolve `perusahaan_id` and `vendor_id` when creating a new user.
+     * Resolve `tenant_id` and `vendor_id` when creating a new user.
      *
      * @param  array<string, mixed>  $data
      * @return array{0: int|null, 1: int|null}
@@ -649,17 +649,17 @@ class PegawaiService
             return [null, (int) $creator->vendor_id];
         }
 
-        if ($creator->perusahaan_id === null) {
+        if ($creator->tenant_id === null) {
             throw ValidationException::withMessages([
                 'role' => 'Akun Anda belum terhubung dengan perusahaan mana pun.',
             ]);
         }
 
-        return [(int) $creator->perusahaan_id, null];
+        return [(int) $creator->tenant_id, null];
     }
 
     /**
-     * Resolve `perusahaan_id` / `vendor_id` updates when a superadmin updates a user.
+     * Resolve `tenant_id` / `vendor_id` updates when a superadmin updates a user.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, int|null>
@@ -670,13 +670,13 @@ class PegawaiService
     {
         if ($roleName === 'superadmin') {
             return [
-                'perusahaan_id' => null,
+                'tenant_id' => null,
                 'vendor_id' => null,
             ];
         }
 
         if ($roleName === 'vendor') {
-            $updates = ['perusahaan_id' => null];
+            $updates = ['tenant_id' => null];
             if (array_key_exists('vendor_uuid', $data)) {
                 $updates['vendor_id'] = $this->resolveVendorId($data['vendor_uuid']);
             }
@@ -686,7 +686,7 @@ class PegawaiService
 
         $updates = ['vendor_id' => null];
         if (array_key_exists('perusahaan_uuid', $data)) {
-            $updates['perusahaan_id'] = $this->resolvePerusahaanBuyerId($data['perusahaan_uuid']);
+            $updates['tenant_id'] = $this->resolvePerusahaanBuyerId($data['perusahaan_uuid']);
         }
 
         return $updates;

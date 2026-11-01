@@ -29,23 +29,23 @@ class VendorBlockingTest extends TestCase
 
         $this->superadmin = User::factory()->create([
             'role_id' => 1, // Superadmin
-            'nama_lengkap' => 'Super Administrator',
+            'name' => 'Super Administrator',
             'email' => 'superadmin@pagora.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $this->manajemen = User::factory()->create([
             'role_id' => 5, // Manajemen
-            'nama_lengkap' => 'Admin Manajemen',
+            'name' => 'Admin Manajemen',
             'email' => 'manajemen@pagora.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $this->buyer = User::factory()->create([
             'role_id' => 2, // Buyer
-            'nama_lengkap' => 'Staff Buyer',
+            'name' => 'Staff Buyer',
             'email' => 'buyer@pagora.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
     }
 
@@ -96,9 +96,9 @@ class VendorBlockingTest extends TestCase
         $vendorUser = User::factory()->create([
             'role_id' => 4, // Vendor role
             'vendor_id' => $vendor->id,
-            'nama_lengkap' => 'Staff Vendor',
+            'name' => 'Staff Vendor',
             'email' => 'staff@mitratani.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->manajemen)->post(
@@ -119,7 +119,7 @@ class VendorBlockingTest extends TestCase
 
         // Check associated vendor member accounts are also deactivated
         $vendorUser->refresh();
-        $this->assertFalse($vendorUser->status_aktif);
+        $this->assertFalse($vendorUser->is_active);
     }
 
     public function test_blocking_requires_valid_reason(): void
@@ -196,9 +196,9 @@ class VendorBlockingTest extends TestCase
         $vendorUser = User::factory()->create([
             'role_id' => 4,
             'vendor_id' => $vendor->id,
-            'nama_lengkap' => 'Staff Vendor',
+            'name' => 'Staff Vendor',
             'email' => 'staff2@mitratani.test',
-            'status_aktif' => false,
+            'is_active' => false,
         ]);
 
         $response = $this->actingAs($this->manajemen)->post(
@@ -215,7 +215,7 @@ class VendorBlockingTest extends TestCase
 
         // Check associated user accounts are reactivated
         $vendorUser->refresh();
-        $this->assertTrue($vendorUser->status_aktif);
+        $this->assertTrue($vendorUser->is_active);
     }
 
     public function test_non_management_user_cannot_unblock_vendor(): void

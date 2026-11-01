@@ -28,7 +28,7 @@ function getRoleBadge(role) {
     const roleLabel = role?.label ?? 'User';
 
     switch (roleName) {
-        case 'buyer':
+        case 'purchasing':
             return (
                 <Badge variant="outline" className="bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/30 font-medium">
                     {roleLabel}
@@ -100,7 +100,7 @@ export function getColumns({
 }) {
     const columns = [
         {
-            accessorKey: 'nama_lengkap',
+            accessorKey: 'name',
             header: ({ column }) => (
                 <DataTableColumnHeader
                     column={column}
@@ -113,14 +113,14 @@ export function getColumns({
                 return (
                     <div className="flex items-center gap-3">
                         <Avatar className="size-9 rounded-full border border-border/60">
-                            <AvatarImage src={pegawai.avatar} alt={pegawai.nama_lengkap} />
+                            <AvatarImage src={pegawai.avatar} alt={pegawai.name} />
                             <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
-                                {getInitials(pegawai.nama_lengkap)}
+                                {getInitials(pegawai.name)}
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col">
                             <span className="font-semibold text-foreground text-sm leading-tight">
-                                {pegawai.nama_lengkap}
+                                {pegawai.name}
                             </span>
                             <span className="text-xs text-muted-foreground font-normal">
                                 {pegawai.email}
@@ -178,7 +178,7 @@ export function getColumns({
             },
         },
         {
-            accessorKey: 'status_aktif',
+            accessorKey: 'is_active',
             header: ({ column }) => (
                 <DataTableColumnHeader
                     column={column}
@@ -187,7 +187,7 @@ export function getColumns({
                 />
             ),
             cell: ({ row }) => {
-                const isActive = row.getValue('status_aktif');
+                const isActive = row.getValue('is_active');
                 return isActive ? (
                     <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25 border-emerald-500/20 font-medium inline-flex items-center gap-1.5">
                         <UserCheck className="size-3" />

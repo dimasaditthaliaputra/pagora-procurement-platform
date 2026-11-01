@@ -41,6 +41,8 @@ return [
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
+            // "Ingat Saya" cookie lifetime in minutes: max 30 days (PRD NFR-03).
+            'remember' => (int) env('AUTH_REMEMBER_LIFETIME', 43200),
         ],
     ],
 

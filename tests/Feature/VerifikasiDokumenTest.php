@@ -30,16 +30,16 @@ class VerifikasiDokumenTest extends TestCase
 
         $this->superadmin = User::factory()->create([
             'role_id' => 1, // Superadmin
-            'nama_lengkap' => 'Super Administrator',
+            'name' => 'Super Administrator',
             'email' => 'superadmin@pagora.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $this->buyer = User::factory()->create([
             'role_id' => 2, // Buyer
-            'nama_lengkap' => 'Staff Buyer',
+            'name' => 'Staff Buyer',
             'email' => 'buyer@pagora.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
     }
 

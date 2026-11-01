@@ -40,7 +40,7 @@ class ResetPasswordNotification extends Notification
 
         return (new MailMessage)
             ->subject('Atur Ulang Kata Sandi PAGORA')
-            ->greeting('Halo, '.$notifiable->nama_lengkap.'!')
+            ->greeting('Halo, '.$notifiable->name.'!')
             ->line('Kami menerima permintaan untuk mengatur ulang kata sandi akun PAGORA Anda.')
             ->action('Atur Ulang Kata Sandi', $url)
             ->line("Tautan ini berlaku selama {$expire} menit.")

@@ -13,7 +13,24 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property string $company_name
+ * @property string|null $tax_number
+ * @property string|null $legal_document_path
+ * @property string|null $address
+ * @property VerificationStatus $verification_status
+ * @property string|null $verification_note
+ * @property int|null $verified_by
+ * @property Carbon|null $verified_at
+ * @property bool $is_active
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
+ */
 #[Fillable([
     'uuid',
     'company_name',

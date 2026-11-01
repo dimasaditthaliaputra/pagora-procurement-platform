@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\RoleName;
+use App\Enums\VerificationStatus;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Role;
@@ -335,11 +336,15 @@ class AuthService
         $email = strtolower(trim((string) $request->input('email')));
         $password = (string) $request->input('password');
 
-        $namaPerusahaan = trim((string) $request->input('nama_perusahaan'));
-        $nomorNpwp = $request->filled('nomor_npwp') ? trim((string) $request->input('nomor_npwp')) : null;
-        $alamat = $request->filled('alamat') ? trim((string) $request->input('alamat')) : null;
+        $namaPerusahaan = trim((string) ($request->input('nama_perusahaan') ?? $request->input('company_name')));
+        $nomorNpwp = $request->filled('nomor_npwp')
+            ? trim((string) $request->input('nomor_npwp'))
+            : ($request->filled('tax_number') ? trim((string) $request->input('tax_number')) : null);
+        $alamat = $request->filled('alamat')
+            ? trim((string) $request->input('alamat'))
+            : ($request->filled('address') ? trim((string) $request->input('address')) : null);
 
-        $file = $request->file('dokumen_npwp');
+        $file = $request->file('dokumen_npwp') ?? $request->file('legal_document') ?? $request->file('file_npwp');
         $documentPath = null;
 
         if ($file instanceof UploadedFile) {
@@ -347,13 +352,13 @@ class AuthService
             $filename = Str::uuid()->toString().'.'.$extension;
 
             $documentPath = $file->storeAs(
-                'perusahaan/npwp',
+                'perusahaan/legalitas',
                 $filename,
                 'local'
             );
 
             if ($documentPath === false) {
-                throw new RuntimeException('Dokumen NPWP gagal disimpan.');
+                throw new RuntimeException('Dokumen legalitas gagal disimpan.');
             }
         }
 
@@ -363,6 +368,7 @@ class AuthService
                 'tax_number' => $nomorNpwp,
                 'legal_document_path' => $documentPath,
                 'address' => $alamat,
+                'verification_status' => VerificationStatus::Pending,
                 'is_active' => true,
             ]);
 

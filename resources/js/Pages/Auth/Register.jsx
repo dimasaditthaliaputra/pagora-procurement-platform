@@ -9,7 +9,7 @@ import { LoadingButton } from '@/Components/loading-button';
 import { FileDropzone } from '@/Components/file-dropzone';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
-import { isEmail } from '@/lib/validators';
+import { isEmail, isNpwp } from '@/lib/validators';
 import { Building2, ArrowRight, ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export default function Register() {
@@ -96,11 +96,22 @@ export default function Register() {
         if (!trimmedNpwp) {
             setError('nomor_npwp', 'Nomor NPWP wajib diisi.');
             hasError = true;
+        } else if (!isNpwp(trimmedNpwp)) {
+            setError(
+                'nomor_npwp',
+                'Format nomor NPWP tidak valid. Gunakan format 15 digit (contoh: 01.234.567.8-901.000) atau 16 digit angka.'
+            );
+            hasError = true;
         }
 
         const trimmedAlamat = data.alamat.trim();
         if (!trimmedAlamat) {
             setError('alamat', 'Alamat lengkap perusahaan wajib diisi.');
+            hasError = true;
+        }
+
+        if (!data.dokumen_npwp) {
+            setError('dokumen_npwp', 'Dokumen legalitas perusahaan (NPWP/SIUP) wajib diunggah.');
             hasError = true;
         }
 
@@ -460,7 +471,7 @@ export default function Register() {
 
                                     <div className="grid gap-1.5">
                                         <Label htmlFor="dokumen_npwp" className={errors.dokumen_npwp ? 'text-destructive' : ''}>
-                                            Unggah Dokumen NPWP (Opsional)
+                                            Dokumen Legalitas Perusahaan (NPWP / SIUP) <span className="text-destructive">*</span>
                                         </Label>
                                         <FileDropzone
                                             value={data.dokumen_npwp}
@@ -474,8 +485,9 @@ export default function Register() {
                                             }}
                                             error={errors.dokumen_npwp}
                                             disabled={processing}
-                                            label="Dokumen NPWP"
-                                            description="Format PDF, JPG, JPEG, atau PNG (Maksimal 2 MB)"
+                                            label="Dokumen Legalitas Perusahaan"
+                                            description="Format PDF, JPG, JPEG, atau PNG (Maksimal 5 MB)"
+                                            maxSize={5 * 1024 * 1024}
                                         />
                                     </div>
 

@@ -21,17 +21,17 @@ export function KomoditasForm({
     initialData = null,
     isEdit = false,
     satuan_options = [],
-    kategori_options = [],
+    category_options = [],
 }) {
     const { data, setData, post, put, processing, errors, setError, clearErrors } = useForm({
-        nama_komoditas: initialData?.nama_komoditas ?? '',
-        satuan: initialData?.satuan ?? '',
-        batas_susut: initialData?.batas_susut ?? '',
-        kode_referensi_api: initialData?.kode_referensi_api ?? '',
+        name: initialData?.name ?? '',
+        unit: initialData?.unit ?? '',
+        default_shrinkage_tolerance: initialData?.default_shrinkage_tolerance ?? '',
+        api_reference_code: initialData?.api_reference_code ?? '',
         sku: initialData?.sku ?? '',
-        kategori: initialData?.kategori ?? '',
-        spesifikasi: initialData?.spesifikasi ?? '',
-        status: initialData?.status ?? true,
+        commodity_category_uuid: initialData?.commodity_category_uuid ?? '',
+        specification: initialData?.specification ?? '',
+        is_active: initialData?.is_active ?? true,
     });
 
     const handleSubmit = (e) => {
@@ -39,23 +39,23 @@ export function KomoditasForm({
 
         // Frontend validation
         let hasError = false;
-        if (!data.nama_komoditas.trim()) {
-            setError('nama_komoditas', 'Nama komoditas wajib diisi.');
+        if (!data.name.trim()) {
+            setError('name', 'Nama komoditas wajib diisi.');
             hasError = true;
         }
 
-        if (!data.satuan) {
-            setError('satuan', 'Satuan komoditas wajib dipilih.');
+        if (!data.unit) {
+            setError('unit', 'Satuan komoditas wajib dipilih.');
             hasError = true;
         }
 
-        if (data.batas_susut !== '' && data.batas_susut !== null && data.batas_susut !== undefined) {
-            const batasSusutStr = String(data.batas_susut).trim();
+        if (data.default_shrinkage_tolerance !== '' && data.default_shrinkage_tolerance !== null && data.default_shrinkage_tolerance !== undefined) {
+            const batasSusutStr = String(data.default_shrinkage_tolerance).trim();
             if (batasSusutStr.includes(',')) {
-                setError('batas_susut', 'Batas susut hanya menerima format angka desimal dengan titik (contoh: 2.5).');
+                setError('default_shrinkage_tolerance', 'Batas susut hanya menerima format angka desimal dengan titik (contoh: 2.5).');
                 hasError = true;
             } else if (!/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/.test(batasSusutStr)) {
-                setError('batas_susut', 'Batas susut harus berupa angka antara 0 hingga 100 dengan format titik (contoh: 2.5).');
+                setError('default_shrinkage_tolerance', 'Batas susut harus berupa angka antara 0 hingga 100 dengan format titik (contoh: 2.5).');
                 hasError = true;
             }
         }
@@ -81,9 +81,9 @@ export function KomoditasForm({
         label: s.toUpperCase(),
     }));
 
-    const formattedKategoriOptions = kategori_options.map((k) => ({
-        value: k,
-        label: k,
+    const formattedKategoriOptions = category_options.map((category) => ({
+        value: category.uuid,
+        label: category.name,
     }));
 
     return (
@@ -101,23 +101,23 @@ export function KomoditasForm({
                     {/* Row 1: Nama Komoditas (2/3) + SKU (1/3) */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="sm:col-span-2 grid gap-1.5">
-                            <Label htmlFor="nama_komoditas" className={cn('text-sm', errors.nama_komoditas && 'text-destructive')}>
+                            <Label htmlFor="name" className={cn('text-sm', errors.name && 'text-destructive')}>
                                 Nama Komoditas <span className="text-destructive">*</span>
                             </Label>
                             <Input
-                                id="nama_komoditas"
+                                id="name"
                                 placeholder="Contoh: Beras Premium IR-64, Gula Pasir Rafinasi"
-                                value={data.nama_komoditas}
+                                value={data.name}
                                 onChange={(e) => {
-                                    setData('nama_komoditas', e.target.value);
-                                    if (errors.nama_komoditas) clearErrors('nama_komoditas');
+                                    setData('name', e.target.value);
+                                    if (errors.name) clearErrors('name');
                                 }}
-                                aria-invalid={Boolean(errors.nama_komoditas)}
-                                className={cn('h-9', errors.nama_komoditas && 'border-destructive focus-visible:ring-destructive')}
+                                aria-invalid={Boolean(errors.name)}
+                                className={cn('h-9', errors.name && 'border-destructive focus-visible:ring-destructive')}
                             />
-                            {errors.nama_komoditas && (
+                            {errors.name && (
                                 <p className="text-xs font-medium text-destructive">
-                                    {errors.nama_komoditas}
+                                    {errors.name}
                                 </p>
                             )}
                         </div>
@@ -148,47 +148,47 @@ export function KomoditasForm({
                     {/* Row 2: Satuan Unit + Kategori Bahan (1 Row with Searchable Comboboxes) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="grid gap-1.5">
-                            <Label htmlFor="satuan" className={cn('text-sm', errors.satuan && 'text-destructive')}>
+                            <Label htmlFor="unit" className={cn('text-sm', errors.unit && 'text-destructive')}>
                                 Satuan Unit <span className="text-destructive">*</span>
                             </Label>
                             <Combobox
                                 options={formattedSatuanOptions}
-                                value={data.satuan}
+                                value={data.unit}
                                 onChange={(val) => {
-                                    setData('satuan', val);
-                                    if (errors.satuan) clearErrors('satuan');
+                                    setData('unit', val);
+                                    if (errors.unit) clearErrors('unit');
                                 }}
                                 placeholder="Pilih satuan..."
                                 searchPlaceholder="Cari satuan (KG, TON, SAK...)"
                                 emptyMessage="Satuan tidak ditemukan."
-                                error={errors.satuan}
+                                error={errors.unit}
                             />
-                            {errors.satuan && (
+                            {errors.unit && (
                                 <p className="text-xs font-medium text-destructive">
-                                    {errors.satuan}
+                                    {errors.unit}
                                 </p>
                             )}
                         </div>
 
                         <div className="grid gap-1.5">
-                            <Label htmlFor="kategori" className={cn('text-sm', errors.kategori && 'text-destructive')}>
+                            <Label htmlFor="commodity_category_uuid" className={cn('text-sm', errors.commodity_category_uuid && 'text-destructive')}>
                                 Kategori Bahan
                             </Label>
                             <Combobox
                                 options={formattedKategoriOptions}
-                                value={data.kategori}
+                                value={data.commodity_category_uuid}
                                 onChange={(val) => {
-                                    setData('kategori', val);
-                                    if (errors.kategori) clearErrors('kategori');
+                                    setData('commodity_category_uuid', val);
+                                    if (errors.commodity_category_uuid) clearErrors('commodity_category_uuid');
                                 }}
                                 placeholder="Pilih kategori bahan..."
                                 searchPlaceholder="Cari kategori (Beras, Minyak...)"
                                 emptyMessage="Kategori tidak ditemukan."
-                                error={errors.kategori}
+                                error={errors.commodity_category_uuid}
                             />
-                            {errors.kategori && (
+                            {errors.commodity_category_uuid && (
                                 <p className="text-xs font-medium text-destructive">
-                                    {errors.kategori}
+                                    {errors.commodity_category_uuid}
                                 </p>
                             )}
                         </div>
@@ -197,23 +197,23 @@ export function KomoditasForm({
                     {/* Row 3: Kode Referensi API + Status Aktif (1 Row) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                         <div className="grid gap-1.5">
-                            <Label htmlFor="kode_referensi_api" className={cn('text-sm', errors.kode_referensi_api && 'text-destructive')}>
+                            <Label htmlFor="api_reference_code" className={cn('text-sm', errors.api_reference_code && 'text-destructive')}>
                                 Kode Referensi API Pangan
                             </Label>
                             <Input
-                                id="kode_referensi_api"
+                                id="api_reference_code"
                                 placeholder="Contoh: 101 (ID komoditas PIHPS / Bapanas)"
-                                value={data.kode_referensi_api}
+                                value={data.api_reference_code}
                                 onChange={(e) => {
-                                    setData('kode_referensi_api', e.target.value);
-                                    if (errors.kode_referensi_api) clearErrors('kode_referensi_api');
+                                    setData('api_reference_code', e.target.value);
+                                    if (errors.api_reference_code) clearErrors('api_reference_code');
                                 }}
-                                aria-invalid={Boolean(errors.kode_referensi_api)}
-                                className={cn('h-9', errors.kode_referensi_api && 'border-destructive focus-visible:ring-destructive')}
+                                aria-invalid={Boolean(errors.api_reference_code)}
+                                className={cn('h-9', errors.api_reference_code && 'border-destructive focus-visible:ring-destructive')}
                             />
-                            {errors.kode_referensi_api && (
+                            {errors.api_reference_code && (
                                 <p className="text-xs font-medium text-destructive">
-                                    {errors.kode_referensi_api}
+                                    {errors.api_reference_code}
                                 </p>
                             )}
                             <p className="text-[11px] text-muted-foreground">
@@ -223,7 +223,7 @@ export function KomoditasForm({
 
                         <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 mt-0.5">
                             <div className="space-y-0.5 pr-2">
-                                <Label htmlFor="status" className="text-sm font-medium cursor-pointer">
+                                <Label htmlFor="is_active" className="text-sm font-medium cursor-pointer">
                                     Status Aktif Pengadaan
                                 </Label>
                                 <p className="text-[11px] text-muted-foreground leading-tight">
@@ -231,24 +231,24 @@ export function KomoditasForm({
                                 </p>
                             </div>
                             <Switch
-                                id="status"
-                                checked={data.status}
-                                onCheckedChange={(checked) => setData('status', checked)}
+                                id="is_active"
+                                checked={data.is_active}
+                                onCheckedChange={(checked) => setData('is_active', checked)}
                             />
                         </div>
                     </div>
 
                     {/* Row 4: Batas Susut */}
                     <div className="grid gap-1.5 sm:w-1/2">
-                        <Label htmlFor="batas_susut" className={cn('text-sm', errors.batas_susut && 'text-destructive')}>
+                        <Label htmlFor="default_shrinkage_tolerance" className={cn('text-sm', errors.default_shrinkage_tolerance && 'text-destructive')}>
                             Batas Susut (%)
                         </Label>
                         <Input
-                            id="batas_susut"
+                            id="default_shrinkage_tolerance"
                             type="text"
                             inputMode="decimal"
                             placeholder="Contoh: 2.5"
-                            value={data.batas_susut ?? ''}
+                            value={data.default_shrinkage_tolerance ?? ''}
                             onKeyDown={(e) => {
                                 // Tolak koma, eksponen (e/E), serta tanda plus/minus secara langsung
                                 if (e.key === ',' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
@@ -262,8 +262,8 @@ export function KomoditasForm({
                                     // Cegah jika mengandung koma dan bukan format titik yang sah
                                     const sanitized = pasted.replace(/,/g, '.');
                                     if (/^(?:100(?:\.0{0,2})?|[0-9]{0,2}(?:\.[0-9]{0,2})?)$/.test(sanitized)) {
-                                        setData('batas_susut', sanitized);
-                                        if (errors.batas_susut) clearErrors('batas_susut');
+                                        setData('default_shrinkage_tolerance', sanitized);
+                                        if (errors.default_shrinkage_tolerance) clearErrors('default_shrinkage_tolerance');
                                     }
                                 }
                             }}
@@ -271,16 +271,16 @@ export function KomoditasForm({
                                 const val = e.target.value;
                                 // Guard format: hanya izinkan string kosong atau desimal bertitik (0-100, maks 2 desimal)
                                 if (val === '' || /^(?:100(?:\.0{0,2})?|[0-9]{0,2}(?:\.[0-9]{0,2})?)$/.test(val)) {
-                                    setData('batas_susut', val);
-                                    if (errors.batas_susut) clearErrors('batas_susut');
+                                    setData('default_shrinkage_tolerance', val);
+                                    if (errors.default_shrinkage_tolerance) clearErrors('default_shrinkage_tolerance');
                                 }
                             }}
-                            aria-invalid={Boolean(errors.batas_susut)}
-                            className={cn('h-9', errors.batas_susut && 'border-destructive focus-visible:ring-destructive')}
+                            aria-invalid={Boolean(errors.default_shrinkage_tolerance)}
+                            className={cn('h-9', errors.default_shrinkage_tolerance && 'border-destructive focus-visible:ring-destructive')}
                         />
-                        {errors.batas_susut && (
+                        {errors.default_shrinkage_tolerance && (
                             <p className="text-xs font-medium text-destructive">
-                                {errors.batas_susut}
+                                {errors.default_shrinkage_tolerance}
                             </p>
                         )}
                         <p className="text-[11px] text-muted-foreground">
@@ -290,24 +290,24 @@ export function KomoditasForm({
 
                     {/* Row 5: Spesifikasi & Syarat Mutu QC */}
                     <div className="grid gap-1.5">
-                        <Label htmlFor="spesifikasi" className={cn('text-sm', errors.spesifikasi && 'text-destructive')}>
+                        <Label htmlFor="specification" className={cn('text-sm', errors.specification && 'text-destructive')}>
                             Spesifikasi & Syarat Mutu QC
                         </Label>
                         <Textarea
-                            id="spesifikasi"
+                            id="specification"
                             rows={2}
                             placeholder="Contoh: Kadar air maksimal 14%, butir patah maksimal 5%, bebas bau apek dan kutu."
-                            value={data.spesifikasi}
+                            value={data.specification}
                             onChange={(e) => {
-                                setData('spesifikasi', e.target.value);
-                                if (errors.spesifikasi) clearErrors('spesifikasi');
+                                setData('specification', e.target.value);
+                                if (errors.specification) clearErrors('specification');
                             }}
-                            aria-invalid={Boolean(errors.spesifikasi)}
-                            className={cn('resize-none text-xs leading-relaxed', errors.spesifikasi && 'border-destructive focus-visible:ring-destructive')}
+                            aria-invalid={Boolean(errors.specification)}
+                            className={cn('resize-none text-xs leading-relaxed', errors.specification && 'border-destructive focus-visible:ring-destructive')}
                         />
-                        {errors.spesifikasi && (
+                        {errors.specification && (
                             <p className="text-xs font-medium text-destructive">
-                                {errors.spesifikasi}
+                                {errors.specification}
                             </p>
                         )}
                     </div>

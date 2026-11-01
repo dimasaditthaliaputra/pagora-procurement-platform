@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Repositories\Contracts\CommodityCategoryRepositoryInterface;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
 use App\Repositories\Contracts\KomoditasRepositoryInterface;
 use App\Repositories\Contracts\PengaturanRepositoryInterface;
@@ -12,6 +13,7 @@ use App\Repositories\Contracts\RoleRepositoryInterface;
 use App\Repositories\Contracts\UndanganVendorRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Contracts\VendorRepositoryInterface;
+use App\Repositories\Eloquent\CommodityCategoryRepository;
 use App\Repositories\Eloquent\DokumenLegalitasVendorRepository;
 use App\Repositories\Eloquent\KomoditasRepository;
 use App\Repositories\Eloquent\PengaturanRepository;
@@ -37,6 +39,11 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             KomoditasRepositoryInterface::class,
             KomoditasRepository::class
+        );
+
+        $this->app->bind(
+            CommodityCategoryRepositoryInterface::class,
+            CommodityCategoryRepository::class
         );
 
         $this->app->bind(

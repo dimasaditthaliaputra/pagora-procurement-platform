@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\CommodityCategory;
 use App\Models\Komoditas;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -34,8 +35,8 @@ class KomoditasTest extends TestCase
         $response->assertRedirect('/login');
 
         $response = $this->post('/master/komoditas', [
-            'nama_komoditas' => 'Beras Medium',
-            'satuan' => 'kg',
+            'name' => 'Beras Medium',
+            'unit' => 'kg',
         ]);
         $response->assertRedirect('/login');
     }
@@ -51,24 +52,27 @@ class KomoditasTest extends TestCase
             ->component('Master/Komoditas/Index')
             ->has('komoditas.data', 3)
             ->has('satuan_options')
-            ->has('kategori_options')
+            ->has('category_options')
         );
     }
 
     public function test_can_filter_and_search_komoditas(): void
     {
+        $gula = CommodityCategory::factory()->create(['name' => 'Gula & Pemanis']);
+        $minyak = CommodityCategory::factory()->create(['name' => 'Minyak & Lemak']);
+
         Komoditas::factory()->create([
-            'nama_komoditas' => 'Gula Pasir Kristal',
+            'name' => 'Gula Pasir Kristal',
             'sku' => 'GLA-001',
-            'kategori' => 'Gula & Pemanis',
-            'satuan' => 'kg',
+            'commodity_category_id' => $gula->id,
+            'unit' => 'kg',
         ]);
 
         Komoditas::factory()->create([
-            'nama_komoditas' => 'Minyak Sawit Curah',
+            'name' => 'Minyak Sawit Curah',
             'sku' => 'MYK-001',
-            'kategori' => 'Minyak & Lemak',
-            'satuan' => 'liter',
+            'commodity_category_id' => $minyak->id,
+            'unit' => 'liter',
         ]);
 
         $response = $this->actingAs($this->user)->get('/master/komoditas?search=gula');
@@ -77,10 +81,11 @@ class KomoditasTest extends TestCase
             ->component('Master/Komoditas/Index')
             ->has('komoditas.data', 1)
             ->where('komoditas.data.0.sku', 'GLA-001')
-            ->where('komoditas.data.0.spesifikasi', null)
+            ->where('komoditas.data.0.category_name', 'Gula & Pemanis')
+            ->where('komoditas.data.0.commodity_category_uuid', $gula->uuid)
         );
 
-        $response = $this->actingAs($this->user)->get('/master/komoditas?kategori=Minyak+%26+Lemak');
+        $response = $this->actingAs($this->user)->get('/master/komoditas?commodity_category_uuid='.$minyak->uuid);
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
             ->component('Master/Komoditas/Index')
@@ -88,7 +93,7 @@ class KomoditasTest extends TestCase
             ->where('komoditas.data.0.sku', 'MYK-001')
         );
 
-        $response = $this->actingAs($this->user)->get('/master/komoditas?kategori=all');
+        $response = $this->actingAs($this->user)->get('/master/komoditas?commodity_category_uuid=all');
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
             ->component('Master/Komoditas/Index')
@@ -111,32 +116,34 @@ class KomoditasTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('Master/Komoditas/Create')
             ->has('satuan_options')
-            ->has('kategori_options')
+            ->has('category_options')
         );
     }
 
     public function test_can_create_new_komoditas_with_valid_data(): void
     {
+        $category = CommodityCategory::factory()->create(['name' => 'Beras & Padi']);
+
         $payload = [
-            'nama_komoditas' => 'Beras Rojo Lele 50kg',
-            'satuan' => 'sak',
+            'name' => 'Beras Rojo Lele 50kg',
+            'unit' => 'sak',
             'sku' => 'BRS-RJL-50',
-            'kategori' => 'Beras & Padi',
-            'kode_referensi_api' => '102',
-            'spesifikasi' => 'Kadar air maksimal 14 persen',
-            'status' => true,
+            'commodity_category_uuid' => $category->uuid,
+            'api_reference_code' => '102',
+            'specification' => 'Kadar air maksimal 14 persen',
+            'is_active' => true,
         ];
 
         $response = $this->actingAs($this->user)->post('/master/komoditas', $payload);
 
         $response->assertRedirect('/master/komoditas');
-        $this->assertDatabaseHas('komoditas', [
-            'nama_komoditas' => 'Beras Rojo Lele 50kg',
+        $this->assertDatabaseHas('commodities', [
+            'name' => 'Beras Rojo Lele 50kg',
             'slug' => 'beras-rojo-lele-50kg',
             'sku' => 'BRS-RJL-50',
-            'satuan' => 'sak',
-            'kategori' => 'Beras & Padi',
-            'status' => true,
+            'unit' => 'sak',
+            'commodity_category_id' => $category->id,
+            'is_active' => true,
         ]);
 
         $created = Komoditas::where('sku', 'BRS-RJL-50')->firstOrFail();
@@ -146,41 +153,41 @@ class KomoditasTest extends TestCase
     public function test_create_komoditas_generates_unique_slug_when_name_collides(): void
     {
         Komoditas::factory()->create([
-            'nama_komoditas' => 'Beras Ramos Super',
+            'name' => 'Beras Ramos Super',
             'slug' => 'beras-ramos-super',
             'sku' => 'SKU-001',
         ]);
 
         $payload = [
-            'nama_komoditas' => 'Beras Ramos Super Baru',
-            'satuan' => 'kg',
+            'name' => 'Beras Ramos Super Baru',
+            'unit' => 'kg',
             'sku' => 'SKU-002',
         ];
 
         $response = $this->actingAs($this->user)->post('/master/komoditas', $payload);
 
         $response->assertRedirect('/master/komoditas');
-        $this->assertDatabaseHas('komoditas', [
+        $this->assertDatabaseHas('commodities', [
             'sku' => 'SKU-002',
             'slug' => 'beras-ramos-super-baru',
         ]);
     }
 
-    public function test_create_komoditas_validation_fails_on_empty_name_or_invalid_satuan(): void
+    public function test_create_komoditas_validation_fails_on_empty_name_or_invalid_unit(): void
     {
         $response = $this->actingAs($this->user)->post('/master/komoditas', [
-            'nama_komoditas' => '',
-            'satuan' => 'invalid-satuan',
+            'name' => '',
+            'unit' => 'invalid-satuan',
         ]);
 
-        $response->assertSessionHasErrors(['nama_komoditas', 'satuan']);
-        $this->assertDatabaseCount('komoditas', 0);
+        $response->assertSessionHasErrors(['name', 'unit']);
+        $this->assertDatabaseCount('commodities', 0);
     }
 
     public function test_can_render_edit_page(): void
     {
         $komoditas = Komoditas::factory()->create([
-            'nama_komoditas' => 'Jagung Pipil Kering',
+            'name' => 'Jagung Pipil Kering',
         ]);
 
         $response = $this->actingAs($this->user)->get("/master/komoditas/{$komoditas->uuid}/edit");
@@ -189,7 +196,7 @@ class KomoditasTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('Master/Komoditas/Edit')
             ->where('komoditas.data.uuid', $komoditas->uuid)
-            ->where('komoditas.data.nama_komoditas', 'Jagung Pipil Kering')
+            ->where('komoditas.data.name', 'Jagung Pipil Kering')
         );
     }
 
@@ -205,87 +212,116 @@ class KomoditasTest extends TestCase
     public function test_can_update_komoditas_and_update_slug_on_name_change(): void
     {
         $komoditas = Komoditas::factory()->create([
-            'nama_komoditas' => 'Kedelai Impor Lama',
+            'name' => 'Kedelai Impor Lama',
             'slug' => 'kedelai-impor-lama',
             'sku' => 'KDL-001',
-            'satuan' => 'kg',
+            'unit' => 'kg',
         ]);
 
         $response = $this->actingAs($this->user)->put("/master/komoditas/{$komoditas->uuid}", [
-            'nama_komoditas' => 'Kedelai Impor Premium',
+            'name' => 'Kedelai Impor Premium',
             'sku' => 'KDL-001',
-            'satuan' => 'ton',
-            'kategori' => 'Biji-bijian & Jagung',
-            'status' => false,
+            'unit' => 'ton',
+            'is_active' => false,
         ]);
 
         $response->assertRedirect('/master/komoditas');
-        $this->assertDatabaseHas('komoditas', [
+        $this->assertDatabaseHas('commodities', [
             'uuid' => $komoditas->uuid,
-            'nama_komoditas' => 'Kedelai Impor Premium',
+            'name' => 'Kedelai Impor Premium',
             'slug' => 'kedelai-impor-premium',
-            'satuan' => 'ton',
-            'status' => false,
+            'unit' => 'ton',
+            'is_active' => false,
         ]);
     }
 
     public function test_can_soft_delete_komoditas(): void
     {
         $komoditas = Komoditas::factory()->create([
-            'nama_komoditas' => 'Tepung Terigu Cakra',
+            'name' => 'Tepung Terigu Cakra',
             'sku' => 'TPG-CKR',
         ]);
 
         $response = $this->actingAs($this->user)->delete("/master/komoditas/{$komoditas->uuid}");
 
         $response->assertRedirect('/master/komoditas');
-        $this->assertSoftDeleted('komoditas', [
+        $this->assertSoftDeleted('commodities', [
             'id' => $komoditas->id,
             'uuid' => $komoditas->uuid,
         ]);
     }
 
-    public function test_create_komoditas_accepts_valid_decimal_with_dot_for_batas_susut(): void
+    public function test_create_komoditas_accepts_valid_decimal_with_dot_for_default_shrinkage_tolerance(): void
     {
         $payload = [
-            'nama_komoditas' => 'Gula Pasir Kristal 50kg',
-            'satuan' => 'karung',
+            'name' => 'Gula Pasir Kristal 50kg',
+            'unit' => 'karung',
             'sku' => 'GLA-50',
-            'batas_susut' => '2.75',
+            'default_shrinkage_tolerance' => '2.75',
         ];
 
         $response = $this->actingAs($this->user)->post('/master/komoditas', $payload);
 
         $response->assertRedirect('/master/komoditas');
-        $this->assertDatabaseHas('komoditas', [
+        $this->assertDatabaseHas('commodities', [
             'sku' => 'GLA-50',
-            'batas_susut' => 2.75,
+            'default_shrinkage_tolerance' => 2.75,
         ]);
     }
 
-    public function test_create_komoditas_rejects_comma_format_for_batas_susut(): void
+    public function test_create_komoditas_rejects_comma_format_for_default_shrinkage_tolerance(): void
     {
         $payload = [
-            'nama_komoditas' => 'Minyak Goreng Sawit 18L',
-            'satuan' => 'liter',
-            'batas_susut' => '2,5',
+            'name' => 'Minyak Goreng Sawit 18L',
+            'unit' => 'liter',
+            'default_shrinkage_tolerance' => '2,5',
         ];
 
         $response = $this->actingAs($this->user)->post('/master/komoditas', $payload);
 
-        $response->assertSessionHasErrors(['batas_susut']);
+        $response->assertSessionHasErrors(['default_shrinkage_tolerance']);
     }
 
-    public function test_create_komoditas_rejects_batas_susut_greater_than_100(): void
+    public function test_create_komoditas_rejects_default_shrinkage_tolerance_greater_than_100(): void
     {
         $payload = [
-            'nama_komoditas' => 'Garam Halus',
-            'satuan' => 'kg',
-            'batas_susut' => '100.5',
+            'name' => 'Garam Halus',
+            'unit' => 'kg',
+            'default_shrinkage_tolerance' => '100.5',
         ];
 
         $response = $this->actingAs($this->user)->post('/master/komoditas', $payload);
 
-        $response->assertSessionHasErrors(['batas_susut']);
+        $response->assertSessionHasErrors(['default_shrinkage_tolerance']);
+    }
+
+    public function test_create_komoditas_rejects_unknown_or_inactive_category(): void
+    {
+        $inactive = CommodityCategory::factory()->create(['is_active' => false]);
+
+        foreach ([(string) Str::uuid(), $inactive->uuid] as $uuid) {
+            $response = $this->actingAs($this->user)->post('/master/komoditas', [
+                'name' => 'Komoditas Uji',
+                'unit' => 'kg',
+                'commodity_category_uuid' => $uuid,
+            ]);
+
+            $response->assertSessionHasErrors(['commodity_category_uuid']);
+        }
+
+        $this->assertDatabaseMissing('commodities', ['name' => 'Komoditas Uji']);
+    }
+
+    public function test_category_options_only_list_active_categories(): void
+    {
+        CommodityCategory::factory()->create(['name' => 'Aktif', 'is_active' => true]);
+        CommodityCategory::factory()->create(['name' => 'Nonaktif', 'is_active' => false]);
+
+        $response = $this->actingAs($this->user)->get('/master/komoditas/create');
+
+        $response->assertInertia(fn ($page) => $page
+            ->has('category_options', 1)
+            ->where('category_options.0.name', 'Aktif')
+        );
     }
 }

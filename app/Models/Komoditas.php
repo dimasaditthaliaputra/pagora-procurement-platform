@@ -10,19 +10,21 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'uuid',
     'slug',
-    'nama_komoditas',
+    'name',
     'sku',
-    'kategori',
-    'satuan',
-    'batas_susut',
-    'kode_referensi_api',
-    'spesifikasi',
-    'status',
+    'commodity_category_id',
+    'unit',
+    'default_shrinkage_tolerance',
+    'api_reference_code',
+    'specification',
+    'is_active',
 ])]
 #[Hidden(['id'])]
 class Komoditas extends Model
@@ -30,7 +32,7 @@ class Komoditas extends Model
     /** @use HasFactory<KomoditasFactory> */
     use HasFactory, HasUuids, SoftDeletes;
 
-    protected $table = 'komoditas';
+    protected $table = 'commodities';
 
     /**
      * Columns that store UUIDs.
@@ -58,8 +60,18 @@ class Komoditas extends Model
     protected function casts(): array
     {
         return [
-            'batas_susut' => 'decimal:2',
-            'status' => 'boolean',
+            'default_shrinkage_tolerance' => 'decimal:2',
+            'is_active' => 'boolean',
         ];
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(CommodityCategory::class, 'commodity_category_id');
+    }
+
+    public function tenantCommodities(): HasMany
+    {
+        return $this->hasMany(TenantCommodity::class, 'commodity_id');
     }
 }

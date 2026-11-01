@@ -24,7 +24,9 @@ class DatabaseMigrationTest extends TestCase
             'vendor_invitations',
             'settings',
             'kerja_sama',
-            'komoditas',
+            'commodity_categories',
+            'commodities',
+            'tenant_commodities',
             'harga_referensi_komoditas',
             'prediksi_harga',
             'purchase_order',
@@ -167,21 +169,43 @@ class DatabaseMigrationTest extends TestCase
             'updated_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('komoditas', [
+        $this->assertTrue(Schema::hasColumns('commodity_categories', [
+            'id',
+            'uuid',
+            'name',
+            'description',
+            'is_active',
+            'created_at',
+            'updated_at',
+            'deleted_at',
+        ]));
+
+        $this->assertTrue(Schema::hasColumns('commodities', [
             'id',
             'uuid',
             'sku',
             'slug',
-            'nama_komoditas',
-            'kategori',
-            'satuan',
-            'batas_susut',
-            'kode_referensi_api',
-            'spesifikasi',
-            'status',
+            'name',
+            'commodity_category_id',
+            'unit',
+            'default_shrinkage_tolerance',
+            'api_reference_code',
+            'specification',
+            'is_active',
             'created_at',
             'updated_at',
             'deleted_at',
+        ]));
+        $this->assertFalse(Schema::hasColumn('commodities', 'kategori'));
+
+        $this->assertTrue(Schema::hasColumns('tenant_commodities', [
+            'id',
+            'tenant_id',
+            'commodity_id',
+            'is_active',
+            'shrinkage_tolerance',
+            'created_at',
+            'updated_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('harga_referensi_komoditas', [

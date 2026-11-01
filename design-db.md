@@ -51,9 +51,9 @@
 | 7 | `vendor_invitations` | `undangan_vendor` | `UndanganVendor` | Undangan registrasi vendor |
 | 8 | `tenant_invitations` | — [baru] | `TenantInvitation` | Undangan staf internal (UC-03) |
 | 9 | `partnerships` | `kerja_sama` | `KerjaSama` | Kemitraan Tenant ↔ Vendor |
-| 10 | `commodity_categories` | — [baru] | `CommodityCategory` | Kategori global |
-| 11 | `commodities` | `komoditas` | `Komoditas` | Master komoditas global |
-| 12 | `tenant_commodities` | — [baru] | `TenantCommodity` | Aktivasi & toleransi susut per Tenant |
+| 10 | `commodity_categories` | ✅ [baru] (modul 3) | `CommodityCategory` | Kategori global |
+| 11 | `commodities` | ✅ `commodities` (modul 3; dulu `komoditas`) | `Komoditas` | Master komoditas global |
+| 12 | `tenant_commodities` | ✅ [baru] (modul 3) | `TenantCommodity` | Aktivasi & toleransi susut per Tenant |
 | 13 | `commodity_reference_prices` | `harga_referensi_komoditas` | `HargaReferensiKomoditas` | Riwayat harga API BI |
 | 14 | `price_predictions` | `prediksi_harga` | `PrediksiHarga` | Hasil regresi + Harga Pagu |
 | 15 | `purchase_orders` | `purchase_order` | `PurchaseOrder` | Header PO |
@@ -259,14 +259,14 @@ Undangan email staf internal (PRD UC-03, FR-03). Disetujui (keputusan §12 no. 3
 
 Unique: (`tenant_id`, `vendor_id`). Pengajuan ulang setelah `rejected`/`cancelled` memperbarui baris yang sama ⚠️.
 
-### 4.10 `commodity_categories` [baru] (softDeletes)
+### 4.10 `commodity_categories` ✅ [baru] (softDeletes; modul 3)
 | Kolom | Tipe | Catatan |
 |---|---|---|
 | name | string(100) U NN | Diisi dari nilai `komoditas.kategori` yang ada |
 | description | text null | |
 | is_active | boolean NN default true | |
 
-### 4.11 `commodities` (saat ini `komoditas`, softDeletes)
+### 4.11 `commodities` ✅ (softDeletes; sudah dimigrasikan, modul 3; dulu `komoditas`)
 | Kolom | Tipe | Saat ini | Catatan |
 |---|---|---|---|
 | sku | string(50) U null | | |
@@ -281,7 +281,7 @@ Unique: (`tenant_id`, `vendor_id`). Pengajuan ulang setelah `rejected`/`cancelle
 
 Dikelola Superadmin (global).
 
-### 4.12 `tenant_commodities` [baru]
+### 4.12 `tenant_commodities` ✅ [baru] (modul 3)
 | Kolom | Tipe | Catatan |
 |---|---|---|
 | tenant_id | FK→tenants NN | |
@@ -514,7 +514,7 @@ Karena migration lama sudah di `main`, refactor dilakukan **per modul** dengan m
 **Urutan modul (mengikuti ketergantungan FK)**
 1. ✅ `roles` (+ ubah `buyer` → `purchasing`), `users`
 2. `tenants`, `vendors`, `vendor_legal_documents`, `vendor_invitations`, `settings`
-3. `commodity_categories` [baru] → `commodities` (pindahkan `kategori` string ke FK) → `tenant_commodities` [baru], `vendor_commodity_categories` [baru]
+3. ✅ `commodity_categories` [baru] → `commodities` (pindahkan `kategori` string ke FK) → `tenant_commodities` [baru]; `vendor_commodity_categories` [baru] **belum**, dikerjakan bersama registrasi vendor ≥ 1 kategori
 4. `partnerships`
 5. `commodity_reference_prices`, `price_predictions`
 6. `purchase_orders`, `purchase_order_items`, `negotiation_messages`
@@ -684,6 +684,7 @@ Cocok bila untuk setiap item: `invoice_items.quantity ≤ kuantitas diterima yan
 | 2026-10-31 | **Dokumen diselaraskan ke PRD rev. 5** (skema target, belum dimigrasikan): penamaan Inggris; role `buyer` → `purchasing`; tabel baru `commodity_categories`, `tenant_commodities`, `vendor_commodity_categories`, `invoice_items`, `payments`, `credit_notes`, `purchase_returns`, `purchase_return_items`, `tenant_invitations` ⚠️; kolom baru di `tenants`, `vendors`, `partnerships`, `purchase_orders`, `purchase_order_items`, `negotiation_messages`, `shipments`, `goods_receipts`, `invoices`, `disputes`, `dispute_logs`; enum Inggris; hapus `tipe_paket`; strategi migrasi per modul (§5) | — |
 | 2026-10-31 | Keputusan teknis §12: `tenant_invitations` disetujui; status `vendor_invitations` = `pending`/`accepted`/`expired`/`cancelled`; `invoices.vendor_id` [baru] + UNIQUE (`vendor_id`, `vendor_invoice_number`); prosedur hapus `vendors.dokumen_legalitas`; class baru berbahasa Inggris; Harga Pagu sementara × 1.05; toleransi matching 0; refactor bertahap per PR | — |
 | 2026-10-31 | **Modul 1 selesai**: `role` → `roles` (`name`, `description`), nilai `buyer` → `purchasing`; `users`: `nama_lengkap` → `name`, `perusahaan_id` → `tenant_id`, `status_aktif` → `is_active` + index `role_id`/`tenant_id`/`vendor_id`. Migration `2026_10_31_120942_*`, `2026_10_31_120943_*`. `session.lifetime` default 30 menit, Ingat Saya 30 hari (`auth.guards.web.remember`) | — |
+| 2026-11-01 | **Modul 3 selesai**: `commodity_categories` [baru] (kategori dari `komoditas.kategori` dipindah ke FK `commodity_category_id`, kolom lama dihapus); `komoditas` → `commodities` (`name`, `unit`, `default_shrinkage_tolerance`, `api_reference_code`, `specification`, `is_active`); `tenant_commodities` [baru] (Tenant lama otomatis mengaktifkan semua komoditas aktif). `vendor_commodity_categories` ditunda | — |
 
 ## 12. Keputusan Teknis (2026-10-31)
 

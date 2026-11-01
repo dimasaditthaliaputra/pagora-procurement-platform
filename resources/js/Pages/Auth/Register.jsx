@@ -4,6 +4,7 @@ import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { cn } from '@/lib/utils';
 import { Building2, ArrowRight } from 'lucide-react';
+import { isEmail } from '@/lib/validators';
 
 export default function Register() {
     const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
@@ -27,7 +28,7 @@ export default function Register() {
         if (!trimmedEmail) {
             setError('email', 'Alamat email wajib diisi.');
             hasError = true;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        } else if (!isEmail(trimmedEmail)) {
             setError('email', 'Format alamat email tidak valid.');
             hasError = true;
         }

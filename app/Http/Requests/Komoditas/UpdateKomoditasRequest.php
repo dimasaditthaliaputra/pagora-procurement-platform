@@ -45,7 +45,7 @@ class UpdateKomoditasRequest extends FormRequest
                 'numeric',
                 'min:0',
                 'max:100',
-                'regex:/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/',
+                'regex:'.KomoditasService::SHRINKAGE_TOLERANCE_PATTERN,
             ],
             'api_reference_code' => ['nullable', 'string', 'max:50'],
             'sku' => [

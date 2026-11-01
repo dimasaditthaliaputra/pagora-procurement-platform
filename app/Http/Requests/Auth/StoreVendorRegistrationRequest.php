@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Auth;
 
+use App\Helpers\PhoneHelper;
+use App\Rules\PhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -34,7 +36,7 @@ class StoreVendorRegistrationRequest extends FormRequest
                 'max:150',
                 Rule::unique('vendors', 'contact_email')->whereNull('deleted_at'),
             ],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => ['required', 'string', 'max:30', new PhoneNumber],
             'address' => ['required', 'string', 'max:1000'],
             'kategori_komoditas' => ['required', 'string', 'max:100'],
             'otp' => ['required', 'digits:6'],
@@ -84,6 +86,28 @@ class StoreVendorRegistrationRequest extends FormRequest
             'legal_document.file' => 'Dokumen legalitas harus berupa file yang valid.',
             'legal_document.mimes' => 'Format file dokumen legalitas harus berupa PDF, JPG, JPEG, atau PNG.',
             'legal_document.max' => 'Ukuran file dokumen legalitas tidak boleh lebih dari 2 MB.',
+        ];
+    }
+
+    /**
+     * Store the phone number in one canonical format (E.164, e.g. +6281234567890).
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('phone')) {
+            $this->merge(['phone' => PhoneHelper::normalize($this->string('phone')->toString())]);
+        }
+    }
+
+    /**
+     * Get custom attribute names for validator errors.
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'phone' => 'nomor telepon',
         ];
     }
 }

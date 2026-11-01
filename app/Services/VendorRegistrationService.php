@@ -15,10 +15,13 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 
 class VendorRegistrationService
 {
+    private const DOCUMENT_DISK = 'local';
+
+    private const DOCUMENT_DIRECTORY = 'vendors/dokumen';
+
     /**
      * Available commodity categories for vendor partners.
      *
@@ -40,7 +43,8 @@ class VendorRegistrationService
         private readonly VendorRepositoryInterface $vendorRepository,
         private readonly DokumenLegalitasVendorRepositoryInterface $dokumenRepository,
         private readonly UndanganVendorRepositoryInterface $undanganRepository,
-        private readonly OtpService $otpService
+        private readonly OtpService $otpService,
+        private readonly FileStorageService $fileStorage
     ) {}
 
     /**
@@ -96,28 +100,15 @@ class VendorRegistrationService
         $invitationToken = $data['invitation_token'] ?? null;
         unset($data['invitation_token']);
 
-        return DB::transaction(function () use ($data, $invitationToken): Vendor {
-            $file = $data['legal_document'] ?? null;
-            unset($data['legal_document']);
-            $documentPath = null;
+        $file = $data['legal_document'] ?? null;
+        unset($data['legal_document']);
 
-            if ($file instanceof UploadedFile) {
-                $extension = strtolower($file->guessExtension() ?: 'bin');
-                $filename = Str::uuid()->toString().'.'.$extension;
+        // Stored before the transaction so the file can be removed if any database write fails.
+        $documentPath = $file instanceof UploadedFile
+            ? $this->fileStorage->store($file, self::DOCUMENT_DIRECTORY, self::DOCUMENT_DISK, uuidName: true)
+            : null;
 
-                $documentPath = $file->storeAs(
-                    'vendors/dokumen',
-                    $filename,
-                    'local'
-                );
-
-                if ($documentPath === false) {
-                    throw new RuntimeException(
-                        'Dokumen legalitas gagal disimpan.'
-                    );
-                }
-            }
-
+        return $this->fileStorage->rollbackOnFailure(self::DOCUMENT_DISK, $documentPath, fn (): Vendor => DB::transaction(function () use ($data, $invitationToken, $documentPath): Vendor {
             $baseSlug = Str::slug($data['company_name']);
             $data['slug'] = $baseSlug.'-'.Str::lower(Str::random(6));
             $data['verification_status'] = VerificationStatus::Pending;
@@ -149,6 +140,6 @@ class VendorRegistrationService
             }
 
             return $vendor;
-        });
+        }));
     }
 }

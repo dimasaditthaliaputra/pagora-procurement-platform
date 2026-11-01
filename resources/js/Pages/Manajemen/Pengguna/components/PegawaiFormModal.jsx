@@ -24,6 +24,7 @@ import {
 } from '@/Components/ui/select';
 import { LoadingButton } from '@/Components/loading-button';
 import { Button } from '@/Components/ui/button';
+import { isEmail } from '@/lib/validators';
 
 const BUYER_COMPANY_ROLES = new Set(['owner', 'manajemen', 'purchasing', 'qc_gudang']);
 
@@ -144,11 +145,10 @@ export function PegawaiFormModal({
             hasError = true;
         }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!data.email.trim()) {
             setError('email', 'Email pegawai wajib diisi.');
             hasError = true;
-        } else if (!emailRegex.test(data.email.trim())) {
+        } else if (!isEmail(data.email)) {
             setError('email', 'Format email tidak valid.');
             hasError = true;
         }

@@ -11,9 +11,11 @@ use App\Models\User;
 use App\Models\Vendor;
 use App\Repositories\Contracts\UndanganVendorRepositoryInterface;
 use App\Repositories\Contracts\VendorRepositoryInterface;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -55,11 +57,13 @@ class VendorService
      * Block a vendor and deactivate its associated user accounts.
      *
      * @throws ModelNotFoundException
+     * @throws AuthorizationException
      * @throws ValidationException
      */
     public function blokir(string $uuid, string $alasan, User $actor): Vendor
     {
         $vendor = $this->findByUuid($uuid);
+        Gate::forUser($actor)->authorize('block', $vendor);
 
         if (! $vendor->is_active) {
             throw ValidationException::withMessages([
@@ -88,11 +92,13 @@ class VendorService
      * Unblock a vendor and reactivate its associated user accounts.
      *
      * @throws ModelNotFoundException
+     * @throws AuthorizationException
      * @throws ValidationException
      */
     public function bukaBlokir(string $uuid, User $actor): Vendor
     {
         $vendor = $this->findByUuid($uuid);
+        Gate::forUser($actor)->authorize('unblock', $vendor);
 
         if ($vendor->is_active) {
             throw ValidationException::withMessages([

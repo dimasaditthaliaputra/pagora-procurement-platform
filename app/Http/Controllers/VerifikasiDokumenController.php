@@ -12,10 +12,12 @@ use App\Http\Resources\DokumenLegalitasVendorResource;
 use App\Http\Resources\VerifikasiVendorResource;
 use App\Models\User;
 use App\Services\VerifikasiDokumenService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -83,7 +85,7 @@ class VerifikasiDokumenController extends Controller
             $document = $this->service->verify(
                 $uuid,
                 (string) ($validated['aksi'] ?? ''),
-                (int) $user->id,
+                $user,
                 isset($validated['rejection_reason']) ? (string) $validated['rejection_reason'] : null
             );
 
@@ -101,6 +103,8 @@ class VerifikasiDokumenController extends Controller
                 'Terjadi kesalahan validasi data.',
                 $request
             );
+        } catch (AuthorizationException) {
+            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk memverifikasi dokumen.', null, $request);
         } catch (ModelNotFoundException) {
             return ResponseHelper::notFound(
                 'Dokumen legalitas tidak ditemukan.',
@@ -119,10 +123,10 @@ class VerifikasiDokumenController extends Controller
     /**
      * Stream a private legal document to an authorized user.
      */
-    public function download(string $uuid): StreamedResponse|JsonResponse|RedirectResponse
+    public function download(Request $request, string $uuid): StreamedResponse|JsonResponse|RedirectResponse
     {
         try {
-            $document = $this->service->findByUuid($uuid);
+            $document = $this->service->findViewableByUuid($request->user(), $uuid);
             $path = $document->file_path;
 
             /** @var FilesystemAdapter $disk */
@@ -140,6 +144,8 @@ class VerifikasiDokumenController extends Controller
                 $path,
                 basename($path)
             );
+        } catch (AuthorizationException) {
+            return ResponseHelper::forbidden('Anda tidak memiliki akses ke dokumen ini.');
         } catch (ModelNotFoundException) {
             return ResponseHelper::notFound('Dokumen legalitas tidak ditemukan.');
         } catch (Throwable $e) {

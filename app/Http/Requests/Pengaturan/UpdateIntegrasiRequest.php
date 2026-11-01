@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Pengaturan;
 
+use App\Models\Pengaturan;
 use App\Services\PengaturanService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -15,7 +16,7 @@ class UpdateIntegrasiRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user()?->can('update', Pengaturan::class) ?? false;
     }
 
     /**

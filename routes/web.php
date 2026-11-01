@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\RoleName;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
@@ -10,9 +11,17 @@ use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\PengaturanController;
 use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\RoleAksesController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorRegistrationController;
 use App\Http\Controllers\VerifikasiDokumenController;
+use App\Models\DokumenLegalitasVendor;
+use App\Models\Komoditas;
+use App\Models\Pengaturan;
+use App\Models\PurchaseOrder;
+use App\Models\Role;
+use App\Models\User;
+use App\Models\Vendor;
 use Illuminate\Support\Facades\Route;
 
 // Public Home
@@ -69,12 +78,12 @@ Route::middleware('auth')->group(function () {
         ->prefix('master/komoditas')
         ->name('master.komoditas.')
         ->group(function () {
-            Route::get('/', 'index')->name('index');
-            Route::get('/create', 'create')->name('create');
-            Route::post('/', 'store')->name('store');
-            Route::get('/{uuid}/edit', 'edit')->whereUuid('uuid')->name('edit');
-            Route::put('/{uuid}', 'update')->whereUuid('uuid')->name('update');
-            Route::delete('/{uuid}', 'destroy')->whereUuid('uuid')->name('destroy');
+            Route::get('/', 'index')->can('viewAny', Komoditas::class)->name('index');
+            Route::get('/create', 'create')->can('create', Komoditas::class)->name('create');
+            Route::post('/', 'store')->can('create', Komoditas::class)->name('store');
+            Route::get('/{uuid}/edit', 'edit')->whereUuid('uuid')->can('viewAny', Komoditas::class)->name('edit');
+            Route::put('/{uuid}', 'update')->whereUuid('uuid')->can('viewAny', Komoditas::class)->name('update');
+            Route::delete('/{uuid}', 'destroy')->whereUuid('uuid')->can('viewAny', Komoditas::class)->name('destroy');
         });
 
     // Purchase Order & Negosiasi Routes (frontend prototype, mock data)
@@ -82,17 +91,18 @@ Route::middleware('auth')->group(function () {
         ->prefix('purchase-order')
         ->name('purchase-order.')
         ->group(function () {
-            Route::get('/', 'index')->name('index');
-            Route::get('/create', 'create')->name('create');
-            Route::get('/{uuid}', 'show')->whereUuid('uuid')->name('show');
-            Route::get('/{uuid}/edit', 'edit')->whereUuid('uuid')->name('edit');
-            Route::get('/{uuid}/negosiasi', 'negosiasi')->whereUuid('uuid')->name('negosiasi');
+            Route::get('/', 'index')->can('viewAny', PurchaseOrder::class)->name('index');
+            Route::get('/create', 'create')->can('create', PurchaseOrder::class)->name('create');
+            Route::get('/{uuid}', 'show')->whereUuid('uuid')->can('viewAny', PurchaseOrder::class)->name('show');
+            Route::get('/{uuid}/edit', 'edit')->whereUuid('uuid')->can('create', PurchaseOrder::class)->name('edit');
+            Route::get('/{uuid}/negosiasi', 'negosiasi')->whereUuid('uuid')->can('viewAny', PurchaseOrder::class)->name('negosiasi');
         });
 
     // Manajemen Pengguna (Internal Perusahaan) Routes
     Route::controller(PegawaiController::class)
         ->prefix('manajemen/pengguna')
         ->name('manajemen.pengguna.')
+        ->middleware('can:viewAny,'.User::class)
         ->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/', 'store')->name('store');
@@ -103,19 +113,29 @@ Route::middleware('auth')->group(function () {
 
     Route::redirect('/manajemen/internal-perusahaan', '/manajemen/pengguna');
 
+    // Role & Hak Akses (6 role tetap; hanya permission & deskripsi yang diatur)
+    Route::controller(RoleAksesController::class)
+        ->prefix('manajemen/role-akses')
+        ->name('manajemen.role-akses.')
+        ->middleware('can:viewAny,'.Role::class)
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::put('/{role}', 'update')->whereIn('role', array_column(RoleName::cases(), 'value'))->name('update');
+        });
+
     // Master Vendor & Pemblokiran Rekanan
     Route::controller(VendorController::class)
         ->prefix('master/vendor')
         ->name('master.vendor.')
         ->group(function () {
-            Route::get('/', 'index')->name('index');
+            Route::get('/', 'index')->can('viewAny', Vendor::class)->name('index');
             Route::post('/undang', 'undang')->name('undang');
             Route::post('/{uuid}/blokir', 'blokir')->whereUuid('uuid')->name('blokir');
             Route::post('/{uuid}/buka-blokir', 'bukaBlokir')->whereUuid('uuid')->name('buka-blokir');
         });
 
     // Master Vendor Legal Document Verification Routes (Superadmin Only)
-    Route::middleware('superadmin')
+    Route::middleware(['superadmin', 'can:viewAny,'.DokumenLegalitasVendor::class])
         ->prefix('master/vendor/verifikasi-dokumen')
         ->name('master.vendor.verifikasi-dokumen.')
         ->controller(VerifikasiDokumenController::class)
@@ -134,7 +154,7 @@ Route::middleware('auth')->group(function () {
     Route::redirect('/superadmin/verifikasi-dokumen', '/master/vendor/verifikasi-dokumen');
 
     // Pengaturan Aplikasi Routes (Superadmin Only)
-    Route::middleware('superadmin')
+    Route::middleware(['superadmin', 'can:viewAny,'.Pengaturan::class])
         ->prefix('pengaturan')
         ->name('pengaturan.')
         ->controller(PengaturanController::class)

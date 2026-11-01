@@ -286,8 +286,11 @@ class PegawaiTest extends TestCase
     {
         $superadmin = $this->admin; // role_id = 1 (superadmin)
 
+        $tenant = PerusahaanBuyer::factory()->create();
+
         $owner = User::factory()->create([
             'role_id' => 6, // owner
+            'tenant_id' => $tenant->id,
             'name' => 'Pak Owner',
             'email' => 'owner@perusahaan.com',
             'is_active' => true,
@@ -295,6 +298,7 @@ class PegawaiTest extends TestCase
 
         $manajemen = User::factory()->create([
             'role_id' => 5, // manajemen
+            'tenant_id' => $tenant->id,
             'name' => 'Bu Manajemen',
             'email' => 'manajemen@perusahaan.com',
             'is_active' => true,
@@ -311,9 +315,8 @@ class PegawaiTest extends TestCase
         $ownerOptions = collect($service->getRoleOptionsForUser($owner))->pluck('value')->all();
         $this->assertEquals(['manajemen', 'purchasing', 'qc_gudang'], $ownerOptions);
 
-        // 3. Manajemen has purchasing, qc_gudang
-        $manajemenOptions = collect($service->getRoleOptionsForUser($manajemen))->pluck('value')->all();
-        $this->assertEquals(['purchasing', 'qc_gudang'], $manajemenOptions);
+        // 3. Manajemen cannot manage accounts (UC-08 is Owner only)
+        $this->assertSame([], $service->getRoleOptionsForUser($manajemen));
     }
 
     public function test_superadmin_can_create_any_role(): void
@@ -390,55 +393,25 @@ class PegawaiTest extends TestCase
         }
     }
 
-    public function test_manajemen_can_create_purchasing_and_qc_gudang_only(): void
+    public function test_manajemen_cannot_access_or_create_accounts(): void
     {
-        Notification::fake();
-
-        $perusahaan = PerusahaanBuyer::create([
-            'company_name' => 'PT Pagora Manajemen Test',
-            'tax_number' => '02.111.222.3-444.000',
-            'address' => 'Jl. Industri No. 20',
-            'tipe_paket' => 'enterprise',
-            'is_active' => true,
-        ]);
+        $perusahaan = PerusahaanBuyer::factory()->create();
 
         $manajemen = User::factory()->create([
             'role_id' => 5, // manajemen
             'tenant_id' => $perusahaan->id,
-            'name' => 'Bu Manajemen',
-            'email' => 'manajemen.test@perusahaan.com',
             'is_active' => true,
         ]);
 
-        // Allowed roles for Manajemen
-        $allowedRoles = ['purchasing', 'qc_gudang'];
-        foreach ($allowedRoles as $role) {
-            $response = $this->actingAs($manajemen)->post('/manajemen/pengguna', [
-                'name' => "Staff {$role}",
-                'email' => "manajemen.created.{$role}@perusahaan.com",
-                'role' => $role,
-            ]);
+        $this->actingAs($manajemen)->get('/manajemen/pengguna')->assertForbidden();
 
-            $response->assertSessionHasNoErrors();
-            $response->assertRedirect('/manajemen/pengguna');
-            $this->assertDatabaseHas('users', [
-                'email' => "manajemen.created.{$role}@perusahaan.com",
-                'tenant_id' => $perusahaan->id,
-            ]);
-        }
+        $this->actingAs($manajemen)->post('/manajemen/pengguna', [
+            'name' => 'Staff Purchasing',
+            'email' => 'manajemen.created@perusahaan.com',
+            'role' => 'purchasing',
+        ])->assertForbidden();
 
-        // Disallowed roles for Manajemen: manajemen, owner, superadmin, vendor
-        $disallowedRoles = ['manajemen', 'owner', 'superadmin', 'vendor'];
-        foreach ($disallowedRoles as $role) {
-            $response = $this->actingAs($manajemen)->post('/manajemen/pengguna', [
-                'name' => "Disallowed {$role}",
-                'email' => "manajemen.disallowed.{$role}@perusahaan.com",
-                'role' => $role,
-            ]);
-
-            $response->assertSessionHasErrors(['role']);
-            $this->assertDatabaseMissing('users', ['email' => "manajemen.disallowed.{$role}@perusahaan.com"]);
-        }
+        $this->assertDatabaseMissing('users', ['email' => 'manajemen.created@perusahaan.com']);
     }
 
     public function test_perusahaan_buyer_only_sees_and_manages_own_company_users(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Vendor;
 
 use App\Models\User;
+use App\Models\Vendor;
 use App\Services\VendorRegistrationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -19,10 +20,7 @@ class UndangVendorRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        /** @var User|null $user */
-        $user = $this->user();
-
-        return $user instanceof User && $user->canManageVendors();
+        return $this->user()?->can('invite', Vendor::class) ?? false;
     }
 
     /**

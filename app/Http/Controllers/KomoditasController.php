@@ -9,10 +9,13 @@ use App\Http\Requests\Komoditas\IndexKomoditasRequest;
 use App\Http\Requests\Komoditas\StoreKomoditasRequest;
 use App\Http\Requests\Komoditas\UpdateKomoditasRequest;
 use App\Http\Resources\KomoditasResource;
+use App\Models\Komoditas;
 use App\Services\KomoditasService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -47,6 +50,9 @@ class KomoditasController extends Controller
             ),
             'satuan_options' => $this->service->getSatuanOptions(),
             'category_options' => $this->service->getCategoryOptions(),
+            'can' => [
+                'create' => $request->user()->can('create', Komoditas::class),
+            ],
         ]);
     }
 
@@ -105,13 +111,15 @@ class KomoditasController extends Controller
     public function update(UpdateKomoditasRequest $request, string $uuid): JsonResponse|RedirectResponse
     {
         try {
-            $komoditas = $this->service->update($uuid, $request->validated());
+            $komoditas = $this->service->update($request->user(), $uuid, $request->validated());
 
             return ResponseHelper::success(
                 'Komoditas berhasil diperbarui.',
                 new KomoditasResource($komoditas),
                 route('master.komoditas.index')
             );
+        } catch (AuthorizationException) {
+            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk mengubah komoditas.');
         } catch (ModelNotFoundException) {
             return ResponseHelper::notFound('Komoditas tidak ditemukan.');
         } catch (Throwable $e) {
@@ -122,16 +130,18 @@ class KomoditasController extends Controller
     /**
      * Remove the specified commodity.
      */
-    public function destroy(string $uuid): JsonResponse|RedirectResponse
+    public function destroy(Request $request, string $uuid): JsonResponse|RedirectResponse
     {
         try {
-            $this->service->delete($uuid);
+            $this->service->delete($request->user(), $uuid);
 
             return ResponseHelper::success(
                 'Komoditas berhasil dihapus.',
                 null,
                 route('master.komoditas.index')
             );
+        } catch (AuthorizationException) {
+            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk menghapus komoditas.');
         } catch (ModelNotFoundException) {
             return ResponseHelper::notFound('Komoditas tidak ditemukan.');
         } catch (Throwable $e) {

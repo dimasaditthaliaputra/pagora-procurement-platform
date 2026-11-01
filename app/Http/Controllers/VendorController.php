@@ -11,8 +11,10 @@ use App\Http\Requests\Vendor\IndexVendorRequest;
 use App\Http\Requests\Vendor\UndangVendorRequest;
 use App\Http\Resources\VendorResource;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Services\VendorRegistrationService;
 use App\Services\VendorService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -58,7 +60,7 @@ class VendorController extends Controller
                     'direction' => $filters['direction'] ?? 'desc',
                     'per_page' => $perPage,
                 ],
-                'can_manage' => $user->canManageVendors(),
+                'can_manage' => $user->can('invite', Vendor::class),
                 'kategori_options' => VendorRegistrationService::KATEGORI_OPTIONS,
             ]);
         } catch (Throwable $e) {
@@ -110,6 +112,8 @@ class VendorController extends Controller
                 "Vendor {$vendor->company_name} berhasil diblokir.",
                 new VendorResource($vendor)
             );
+        } catch (AuthorizationException) {
+            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk memblokir vendor.');
         } catch (ModelNotFoundException) {
             return ResponseHelper::notFound('Data vendor tidak ditemukan.');
         } catch (ValidationException $e) {
@@ -134,6 +138,8 @@ class VendorController extends Controller
                 "Blokir vendor {$vendor->company_name} berhasil dibuka. Status akun kembali aktif.",
                 new VendorResource($vendor)
             );
+        } catch (AuthorizationException) {
+            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk membuka blokir vendor.');
         } catch (ModelNotFoundException) {
             return ResponseHelper::notFound('Data vendor tidak ditemukan.');
         } catch (ValidationException $e) {

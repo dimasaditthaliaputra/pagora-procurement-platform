@@ -8,6 +8,7 @@ use App\Repositories\Contracts\CommodityCategoryRepositoryInterface;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
 use App\Repositories\Contracts\KomoditasRepositoryInterface;
 use App\Repositories\Contracts\PengaturanRepositoryInterface;
+use App\Repositories\Contracts\PermissionRepositoryInterface;
 use App\Repositories\Contracts\PerusahaanBuyerRepositoryInterface;
 use App\Repositories\Contracts\RoleRepositoryInterface;
 use App\Repositories\Contracts\UndanganVendorRepositoryInterface;
@@ -17,6 +18,7 @@ use App\Repositories\Eloquent\CommodityCategoryRepository;
 use App\Repositories\Eloquent\DokumenLegalitasVendorRepository;
 use App\Repositories\Eloquent\KomoditasRepository;
 use App\Repositories\Eloquent\PengaturanRepository;
+use App\Repositories\Eloquent\PermissionRepository;
 use App\Repositories\Eloquent\PerusahaanBuyerRepository;
 use App\Repositories\Eloquent\RoleRepository;
 use App\Repositories\Eloquent\UndanganVendorRepository;
@@ -74,6 +76,11 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             RoleRepositoryInterface::class,
             RoleRepository::class
+        );
+
+        $this->app->bind(
+            PermissionRepositoryInterface::class,
+            PermissionRepository::class
         );
     }
 

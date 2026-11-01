@@ -824,6 +824,7 @@ Ke `resolved` hanya oleh Owner/Manajemen; bila `resolution_type` membutuhkan tin
 | Q-35 | Class untuk entitas baru berbahasa **Inggris** (`CreditNote`, `Payment`, `PurchaseReturn`, dst.); class lama tetap. |
 | Q-36 | Nomor invoice vendor unik **per vendor**: UNIQUE (`vendor_id`, `vendor_invoice_number`). |
 | Q-37 | Refactor penamaan dilakukan **bertahap per PR** (satu modul per PR, urutan `design-db.md` §5). |
+| Q-38 | **RBAC hybrid**: 6 role tetap (tidak bisa ditambah/dihapus); Superadmin mengatur hak akses per modul tiap role di halaman **Role & Hak Akses** (tabel `permissions`, `permission_role`). Tiap permission punya daftar role yang boleh menerimanya (permission platform hanya Superadmin), Superadmin tidak bisa mencabut akses Role & Hak Akses miliknya. Isolasi data Tenant/Vendor dan batas role yang bisa diberikan Owner (BR-22) tetap ditetapkan di kode. |
 
 ### 10.3 Pertanyaan Terbuka (sisa)
 Tidak ada pertanyaan produk maupun teknis yang terbuka. Tindak lanjut: **validasi margin Harga Pagu** (Q-30). Nilai bertanda **[Usulan]** mengikuti `design-db.md`.

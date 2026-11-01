@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\RoleName;
 use App\Models\User;
 use App\Notifications\AkunPegawaiDibuatNotification;
 use App\Repositories\Contracts\PerusahaanBuyerRepositoryInterface;
@@ -14,6 +15,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -52,50 +54,6 @@ class PegawaiService
         'purchasing' => 'Purchasing / Finance',
         'qc_gudang' => 'QC Gudang (Inspeksi Mutu)',
     ];
-
-    /**
-     * Allowed roles for owner accounts to create/manage.
-     *
-     * @var array<string, string>
-     */
-    public const OWNER_ROLES = [
-        'manajemen' => 'Manajemen (Admin Internal)',
-        'purchasing' => 'Purchasing / Finance',
-        'qc_gudang' => 'QC Gudang (Inspeksi Mutu)',
-    ];
-
-    /**
-     * Allowed roles for manajemen accounts to create/manage.
-     *
-     * @var array<string, string>
-     */
-    public const MANAJEMEN_ROLES = [
-        'purchasing' => 'Purchasing / Finance',
-        'qc_gudang' => 'QC Gudang (Inspeksi Mutu)',
-    ];
-
-    /**
-     * Allowed internal roles for buyer-side employee accounts.
-     *
-     * @var array<string, string>
-     */
-    public const INTERNAL_ROLES = self::MANAJEMEN_ROLES;
-
-    /**
-     * Allowed roles for vendor-side accounts.
-     *
-     * @var array<string, string>
-     */
-    public const VENDOR_ROLES = [
-        'vendor' => 'Vendor',
-    ];
-
-    /**
-     * Roles that superadmin can create (semua roles).
-     *
-     * @var array<string, string>
-     */
-    public const SUPERADMIN_ROLES = self::ALL_ROLES;
 
     /**
      * Default selected columns for user listing.
@@ -182,18 +140,10 @@ class PegawaiService
                     $forceEmpty = true;
                 }
             }
-        } elseif ($actor->isVendor()) {
-            if ($actor->vendor_id !== null) {
-                $vendorId = (int) $actor->vendor_id;
-            } else {
-                $forceEmpty = true;
-            }
-        } elseif ($actor->isOwner() || $actor->isManajemen()) {
-            if ($actor->tenant_id !== null) {
-                $perusahaanId = (int) $actor->tenant_id;
-            } else {
-                $forceEmpty = true;
-            }
+        } elseif ($actor->tenant_id !== null) {
+            $perusahaanId = (int) $actor->tenant_id;
+        } elseif ($actor->vendor_id !== null) {
+            $vendorId = (int) $actor->vendor_id;
         } else {
             $forceEmpty = true;
         }
@@ -235,35 +185,28 @@ class PegawaiService
     public function findByUuidForActor(string $uuid, User $actor): User
     {
         $user = $this->findByUuid($uuid);
-
-        if (! $actor->isSuperadmin()) {
-            $this->ensureActorSameCompany($actor, $user, 'melihat');
-        }
+        Gate::forUser($actor)->authorize('view', $user);
 
         return $user;
     }
 
     /**
-     * Determine which roles a creator is allowed to assign.
-     *
-     * - superadmin: semua roles
-     * - owner: manajemen, purchasing, qc_gudang
-     * - manajemen: purchasing, qc_gudang
-     * - vendor user: vendor
+     * Determine which roles a creator is allowed to assign (see RoleName::assignableRoles()).
      *
      * @return array<string, string>
      */
     public function getAllowedRolesForUser(User $user): array
     {
-        $roleName = $user->role?->name ?? '';
+        if (! Gate::forUser($user)->allows('create', User::class)) {
+            return [];
+        }
 
-        return match (true) {
-            $roleName === 'superadmin' => self::ALL_ROLES,
-            $roleName === 'owner' => self::OWNER_ROLES,
-            $roleName === 'manajemen' => self::MANAJEMEN_ROLES,
-            $user->vendor_id !== null => self::VENDOR_ROLES,
-            default => [],
-        };
+        $allowed = array_map(
+            fn (RoleName $role): string => $role->value,
+            $user->roleName()?->assignableRoles() ?? []
+        );
+
+        return array_intersect_key(self::ALL_ROLES, array_flip($allowed));
     }
 
     /**
@@ -350,39 +293,24 @@ class PegawaiService
     public function update(string $uuid, array $data, User $actor): User
     {
         $user = $this->findByUuid($uuid);
+        Gate::forUser($actor)->authorize('update', $user);
+
         $isSuperadmin = $actor->isSuperadmin();
-
-        if (! $isSuperadmin) {
-            $this->ensureActorSameCompany($actor, $user, 'mengubah');
-        }
-
         $roleName = (string) ($data['role'] ?? '');
         $allowedRoles = array_keys($this->getAllowedRolesForUser($actor));
         $targetCurrentRole = $user->role?->name ?? '';
 
-        if (! $isSuperadmin) {
-            if ($user->getKey() === $actor->getKey()) {
-                if ($roleName !== $targetCurrentRole) {
-                    throw ValidationException::withMessages([
-                        'role' => 'Anda tidak dapat mengubah jabatan akun Anda sendiri.',
-                    ]);
-                }
+        if (! $isSuperadmin && $user->is($actor)) {
+            if ($roleName !== $targetCurrentRole) {
+                throw ValidationException::withMessages([
+                    'role' => 'Anda tidak dapat mengubah jabatan akun Anda sendiri.',
+                ]);
+            }
 
-                if (isset($data['is_active']) && ! (bool) $data['is_active']) {
-                    throw ValidationException::withMessages([
-                        'is_active' => 'Anda tidak dapat menonaktifkan akun Anda sendiri.',
-                    ]);
-                }
-            } else {
-                if (! in_array($targetCurrentRole, $allowedRoles, true)) {
-                    throw new AuthorizationException('Anda tidak memiliki izin untuk mengubah akun dengan jabatan tersebut.');
-                }
-
-                if (! in_array($roleName, $allowedRoles, true)) {
-                    throw ValidationException::withMessages([
-                        'role' => 'Role yang dipilih tidak diizinkan untuk akun Anda.',
-                    ]);
-                }
+            if (isset($data['is_active']) && ! (bool) $data['is_active']) {
+                throw ValidationException::withMessages([
+                    'is_active' => 'Anda tidak dapat menonaktifkan akun Anda sendiri.',
+                ]);
             }
         } elseif (! in_array($roleName, $allowedRoles, true)) {
             throw ValidationException::withMessages([
@@ -432,38 +360,18 @@ class PegawaiService
      * @throws AuthorizationException
      * @throws ValidationException
      */
-    public function delete(string $uuid, ?User $currentUser = null): bool
+    public function delete(string $uuid, User $actor): bool
     {
         $user = $this->findByUuid($uuid);
-
-        if ($currentUser !== null && $user->getKey() === $currentUser->getKey()) {
+        if ($user->is($actor)) {
             throw ValidationException::withMessages([
                 'error' => 'Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif.',
             ]);
         }
 
-        if ($currentUser !== null && ! $currentUser->isSuperadmin()) {
-            $this->ensureActorSameCompany($currentUser, $user, 'menghapus');
-
-            $allowedRoles = array_keys($this->getAllowedRolesForUser($currentUser));
-            $targetCurrentRole = $user->role?->name ?? '';
-
-            if (! in_array($targetCurrentRole, $allowedRoles, true)) {
-                throw new AuthorizationException('Anda tidak memiliki izin untuk menghapus akun dengan jabatan tersebut.');
-            }
-        }
+        Gate::forUser($actor)->authorize('delete', $user);
 
         return $this->userRepository->delete($user);
-    }
-
-    /**
-     * Get available role options formatted for frontend Combobox / Select.
-     *
-     * @return list<array{value: string, label: string}>
-     */
-    public function getRoleOptions(): array
-    {
-        return $this->formatMapOptions(self::INTERNAL_ROLES);
     }
 
     /**
@@ -483,12 +391,10 @@ class PegawaiService
      */
     public function getFilterRoleOptionsForUser(User $user): array
     {
-        $roleName = $user->role?->name ?? '';
-
         $map = match (true) {
-            $roleName === 'superadmin' => self::ALL_ROLES,
-            in_array($roleName, ['owner', 'manajemen'], true) => self::BUYER_COMPANY_FILTER_ROLES,
-            $user->vendor_id !== null => self::VENDOR_ROLES,
+            $user->isSuperadmin() => self::ALL_ROLES,
+            $user->tenant_id !== null => self::BUYER_COMPANY_FILTER_ROLES,
+            $user->vendor_id !== null => array_intersect_key(self::ALL_ROLES, ['vendor' => true]),
             default => [],
         };
 
@@ -585,36 +491,6 @@ class PegawaiService
         }
 
         return null;
-    }
-
-    /**
-     * Ensure a non-superadmin actor belongs to the exact same company as the target user.
-     *
-     * @throws AuthorizationException
-     */
-    private function ensureActorSameCompany(User $actor, User $target, string $actionVerb): void
-    {
-        if ($target->isSuperadmin()) {
-            throw new AuthorizationException("Anda tidak memiliki izin untuk {$actionVerb} akun Super Administrator.");
-        }
-
-        if ($actor->isVendor()) {
-            if ($actor->vendor_id === null || $target->vendor_id !== $actor->vendor_id || $target->tenant_id !== null) {
-                throw new AuthorizationException("Anda tidak memiliki izin untuk {$actionVerb} akun dari perusahaan lain.");
-            }
-
-            return;
-        }
-
-        if ($actor->isOwner() || $actor->isManajemen()) {
-            if ($actor->tenant_id === null || $target->tenant_id !== $actor->tenant_id || $target->vendor_id !== null) {
-                throw new AuthorizationException("Anda tidak memiliki izin untuk {$actionVerb} akun dari perusahaan lain.");
-            }
-
-            return;
-        }
-
-        throw new AuthorizationException("Anda tidak memiliki izin untuk {$actionVerb} akun pengguna.");
     }
 
     /**

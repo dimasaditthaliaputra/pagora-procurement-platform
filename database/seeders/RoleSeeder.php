@@ -54,5 +54,7 @@ class RoleSeeder extends Seeder
                 ]
             );
         }
+
+        $this->call(PermissionSeeder::class);
     }
 }

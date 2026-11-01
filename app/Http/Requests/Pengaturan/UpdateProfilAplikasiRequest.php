@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Pengaturan;
 
+use App\Models\Pengaturan;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateProfilAplikasiRequest extends FormRequest
@@ -13,7 +14,7 @@ class UpdateProfilAplikasiRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user()?->can('update', Pengaturan::class) ?? false;
     }
 
     /**

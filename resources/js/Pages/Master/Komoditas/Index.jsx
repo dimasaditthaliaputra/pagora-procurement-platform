@@ -24,6 +24,7 @@ export default function KomoditasIndex({
     komoditas,
     filters: rawFilters = {},
     category_options = [],
+    can = {},
 }) {
     const filters = Array.isArray(rawFilters) || !rawFilters ? {} : rawFilters;
     const data = komoditas?.data ?? [];
@@ -199,14 +200,16 @@ export default function KomoditasIndex({
                             Kelola data bahan baku manufaktur, acuan kode API pangan, dan satuan pengadaan.
                         </p>
                     </div>
-                    <div>
-                        <Button asChild className="gap-2 cursor-pointer shadow-sm">
-                            <Link href="/master/komoditas/create">
-                                <Plus className="size-4" />
-                                Tambah Komoditas
-                            </Link>
-                        </Button>
-                    </div>
+                    {can.create && (
+                        <div>
+                            <Button asChild className="gap-2 cursor-pointer shadow-sm">
+                                <Link href="/master/komoditas/create">
+                                    <Plus className="size-4" />
+                                    Tambah Komoditas
+                                </Link>
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Filter Toolbar */}

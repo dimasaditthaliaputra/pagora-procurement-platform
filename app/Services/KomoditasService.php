@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Komoditas;
+use App\Models\User;
 use App\Repositories\Contracts\CommodityCategoryRepositoryInterface;
 use App\Repositories\Contracts\KomoditasRepositoryInterface;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -90,11 +93,13 @@ class KomoditasService
      * @param  array<string, mixed>  $data
      *
      * @throws ModelNotFoundException
+     * @throws AuthorizationException
      * @throws ValidationException
      */
-    public function update(string $uuid, array $data): Komoditas
+    public function update(User $actor, string $uuid, array $data): Komoditas
     {
         $komoditas = $this->findByUuid($uuid);
+        Gate::forUser($actor)->authorize('update', $komoditas);
 
         return DB::transaction(function () use ($komoditas, $data, $uuid): Komoditas {
             $data = $this->resolveCategory($data);
@@ -175,10 +180,12 @@ class KomoditasService
      * Delete a commodity by UUID.
      *
      * @throws ModelNotFoundException
+     * @throws AuthorizationException
      */
-    public function delete(string $uuid): bool
+    public function delete(User $actor, string $uuid): bool
     {
         $komoditas = $this->findByUuid($uuid);
+        Gate::forUser($actor)->authorize('delete', $komoditas);
 
         return $this->repository->delete($komoditas);
     }

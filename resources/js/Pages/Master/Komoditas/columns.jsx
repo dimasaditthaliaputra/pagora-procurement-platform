@@ -156,6 +156,13 @@ function ActionCell({ komoditas }) {
         });
     };
 
+    const canUpdate = komoditas.can?.update ?? false;
+    const canDelete = komoditas.can?.delete ?? false;
+
+    if (!canUpdate && !canDelete) {
+        return null;
+    }
+
     return (
         <>
             <DropdownMenu>
@@ -167,20 +174,24 @@ function ActionCell({ komoditas }) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Aksi Komoditas</DropdownMenuLabel>
-                    <DropdownMenuItem asChild>
-                        <Link href={`/master/komoditas/${komoditas.uuid}/edit`}>
-                            <Edit className="mr-2 size-4" />
-                            Ubah Data
-                        </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                        onClick={() => setDialogOpen(true)}
-                        className="text-destructive focus:text-destructive cursor-pointer"
-                    >
-                        <Trash2 className="mr-2 size-4" />
-                        Hapus Komoditas
-                    </DropdownMenuItem>
+                    {canUpdate && (
+                        <DropdownMenuItem asChild>
+                            <Link href={`/master/komoditas/${komoditas.uuid}/edit`}>
+                                <Edit className="mr-2 size-4" />
+                                Ubah Data
+                            </Link>
+                        </DropdownMenuItem>
+                    )}
+                    {canUpdate && canDelete && <DropdownMenuSeparator />}
+                    {canDelete && (
+                        <DropdownMenuItem
+                            onClick={() => setDialogOpen(true)}
+                            className="text-destructive focus:text-destructive cursor-pointer"
+                        >
+                            <Trash2 className="mr-2 size-4" />
+                            Hapus Komoditas
+                        </DropdownMenuItem>
+                    )}
                 </DropdownMenuContent>
             </DropdownMenu>
 

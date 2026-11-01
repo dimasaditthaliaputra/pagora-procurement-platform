@@ -44,21 +44,17 @@ class PegawaiResource extends JsonResource
             'avatar' => $this->avatar_url,
             'role' => [
                 'name' => $roleName,
-                'label' => match ($roleName) {
-                    'purchasing' => 'Purchasing / Finance',
-                    'qc_gudang' => 'QC Gudang',
-                    'superadmin' => 'Superadmin',
-                    'manajemen' => 'Manajemen',
-                    'owner' => 'Owner',
-                    'vendor' => 'Vendor',
-                    default => ucfirst((string) ($roleName ?? '-')),
-                },
+                'label' => $this->roleName()?->label() ?? ucfirst((string) ($roleName ?? '-')),
                 'description' => $this->role?->description,
             ],
             'perusahaan' => $perusahaan,
             'is_active' => (bool) $this->is_active,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
+            'can' => [
+                'update' => (bool) $request->user()?->can('update', $this->resource),
+                'delete' => (bool) $request->user()?->can('delete', $this->resource),
+            ],
         ];
     }
 }

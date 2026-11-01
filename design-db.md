@@ -71,6 +71,8 @@
 | 27 | `purchase_returns` | — [baru] | `PurchaseReturn` | Dokumen retur |
 | 28 | `purchase_return_items` | — [baru] | `PurchaseReturnItem` | Item retur |
 | 29 | `settings` | `pengaturan` | (cek model eksisting) | Konfigurasi sistem key-value (di luar PRD, sudah dipakai) |
+| 30 | `permissions` | ✅ [baru] | `Permission` | Hak akses granular per modul (PRD Q-38) |
+| 31 | `permission_role` | ✅ [baru] | — (pivot) | Role ↔ permission (M:N) |
 
 Tabel bawaan Laravel/Fortify (`password_reset_tokens`, `sessions`, `cache`, `jobs`, `passkeys`) tidak diubah.
 Class model untuk tabel **[baru]** memakai Bahasa Inggris (keputusan §12 no. 6); class lama (`Komoditas`, `UndanganVendor`, dst.) tidak diganti namanya.
@@ -142,6 +144,9 @@ Kolom `timestamps` tidak ditulis ulang kecuali tabel immutable. Kolom "Saat ini"
 | description | text null | `deskripsi` | |
 
 `id` tetap: 1 superadmin, 2 purchasing (sebelumnya `buyer`), 3 qc_gudang, 4 vendor, 5 manajemen, 6 owner. Tabel ini **tidak** punya `uuid`.
+
+**`permissions`** ✅ [baru] (PRD Q-38): `id`, `uuid` U, `name` string(100) U (`{module}.{action}`, mis. `komoditas.create`), `module` string(50) idx, `action` string(50), `label` string(150), `description` text null, `assignable_roles` json (nama role yang boleh menerima), `sort_order` smallint, timestamps.
+**`permission_role`** ✅ [baru]: `role_id` FK→roles cascade, `permission_id` FK→permissions cascade, PK (`role_id`, `permission_id`). Katalog & default grant di `PermissionSeeder` (dipanggil dari `RoleSeeder`); grant yang sudah ada tidak ditimpa saat seeder dijalankan ulang.
 
 ### 4.2 `users` ✅ (softDeletes; kolom sudah dimigrasikan, modul 1)
 | Kolom | Tipe | Saat ini | Catatan |
@@ -686,6 +691,7 @@ Cocok bila untuk setiap item: `invoice_items.quantity ≤ kuantitas diterima yan
 | 2026-10-31 | **Dokumen diselaraskan ke PRD rev. 5** (skema target, belum dimigrasikan): penamaan Inggris; role `buyer` → `purchasing`; tabel baru `commodity_categories`, `tenant_commodities`, `vendor_commodity_categories`, `invoice_items`, `payments`, `credit_notes`, `purchase_returns`, `purchase_return_items`, `tenant_invitations` ⚠️; kolom baru di `tenants`, `vendors`, `partnerships`, `purchase_orders`, `purchase_order_items`, `negotiation_messages`, `shipments`, `goods_receipts`, `invoices`, `disputes`, `dispute_logs`; enum Inggris; hapus `tipe_paket`; strategi migrasi per modul (§5) | — |
 | 2026-10-31 | Keputusan teknis §12: `tenant_invitations` disetujui; status `vendor_invitations` = `pending`/`accepted`/`expired`/`cancelled`; `invoices.vendor_id` [baru] + UNIQUE (`vendor_id`, `vendor_invoice_number`); prosedur hapus `vendors.dokumen_legalitas`; class baru berbahasa Inggris; Harga Pagu sementara × 1.05; toleransi matching 0; refactor bertahap per PR | — |
 | 2026-10-31 | **Modul 1 selesai**: `role` → `roles` (`name`, `description`), nilai `buyer` → `purchasing`; `users`: `nama_lengkap` → `name`, `perusahaan_id` → `tenant_id`, `status_aktif` → `is_active` + index `role_id`/`tenant_id`/`vendor_id`. Migration `2026_10_31_120942_*`, `2026_10_31_120943_*`. `session.lifetime` default 30 menit, Ingat Saya 30 hari (`auth.guards.web.remember`) | — |
+| 2026-11-02 | **RBAC hybrid** (PRD Q-38): tabel baru `permissions` + `permission_role`, migration `2026_11_02_200001_*`, `PermissionSeeder` (20 permission) | — |
 | 2026-11-02 | **Modul 4 selesai**: `kerja_sama` → `partnerships` (`tenant_id`, `vendor_id`, `status`, `rejection_reason`; kolom baru `requested_by` default `tenant`, `block_reason`, `blocked_by`, `blocked_at`); status `diajukan/aktif/ditolak/berakhir` → `pending/agreed/rejected/cancelled` + `blocked`. Blokir per Tenant (UC-19) belum dipindah dari `vendors.block_*` | — |
 | 2026-11-01 | **Modul 3 selesai**: `commodity_categories` [baru] (kategori dari `komoditas.kategori` dipindah ke FK `commodity_category_id`, kolom lama dihapus); `komoditas` → `commodities` (`name`, `unit`, `default_shrinkage_tolerance`, `api_reference_code`, `specification`, `is_active`); `tenant_commodities` [baru] (Tenant lama otomatis mengaktifkan semua komoditas aktif). `vendor_commodity_categories` ditunda | — |
 

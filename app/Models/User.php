@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\RoleName;
 use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Appends;
@@ -37,8 +38,6 @@ use Illuminate\Support\Str;
  * @property-read Role|null $role
  * @property-read PerusahaanBuyer|null $perusahaanBuyer
  * @property-read Vendor|null $vendor
- *
- * @method bool isSuperadmin()
  */
 #[Fillable([
     'uuid',
@@ -127,12 +126,36 @@ class User extends Authenticatable
     }
 
     /**
+     * Resolve the user's role as an enum, or null when the role is unknown.
+     */
+    public function roleName(): ?RoleName
+    {
+        return RoleName::tryFrom((string) $this->role?->name);
+    }
+
+    /**
+     * Determine whether the user holds any of the given roles.
+     */
+    public function hasRole(RoleName ...$roles): bool
+    {
+        return in_array($this->roleName(), $roles, true);
+    }
+
+    /**
+     * Determine whether the user's role grants the permission (e.g. `komoditas.create`).
+     * Only call this from policies; read fresh each request, so role changes apply immediately.
+     */
+    public function hasPermission(string $permission): bool
+    {
+        return $this->role?->hasPermission($permission) ?? false;
+    }
+
+    /**
      * Determine whether the user is a superadmin.
      */
     public function isSuperadmin(): bool
     {
-        return $this->role?->name === 'superadmin'
-            || $this->role()->where('name', 'superadmin')->exists();
+        return $this->hasRole(RoleName::Superadmin);
     }
 
     /**
@@ -140,8 +163,7 @@ class User extends Authenticatable
      */
     public function isManajemen(): bool
     {
-        return $this->role?->name === 'manajemen'
-            || $this->role()->where('name', 'manajemen')->exists();
+        return $this->hasRole(RoleName::Manajemen);
     }
 
     /**
@@ -149,8 +171,23 @@ class User extends Authenticatable
      */
     public function isOwner(): bool
     {
-        return $this->role?->name === 'owner'
-            || $this->role()->where('name', 'owner')->exists();
+        return $this->hasRole(RoleName::Owner);
+    }
+
+    /**
+     * Determine whether the user is in the purchasing (finance) role.
+     */
+    public function isPurchasing(): bool
+    {
+        return $this->hasRole(RoleName::Purchasing);
+    }
+
+    /**
+     * Determine whether the user is a warehouse QC officer.
+     */
+    public function isQcGudang(): bool
+    {
+        return $this->hasRole(RoleName::QcGudang);
     }
 
     /**
@@ -158,28 +195,7 @@ class User extends Authenticatable
      */
     public function isVendor(): bool
     {
-        return $this->role?->name === 'vendor'
-            || $this->role()->where('name', 'vendor')->exists();
-    }
-
-    /**
-     * Determine whether the user can access the Manajemen Pengguna feature.
-     */
-    public function canManagePengguna(): bool
-    {
-        if ($this->isSuperadmin() || $this->isOwner() || $this->isManajemen()) {
-            return true;
-        }
-
-        return $this->isVendor() && $this->vendor_id !== null;
-    }
-
-    /**
-     * Determine whether the user can manage vendors (superadmin or manajemen).
-     */
-    public function canManageVendors(): bool
-    {
-        return $this->isSuperadmin() || $this->isManajemen();
+        return $this->hasRole(RoleName::Vendor);
     }
 
     /**

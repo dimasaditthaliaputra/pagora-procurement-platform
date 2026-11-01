@@ -16,7 +16,7 @@ class UpdateKomoditasRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user()?->can('viewAny', Komoditas::class) ?? false;
     }
 
     /**

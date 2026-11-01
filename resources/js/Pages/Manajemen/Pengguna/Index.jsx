@@ -35,6 +35,7 @@ export default function PenggunaIndex({
     tenant_options = [],
     vendor_options = [],
     default_password = 'password123',
+    can = {},
 }) {
     const { auth, user: sharedUser } = usePage().props;
     const currentUserUuid = auth?.user?.uuid ?? sharedUser?.uuid ?? null;
@@ -204,24 +205,9 @@ export default function PenggunaIndex({
         setDeleteDialogOpen(true);
     };
 
-    const assignableRoleSet = useMemo(
-        () => new Set(role_options.map((opt) => opt.value)),
-        [role_options]
-    );
+    const canEditPegawai = (item) => Boolean(item?.can?.update);
 
-    const canEditPegawai = (item) => {
-        if (!item) return false;
-        if (is_superadmin) return true;
-        if (currentUserUuid && item.uuid === currentUserUuid) return true;
-        return assignableRoleSet.has(item.role?.name);
-    };
-
-    const canDeletePegawai = (item) => {
-        if (!item) return false;
-        if (currentUserUuid && item.uuid === currentUserUuid) return false;
-        if (is_superadmin) return true;
-        return assignableRoleSet.has(item.role?.name);
-    };
+    const canDeletePegawai = (item) => Boolean(item?.can?.delete);
 
     const perusahaanComboboxOptions = useMemo(() => {
         const options = [
@@ -263,7 +249,7 @@ export default function PenggunaIndex({
                 onEdit: handleOpenEdit,
                 onDelete: handleOpenDelete,
             }),
-        [is_superadmin, assignableRoleSet, currentUserUuid]
+        [is_superadmin]
     );
 
     const table = useReactTable({
@@ -320,7 +306,7 @@ export default function PenggunaIndex({
                                   : 'Kelola akun akses pengguna di lingkungan perusahaan Anda.'}
                         </p>
                     </div>
-                    {role_options.length > 0 && (
+                    {can.create && role_options.length > 0 && (
                         <div>
                             <Button
                                 onClick={handleOpenCreate}

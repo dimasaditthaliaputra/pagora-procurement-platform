@@ -13,16 +13,6 @@ import {
     ArrowUpRight,
 } from 'lucide-react';
 
-function getRoleName(roleId) {
-    switch (roleId) {
-        case 1: return 'Superadmin';
-        case 2: return 'Purchasing / Finance';
-        case 3: return 'QC Gudang';
-        case 4: return 'Vendor';
-        default: return 'User';
-    }
-}
-
 const statsCards = [
     {
         title: 'Total Pengadaan',

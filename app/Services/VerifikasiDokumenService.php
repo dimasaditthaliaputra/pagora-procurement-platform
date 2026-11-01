@@ -7,11 +7,14 @@ namespace App\Services;
 use App\Enums\VerificationStatus;
 use App\Mail\VendorApprovalMail;
 use App\Models\DokumenLegalitasVendor;
+use App\Models\User;
 use App\Models\Vendor;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
@@ -50,12 +53,26 @@ class VerifikasiDokumenService
     }
 
     /**
+     * Find a legal document the actor is allowed to open.
+     *
+     * @throws ModelNotFoundException
+     * @throws AuthorizationException
+     */
+    public function findViewableByUuid(User $actor, string $uuid): DokumenLegalitasVendor
+    {
+        $document = $this->findByUuid($uuid);
+        Gate::forUser($actor)->authorize('view', $document);
+
+        return $document;
+    }
+
+    /**
      * Approve or reject a vendor legal document.
      */
     public function verify(
         string $uuid,
         string $action,
-        int $verifierId,
+        User $verifier,
         ?string $rejectionReason = null
     ): DokumenLegalitasVendor {
         if (! in_array($action, ['approve', 'reject'], true)) {
@@ -76,7 +93,7 @@ class VerifikasiDokumenService
         [$document, $allApproved] = DB::transaction(function () use (
             $uuid,
             $action,
-            $verifierId,
+            $verifier,
             $rejectionReason
         ): array {
             $document = $this->repository->findByUuid($uuid);
@@ -86,6 +103,8 @@ class VerifikasiDokumenService
                     'Dokumen legalitas tidak ditemukan.'
                 ))->setModel(DokumenLegalitasVendor::class, [$uuid]);
             }
+
+            Gate::forUser($verifier)->authorize('verify', $document);
 
             if ($document->verification_status !== VerificationStatus::Pending) {
                 throw ValidationException::withMessages([
@@ -107,7 +126,7 @@ class VerifikasiDokumenService
                 'verification_status' => $approved
                     ? VerificationStatus::Approved
                     : VerificationStatus::Rejected,
-                'verified_by' => $verifierId,
+                'verified_by' => $verifier->id,
                 'verified_at' => now(),
                 'rejection_reason' => $approved
                     ? null

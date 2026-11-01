@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Komoditas;
 
+use App\Models\Komoditas;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,7 +15,7 @@ class IndexKomoditasRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user()?->can('viewAny', Komoditas::class) ?? false;
     }
 
     /**

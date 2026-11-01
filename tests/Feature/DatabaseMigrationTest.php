@@ -17,10 +17,12 @@ class DatabaseMigrationTest extends TestCase
     {
         $tables = [
             'roles',
-            'perusahaan_buyer',
-            'vendor',
+            'tenants',
+            'vendors',
             'users',
-            'dokumen_legalitas_vendor',
+            'vendor_legal_documents',
+            'vendor_invitations',
+            'settings',
             'kerja_sama',
             'komoditas',
             'harga_referensi_komoditas',
@@ -53,18 +55,23 @@ class DatabaseMigrationTest extends TestCase
             'created_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('perusahaan_buyer', [
+        $this->assertTrue(Schema::hasColumns('tenants', [
             'id',
             'uuid',
-            'nama_perusahaan',
-            'nomor_npwp',
-            'file_url',
-            'alamat',
-            'tipe_paket',
-            'status_aktif',
+            'company_name',
+            'tax_number',
+            'legal_document_path',
+            'address',
+            'verification_status',
+            'verification_note',
+            'verified_by',
+            'verified_at',
+            'is_active',
             'created_at',
             'updated_at',
+            'deleted_at',
         ]));
+        $this->assertFalse(Schema::hasColumn('tenants', 'tipe_paket'));
 
         $this->assertTrue(Schema::hasColumns('kerja_sama', [
             'id',
@@ -77,25 +84,26 @@ class DatabaseMigrationTest extends TestCase
             'updated_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('vendor', [
+        $this->assertTrue(Schema::hasColumns('vendors', [
             'id',
             'uuid',
             'slug',
-            'nama_perusahaan',
-            'email_kontak',
-            'no_telepon',
-            'alamat',
+            'company_name',
+            'tax_number',
+            'contact_email',
+            'phone',
+            'address',
             'kategori_komoditas',
-            'dokumen_legalitas',
-            'status_verifikasi',
-            'status_aktif',
-            'alasan_pemblokiran',
+            'verification_status',
+            'is_active',
+            'block_reason',
             'blocked_by',
-            'diblokir_pada',
+            'blocked_at',
             'created_at',
             'updated_at',
             'deleted_at',
         ]));
+        $this->assertFalse(Schema::hasColumn('vendors', 'dokumen_legalitas'));
 
         $this->assertTrue(Schema::hasColumns('users', [
             'id',
@@ -114,19 +122,49 @@ class DatabaseMigrationTest extends TestCase
             'deleted_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('dokumen_legalitas_vendor', [
+        $this->assertTrue(Schema::hasColumns('vendor_legal_documents', [
             'id',
             'uuid',
             'vendor_id',
-            'jenis_dokumen',
-            'nomor_dokumen',
-            'file_url',
-            'status_verifikasi',
-            'verif_by',
-            'diverifikasi_pada',
-            'alasan_penolakan',
+            'document_type',
+            'document_number',
+            'file_path',
+            'verification_status',
+            'verified_by',
+            'verified_at',
+            'rejection_reason',
             'created_at',
+            'updated_at',
             'deleted_at',
+        ]));
+
+        $this->assertTrue(Schema::hasColumns('vendor_invitations', [
+            'id',
+            'uuid',
+            'company_name',
+            'email',
+            'kategori_komoditas',
+            'message',
+            'token',
+            'status',
+            'invited_by',
+            'tenant_id',
+            'expires_at',
+            'registered_at',
+            'created_at',
+            'updated_at',
+            'deleted_at',
+        ]));
+
+        $this->assertTrue(Schema::hasColumns('settings', [
+            'id',
+            'group',
+            'key',
+            'value',
+            'is_encrypted',
+            'updated_by',
+            'created_at',
+            'updated_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('komoditas', [

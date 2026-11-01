@@ -32,7 +32,7 @@ export default function PenggunaIndex({
     is_superadmin = false,
     current_perusahaan = null,
     perusahaan_filter_options = [],
-    perusahaan_buyer_options = [],
+    tenant_options = [],
     vendor_options = [],
     default_password = 'password123',
 }) {
@@ -432,7 +432,7 @@ export default function PenggunaIndex({
                 role_options={role_options}
                 is_superadmin={is_superadmin}
                 current_perusahaan={current_perusahaan}
-                perusahaan_buyer_options={perusahaan_buyer_options}
+                tenant_options={tenant_options}
                 vendor_options={vendor_options}
                 currentUserUuid={currentUserUuid}
                 default_password={default_password}

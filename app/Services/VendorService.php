@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\StatusUndanganVendor;
 use App\Mail\UndanganVendorMail;
 use App\Models\UndanganVendor;
 use App\Models\User;
@@ -60,18 +61,18 @@ class VendorService
     {
         $vendor = $this->findByUuid($uuid);
 
-        if (! $vendor->status_aktif) {
+        if (! $vendor->is_active) {
             throw ValidationException::withMessages([
-                'alasan_pemblokiran' => 'Vendor ini sudah dalam status diblokir.',
+                'block_reason' => 'Vendor ini sudah dalam status diblokir.',
             ]);
         }
 
         return DB::transaction(function () use ($vendor, $alasan, $actor): Vendor {
             $this->vendorRepository->update($vendor, [
-                'status_aktif' => false,
-                'alasan_pemblokiran' => trim($alasan),
+                'is_active' => false,
+                'block_reason' => trim($alasan),
                 'blocked_by' => $actor->id,
-                'diblokir_pada' => now(),
+                'blocked_at' => now(),
             ]);
 
             // Deactivate all user logins belonging to this vendor
@@ -93,18 +94,18 @@ class VendorService
     {
         $vendor = $this->findByUuid($uuid);
 
-        if ($vendor->status_aktif) {
+        if ($vendor->is_active) {
             throw ValidationException::withMessages([
-                'status_aktif' => 'Vendor ini sudah dalam status aktif.',
+                'is_active' => 'Vendor ini sudah dalam status aktif.',
             ]);
         }
 
         return DB::transaction(function () use ($vendor): Vendor {
             $this->vendorRepository->update($vendor, [
-                'status_aktif' => true,
-                'alasan_pemblokiran' => null,
+                'is_active' => true,
+                'block_reason' => null,
                 'blocked_by' => null,
-                'diblokir_pada' => null,
+                'blocked_at' => null,
             ]);
 
             // Reactivate user logins belonging to this vendor
@@ -128,7 +129,7 @@ class VendorService
         $email = strtolower(trim((string) $data['email']));
 
         // Check if vendor with this email is already registered
-        if (Vendor::where('email_kontak', $email)->exists()) {
+        if (Vendor::where('contact_email', $email)->exists()) {
             throw ValidationException::withMessages([
                 'email' => 'Email ini sudah terdaftar sebagai rekanan vendor di PAGORA.',
             ]);
@@ -147,11 +148,11 @@ class VendorService
         $undangan = DB::transaction(function () use ($data, $email, $actor, $token, $expiresAt): UndanganVendor {
             $existing = $this->undanganRepository->findByEmail($email);
 
-            if ($existing !== null && $existing->status === 'pending') {
+            if ($existing !== null && $existing->status === StatusUndanganVendor::Pending) {
                 $this->undanganRepository->update($existing, [
-                    'nama_perusahaan' => trim((string) $data['nama_perusahaan']),
+                    'company_name' => trim((string) $data['company_name']),
                     'kategori_komoditas' => ! empty($data['kategori_komoditas']) ? (string) $data['kategori_komoditas'] : null,
-                    'pesan' => ! empty($data['pesan']) ? trim((string) $data['pesan']) : null,
+                    'message' => ! empty($data['message']) ? trim((string) $data['message']) : null,
                     'token' => $token,
                     'invited_by' => $actor->id,
                     'expires_at' => $expiresAt,
@@ -161,12 +162,12 @@ class VendorService
             }
 
             return $this->undanganRepository->create([
-                'nama_perusahaan' => trim((string) $data['nama_perusahaan']),
+                'company_name' => trim((string) $data['company_name']),
                 'email' => $email,
                 'kategori_komoditas' => ! empty($data['kategori_komoditas']) ? (string) $data['kategori_komoditas'] : null,
-                'pesan' => ! empty($data['pesan']) ? trim((string) $data['pesan']) : null,
+                'message' => ! empty($data['message']) ? trim((string) $data['message']) : null,
                 'token' => $token,
-                'status' => 'pending',
+                'status' => StatusUndanganVendor::Pending,
                 'invited_by' => $actor->id,
                 'expires_at' => $expiresAt,
             ]);

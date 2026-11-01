@@ -51,8 +51,8 @@ export default function VendorIndex({
     };
 
     const [search, setSearch] = useState(filters.search ?? '');
-    const [statusAktif, setStatusAktif] = useState(filters.status_aktif ?? 'all');
-    const [statusVerifikasi, setStatusVerifikasi] = useState(filters.status_verifikasi ?? 'all');
+    const [statusAktif, setStatusAktif] = useState(filters.is_active ?? 'all');
+    const [statusVerifikasi, setStatusVerifikasi] = useState(filters.verification_status ?? 'all');
     const [loading, setLoading] = useState(false);
 
     // Dialog state
@@ -67,15 +67,15 @@ export default function VendorIndex({
     // Sync state when props change
     useEffect(() => {
         setSearch(filters.search ?? '');
-        setStatusAktif(filters.status_aktif ?? 'all');
-        setStatusVerifikasi(filters.status_verifikasi ?? 'all');
-    }, [filters.search, filters.status_aktif, filters.status_verifikasi]);
+        setStatusAktif(filters.is_active ?? 'all');
+        setStatusVerifikasi(filters.verification_status ?? 'all');
+    }, [filters.search, filters.is_active, filters.verification_status]);
 
     const applyFilters = (newFilters = {}) => {
         const merged = {
             search: search.trim() || undefined,
-            status_aktif: statusAktif !== 'all' ? statusAktif : undefined,
-            status_verifikasi: statusVerifikasi !== 'all' ? statusVerifikasi : undefined,
+            is_active: statusAktif !== 'all' ? statusAktif : undefined,
+            verification_status: statusVerifikasi !== 'all' ? statusVerifikasi : undefined,
             per_page: meta.per_page,
             page: 1,
             ...newFilters,
@@ -116,12 +116,12 @@ export default function VendorIndex({
 
     const handleStatusAktifChange = (val) => {
         setStatusAktif(val);
-        applyFilters({ status_aktif: val !== 'all' ? val : undefined });
+        applyFilters({ is_active: val !== 'all' ? val : undefined });
     };
 
     const handleStatusVerifikasiChange = (val) => {
         setStatusVerifikasi(val);
-        applyFilters({ status_verifikasi: val !== 'all' ? val : undefined });
+        applyFilters({ verification_status: val !== 'all' ? val : undefined });
     };
 
     const handleResetFilters = () => {
@@ -143,8 +143,8 @@ export default function VendorIndex({
             '/master/vendor',
             {
                 search: search.trim() || undefined,
-                status_aktif: statusAktif !== 'all' ? statusAktif : undefined,
-                status_verifikasi: statusVerifikasi !== 'all' ? statusVerifikasi : undefined,
+                is_active: statusAktif !== 'all' ? statusAktif : undefined,
+                verification_status: statusVerifikasi !== 'all' ? statusVerifikasi : undefined,
                 per_page: meta.per_page,
                 page,
             },
@@ -164,8 +164,8 @@ export default function VendorIndex({
             '/master/vendor',
             {
                 search: search.trim() || undefined,
-                status_aktif: statusAktif !== 'all' ? statusAktif : undefined,
-                status_verifikasi: statusVerifikasi !== 'all' ? statusVerifikasi : undefined,
+                is_active: statusAktif !== 'all' ? statusAktif : undefined,
+                verification_status: statusVerifikasi !== 'all' ? statusVerifikasi : undefined,
                 per_page,
                 page: 1,
             },
@@ -183,9 +183,9 @@ export default function VendorIndex({
     // Calculate basic statistics from current data / total
     const stats = useMemo(() => {
         const total = meta.total || data.length;
-        const blocked = data.filter((v) => !v.status_aktif).length;
-        const active = data.filter((v) => v.status_aktif).length;
-        const pending = data.filter((v) => v.status_verifikasi === 'pending').length;
+        const blocked = data.filter((v) => !v.is_active).length;
+        const active = data.filter((v) => v.is_active).length;
+        const pending = data.filter((v) => v.verification_status === 'pending').length;
         return { total, blocked, active, pending };
     }, [data, meta.total]);
 
@@ -374,9 +374,9 @@ export default function VendorIndex({
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Semua Legalitas</SelectItem>
-                                            <SelectItem value="terverifikasi">Terverifikasi</SelectItem>
-                                            <SelectItem value="pending">Pending</SelectItem>
-                                            <SelectItem value="ditolak">Ditolak</SelectItem>
+                                            <SelectItem value="approved">Disetujui</SelectItem>
+                                            <SelectItem value="pending">Menunggu Verifikasi</SelectItem>
+                                            <SelectItem value="rejected">Ditolak</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -407,8 +407,7 @@ export default function VendorIndex({
                     />
                     <div className="border-t p-4">
                         <DataTablePagination
-                            table={table}
-                            pageCount={meta.last_page}
+                            meta={meta}
                             onPageChange={handlePageChange}
                             onPerPageChange={handlePerPageChange}
                         />

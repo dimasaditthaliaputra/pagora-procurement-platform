@@ -40,8 +40,8 @@ class UserRepository implements UserRepositoryInterface
     {
         return User::with([
             'role',
-            'perusahaanBuyer:id,uuid,nama_perusahaan',
-            'vendor:id,uuid,nama_perusahaan',
+            'perusahaanBuyer:id,uuid,company_name',
+            'vendor:id,uuid,company_name',
         ])->where('uuid', $uuid)->first();
     }
 
@@ -85,8 +85,8 @@ class UserRepository implements UserRepositoryInterface
             ->select($columns)
             ->with([
                 'role',
-                'perusahaanBuyer:id,uuid,nama_perusahaan',
-                'vendor:id,uuid,nama_perusahaan',
+                'perusahaanBuyer:id,uuid,company_name',
+                'vendor:id,uuid,company_name',
             ])
             ->when($forceEmpty, function ($query): void {
                 $query->whereRaw('1 = 0');

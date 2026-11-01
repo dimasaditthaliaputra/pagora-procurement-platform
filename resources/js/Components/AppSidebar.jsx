@@ -53,7 +53,6 @@ const mainNavItems = [
     { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', routeName: 'dashboard' },
     { title: 'Pengadaan', icon: ShoppingCart, href: '#', badge: 'Baru' },
     { title: 'Katalog Produk', icon: Package, href: '#' },
-    { title: 'Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index' },
     { title: 'Purchase Order', icon: FileText, href: '/purchase-order', routeName: 'purchase-order' },
     { title: 'Pengiriman', icon: Truck, href: '#' },
 ];
@@ -61,7 +60,7 @@ const mainNavItems = [
 const masterNavItems = [
     { title: 'Komoditas', icon: Boxes, href: '/master/komoditas', routeName: 'master.komoditas.index', badge: 'Utama' },
     { title: 'Harga Referensi & Pagu', icon: TrendingUp, href: '#' },
-    { title: 'Data Rekanan Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index' },
+    { title: 'Data Rekanan Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index', exact: true },
     { title: 'Verifikasi Legalitas', icon: ShieldCheck, href: '/master/vendor/verifikasi-dokumen', routeName: 'master.vendor.verifikasi-dokumen.index' },
     { title: 'Role & Akses', icon: ShieldCheck, href: '#' },
 ];
@@ -204,6 +203,7 @@ export function AppSidebar({ className, ...props }) {
                                                 icon={item.icon}
                                                 href={item.href}
                                                 routeName={item.routeName}
+                                                exact={item.exact}
                                                 badge={item.badge}
                                             />
                                         ))}
@@ -226,6 +226,7 @@ export function AppSidebar({ className, ...props }) {
                                                 icon={item.icon}
                                                 href={item.href}
                                                 routeName={item.routeName}
+                                                exact={item.exact}
                                                 badge={item.badge}
                                             />
                                         ))}
@@ -248,6 +249,7 @@ export function AppSidebar({ className, ...props }) {
                                                 icon={item.icon}
                                                 href={item.href}
                                                 routeName={item.routeName}
+                                                exact={item.exact}
                                                 badge={item.badge}
                                             />
                                         ))}

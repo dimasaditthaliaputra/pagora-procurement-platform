@@ -27,11 +27,11 @@ class PurchaseOrderSeeder extends Seeder
             return;
         }
 
-        $buyer = PerusahaanBuyer::where('nama_perusahaan', 'PT Pagora Nusantara')->firstOrFail();
+        $buyer = PerusahaanBuyer::where('company_name', 'PT Pagora Nusantara')->firstOrFail();
         $userBuyer = User::where('email', 'buyer@pagora.test')->firstOrFail();
         $userVendor1 = User::where('email', 'vendor1@pagora.test')->firstOrFail();
-        $vendor1 = Vendor::where('email_kontak', 'kontak@mitra-agro.test')->firstOrFail();
-        $vendor2 = Vendor::where('email_kontak', 'info@sumber-pangan.test')->firstOrFail();
+        $vendor1 = Vendor::where('contact_email', 'kontak@mitra-agro.test')->firstOrFail();
+        $vendor2 = Vendor::where('contact_email', 'info@sumber-pangan.test')->firstOrFail();
 
         $beras = Komoditas::where('sku', 'BERAS')->firstOrFail();
         $bawangMerah = Komoditas::where('sku', 'BAWANG_MERAH')->firstOrFail();

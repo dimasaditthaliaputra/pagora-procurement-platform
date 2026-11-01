@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Mail\OtpMail;
+use App\Models\DokumenLegalitasVendor;
 use App\Models\User;
 use App\Models\Vendor;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Mail\OtpMail;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -43,7 +44,7 @@ class VendorRegistrationTest extends TestCase
      */
     private function requestOtp(string $email): string
     {
-        $this->postJson('/register/vendor/otp', ['email_kontak' => $email])->assertOk();
+        $this->postJson('/register/vendor/otp', ['contact_email' => $email])->assertOk();
 
         $code = null;
         Mail::assertSent(OtpMail::class, function (OtpMail $mail) use ($email, &$code) {
@@ -59,7 +60,7 @@ class VendorRegistrationTest extends TestCase
     {
         Mail::fake();
 
-        $this->postJson('/register/vendor/otp', ['email_kontak' => 'baru@vendor.co.id'])
+        $this->postJson('/register/vendor/otp', ['contact_email' => 'baru@vendor.co.id'])
             ->assertOk();
 
         Mail::assertSent(OtpMail::class, fn (OtpMail $mail) => $mail->hasTo('baru@vendor.co.id'));
@@ -70,20 +71,20 @@ class VendorRegistrationTest extends TestCase
         Mail::fake();
 
         Vendor::create([
-            'nama_perusahaan' => 'PT Sudah Ada',
+            'company_name' => 'PT Sudah Ada',
             'slug' => 'pt-sudah-ada',
-            'email_kontak' => 'duplikat@perusahaan.com',
-            'status_verifikasi' => 'pending',
-            'status_aktif' => true,
+            'contact_email' => 'duplikat@perusahaan.com',
+            'verification_status' => 'pending',
+            'is_active' => true,
         ]);
 
-        $this->postJson('/register/vendor/otp', ['email_kontak' => 'bukan-email'])
+        $this->postJson('/register/vendor/otp', ['contact_email' => 'bukan-email'])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('email_kontak');
+            ->assertJsonValidationErrors('contact_email');
 
-        $this->postJson('/register/vendor/otp', ['email_kontak' => 'duplikat@perusahaan.com'])
+        $this->postJson('/register/vendor/otp', ['contact_email' => 'duplikat@perusahaan.com'])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('email_kontak');
+            ->assertJsonValidationErrors('contact_email');
 
         Mail::assertNothingSent();
     }
@@ -92,10 +93,10 @@ class VendorRegistrationTest extends TestCase
     {
         Mail::fake();
 
-        $this->postJson('/register/vendor/otp', ['email_kontak' => 'baru@vendor.co.id'])->assertOk();
-        $this->postJson('/register/vendor/otp', ['email_kontak' => 'baru@vendor.co.id'])
+        $this->postJson('/register/vendor/otp', ['contact_email' => 'baru@vendor.co.id'])->assertOk();
+        $this->postJson('/register/vendor/otp', ['contact_email' => 'baru@vendor.co.id'])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('email_kontak');
+            ->assertJsonValidationErrors('contact_email');
 
         Mail::assertSentCount(1);
     }
@@ -107,13 +108,13 @@ class VendorRegistrationTest extends TestCase
         $this->requestOtp('procurement@agropangan.co.id');
 
         $response = $this->from('/register/vendor')->post('/register/vendor', [
-            'nama_perusahaan' => 'PT Agro Pangan Nusantara',
-            'email_kontak' => 'procurement@agropangan.co.id',
-            'no_telepon' => '081234567890',
-            'alamat' => 'Bekasi',
+            'company_name' => 'PT Agro Pangan Nusantara',
+            'contact_email' => 'procurement@agropangan.co.id',
+            'phone' => '081234567890',
+            'address' => 'Bekasi',
             'kategori_komoditas' => 'Agroindustri & Pangan',
             'otp' => '000000',
-            'dokumen_legalitas' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
+            'legal_document' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
         ]);
 
         $response->assertRedirect('/register/vendor');
@@ -128,13 +129,13 @@ class VendorRegistrationTest extends TestCase
         $code = $this->requestOtp('asli@agropangan.co.id');
 
         $response = $this->from('/register/vendor')->post('/register/vendor', [
-            'nama_perusahaan' => 'PT Agro Pangan Nusantara',
-            'email_kontak' => 'lain@agropangan.co.id',
-            'no_telepon' => '081234567890',
-            'alamat' => 'Bekasi',
+            'company_name' => 'PT Agro Pangan Nusantara',
+            'contact_email' => 'lain@agropangan.co.id',
+            'phone' => '081234567890',
+            'address' => 'Bekasi',
             'kategori_komoditas' => 'Agroindustri & Pangan',
             'otp' => $code,
-            'dokumen_legalitas' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
+            'legal_document' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
         ]);
 
         $response->assertSessionHasErrors('otp');
@@ -157,13 +158,13 @@ class VendorRegistrationTest extends TestCase
         );
 
         $payload = [
-            'nama_perusahaan' => 'PT Agro Pangan Nusantara',
-            'email_kontak' => 'procurement@agropangan.co.id',
-            'no_telepon' => '081234567890',
-            'alamat' => 'Kawasan Industri Cikarang Blok C-12, Bekasi',
+            'company_name' => 'PT Agro Pangan Nusantara',
+            'contact_email' => 'procurement@agropangan.co.id',
+            'phone' => '081234567890',
+            'address' => 'Kawasan Industri Cikarang Blok C-12, Bekasi',
             'kategori_komoditas' => 'Agroindustri & Pangan',
             'otp' => $otp,
-            'dokumen_legalitas' => $file,
+            'legal_document' => $file,
         ];
 
         $response = $this->from('/register/vendor')
@@ -176,35 +177,36 @@ class VendorRegistrationTest extends TestCase
         );
 
         // Memastikan data vendor tersimpan dengan status pending.
-        $this->assertDatabaseHas('vendor', [
-            'nama_perusahaan' => 'PT Agro Pangan Nusantara',
-            'email_kontak' => 'procurement@agropangan.co.id',
-            'no_telepon' => '081234567890',
+        $this->assertDatabaseHas('vendors', [
+            'company_name' => 'PT Agro Pangan Nusantara',
+            'contact_email' => 'procurement@agropangan.co.id',
+            'phone' => '081234567890',
             'kategori_komoditas' => 'Agroindustri & Pangan',
-            'status_verifikasi' => 'pending',
-            'status_aktif' => true,
+            'verification_status' => 'pending',
+            'is_active' => true,
         ]);
 
         $vendor = Vendor::where(
-            'email_kontak',
+            'contact_email',
             'procurement@agropangan.co.id'
         )->firstOrFail();
 
         $this->assertNotNull($vendor->uuid);
         $this->assertNotNull($vendor->slug);
-        $this->assertNotNull($vendor->dokumen_legalitas);
-
-        // Memastikan dokumen tersimpan di penyimpanan privat.
-        Storage::disk('local')->assertExists($vendor->dokumen_legalitas);
 
         // Memastikan data dokumen legalitas masuk ke tabel khusus.
-        $this->assertDatabaseHas('dokumen_legalitas_vendor', [
+        $document = DokumenLegalitasVendor::where('vendor_id', $vendor->getKey())->firstOrFail();
+
+        // Memastikan dokumen tersimpan di penyimpanan privat.
+        Storage::disk('local')->assertExists($document->file_path);
+
+        $this->assertDatabaseHas('vendor_legal_documents', [
             'vendor_id' => $vendor->getKey(),
-            'jenis_dokumen' => 'dokumen_legalitas',
-            'file_url' => $vendor->dokumen_legalitas,
-            'status_verifikasi' => 'pending',
-            'verif_by' => null,
-            'alasan_penolakan' => null,
+            'document_type' => 'legal_document',
+            'file_path' => $document->file_path,
+            'verification_status' => 'pending',
+            'verified_by' => null,
+            'rejection_reason' => null,
         ]);
 
         // Memastikan pendaftaran vendor belum membuat akun pengguna.
@@ -219,13 +221,13 @@ class VendorRegistrationTest extends TestCase
 
         $response->assertRedirect('/register/vendor');
         $response->assertSessionHasErrors([
-            'nama_perusahaan',
-            'email_kontak',
-            'no_telepon',
-            'alamat',
+            'company_name',
+            'contact_email',
+            'phone',
+            'address',
             'kategori_komoditas',
             'otp',
-            'dokumen_legalitas',
+            'legal_document',
         ]);
 
         $this->assertSame(0, Vendor::count());
@@ -236,14 +238,14 @@ class VendorRegistrationTest extends TestCase
         Storage::fake('local');
 
         Vendor::create([
-            'nama_perusahaan' => 'PT Sudah Ada',
+            'company_name' => 'PT Sudah Ada',
             'slug' => 'pt-sudah-ada',
-            'email_kontak' => 'duplikat@perusahaan.com',
-            'no_telepon' => '08111111111',
-            'alamat' => 'Surabaya',
+            'contact_email' => 'duplikat@perusahaan.com',
+            'phone' => '08111111111',
+            'address' => 'Surabaya',
             'kategori_komoditas' => 'Logam, Baja & Fabrikasi',
-            'status_verifikasi' => 'pending',
-            'status_aktif' => true,
+            'verification_status' => 'pending',
+            'is_active' => true,
         ]);
 
         $file = UploadedFile::fake()->create(
@@ -253,15 +255,15 @@ class VendorRegistrationTest extends TestCase
         );
 
         $response = $this->from('/register/vendor')->post('/register/vendor', [
-            'nama_perusahaan' => 'PT Baru Mencoba Email Sama',
-            'email_kontak' => 'duplikat@perusahaan.com',
-            'no_telepon' => '08222222222',
-            'alamat' => 'Jakarta',
+            'company_name' => 'PT Baru Mencoba Email Sama',
+            'contact_email' => 'duplikat@perusahaan.com',
+            'phone' => '08222222222',
+            'address' => 'Jakarta',
             'kategori_komoditas' => 'Logam, Baja & Fabrikasi',
-            'dokumen_legalitas' => $file,
+            'legal_document' => $file,
         ]);
 
-        $response->assertSessionHasErrors(['email_kontak']);
+        $response->assertSessionHasErrors(['contact_email']);
     }
 
     public function test_registration_fails_when_file_exceeds_2mb(): void
@@ -275,14 +277,14 @@ class VendorRegistrationTest extends TestCase
         );
 
         $response = $this->from('/register/vendor')->post('/register/vendor', [
-            'nama_perusahaan' => 'PT Ukuran File Besar',
-            'email_kontak' => 'besar@perusahaan.com',
-            'no_telepon' => '081234567890',
-            'alamat' => 'Medan',
+            'company_name' => 'PT Ukuran File Besar',
+            'contact_email' => 'besar@perusahaan.com',
+            'phone' => '081234567890',
+            'address' => 'Medan',
             'kategori_komoditas' => 'Beras & Biji-bijian',
-            'dokumen_legalitas' => $largeFile,
+            'legal_document' => $largeFile,
         ]);
 
-        $response->assertSessionHasErrors(['dokumen_legalitas']);
+        $response->assertSessionHasErrors(['legal_document']);
     }
 }

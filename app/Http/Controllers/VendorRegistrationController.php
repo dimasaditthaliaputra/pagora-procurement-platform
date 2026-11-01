@@ -35,8 +35,8 @@ class VendorRegistrationController extends Controller
             if ($undangan !== null) {
                 $invitation = [
                     'token' => $undangan->token,
-                    'nama_perusahaan' => $undangan->nama_perusahaan,
-                    'email_kontak' => $undangan->email,
+                    'company_name' => $undangan->company_name,
+                    'contact_email' => $undangan->email,
                     'kategori_komoditas' => $undangan->kategori_komoditas,
                 ];
             }
@@ -55,7 +55,7 @@ class VendorRegistrationController extends Controller
     public function sendOtp(SendVendorOtpRequest $request): JsonResponse|RedirectResponse
     {
         try {
-            $this->service->sendEmailOtp((string) $request->validated('email_kontak'));
+            $this->service->sendEmailOtp((string) $request->validated('contact_email'));
 
             return ResponseHelper::success('Kode OTP telah dikirim ke email bisnis Anda.');
         } catch (ValidationException $e) {

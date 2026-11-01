@@ -18,7 +18,7 @@ export function ApprovalDialog({ document, open, onOpenChange }) {
 
     if (!document) return null;
 
-    const vendorName = document.vendor?.nama_perusahaan ?? 'Vendor';
+    const vendorName = document.vendor?.company_name ?? 'Vendor';
 
     const handleApprove = () => {
         setLoading(true);
@@ -37,7 +37,7 @@ export function ApprovalDialog({ document, open, onOpenChange }) {
                     setLoading(false);
                     notify.error(
                         errors.aksi ||
-                        errors.status_verifikasi ||
+                        errors.verification_status ||
                         'Gagal memproses persetujuan dokumen.'
                     );
                 },
@@ -57,12 +57,13 @@ export function ApprovalDialog({ document, open, onOpenChange }) {
                     </div>
                     <AlertDialogDescription className="pt-2 text-sm text-muted-foreground leading-relaxed">
                         Apakah Anda yakin ingin menyetujui dokumen legalitas{' '}
-                        <strong className="text-foreground">{document.jenis_dokumen}</strong>{' '}
+                        <strong className="text-foreground">{document.document_type}</strong>{' '}
                         milik <strong className="text-foreground">{vendorName}</strong>?
                         <br />
                         <span className="block mt-2 text-xs">
-                            Status verifikasi dokumen dan vendor akan diubah menjadi{' '}
-                            <span className="font-semibold text-emerald-600">Disetujui</span>.
+                            Dokumen akan berstatus{' '}
+                            <span className="font-semibold text-emerald-600">Disetujui</span>. Vendor disetujui dan
+                            diberi email pemberitahuan setelah <strong>semua</strong> dokumennya disetujui.
                         </span>
                     </AlertDialogDescription>
                 </AlertDialogHeader>

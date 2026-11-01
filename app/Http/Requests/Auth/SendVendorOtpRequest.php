@@ -23,12 +23,12 @@ class SendVendorOtpRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email_kontak' => [
+            'contact_email' => [
                 'required',
                 'string',
                 'email',
                 'max:150',
-                Rule::unique('vendor', 'email_kontak')->whereNull('deleted_at'),
+                Rule::unique('vendors', 'contact_email')->whereNull('deleted_at'),
             ],
         ];
     }
@@ -39,10 +39,10 @@ class SendVendorOtpRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email_kontak.required' => 'Email bisnis wajib diisi.',
-            'email_kontak.email' => 'Format email bisnis tidak valid.',
-            'email_kontak.max' => 'Email bisnis tidak boleh lebih dari 150 karakter.',
-            'email_kontak.unique' => 'Email bisnis ini sudah terdaftar sebagai vendor.',
+            'contact_email.required' => 'Email bisnis wajib diisi.',
+            'contact_email.email' => 'Format email bisnis tidak valid.',
+            'contact_email.max' => 'Email bisnis tidak boleh lebih dari 150 karakter.',
+            'contact_email.unique' => 'Email bisnis ini sudah terdaftar sebagai vendor.',
         ];
     }
 }

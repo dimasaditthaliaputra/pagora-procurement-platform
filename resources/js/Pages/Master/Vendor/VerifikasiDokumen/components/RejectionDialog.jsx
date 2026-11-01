@@ -31,7 +31,7 @@ export function RejectionDialog({ document, open, onOpenChange }) {
 
     if (!document) return null;
 
-    const vendorName = document.vendor?.nama_perusahaan ?? 'Vendor';
+    const vendorName = document.vendor?.company_name ?? 'Vendor';
 
     const handleReject = (e) => {
         e.preventDefault();
@@ -56,7 +56,7 @@ export function RejectionDialog({ document, open, onOpenChange }) {
             `/master/vendor/verifikasi-dokumen/${document.uuid}/verifikasi`,
             {
                 aksi: 'reject',
-                alasan_penolakan: trimmed,
+                rejection_reason: trimmed,
             },
             {
                 preserveScroll: true,
@@ -66,13 +66,13 @@ export function RejectionDialog({ document, open, onOpenChange }) {
                 },
                 onError: (errors) => {
                     setLoading(false);
-                    if (errors.alasan_penolakan) {
-                        setError(errors.alasan_penolakan);
+                    if (errors.rejection_reason) {
+                        setError(errors.rejection_reason);
                         notify.validationFailed();
                     } else {
                         notify.error(
                             errors.aksi ||
-                            errors.status_verifikasi ||
+                            errors.verification_status ||
                             'Gagal memproses penolakan dokumen.'
                         );
                     }
@@ -101,7 +101,7 @@ export function RejectionDialog({ document, open, onOpenChange }) {
                 <form onSubmit={handleReject} noValidate className="space-y-4 pt-2">
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <Label htmlFor="alasan_penolakan" className="text-xs font-medium">
+                            <Label htmlFor="rejection_reason" className="text-xs font-medium">
                                 Alasan Penolakan <span className="text-destructive">*</span>
                             </Label>
                             <span className="text-[11px] text-muted-foreground">
@@ -109,7 +109,7 @@ export function RejectionDialog({ document, open, onOpenChange }) {
                             </span>
                         </div>
                         <Textarea
-                            id="alasan_penolakan"
+                            id="rejection_reason"
                             value={reason}
                             onChange={(e) => {
                                 setReason(e.target.value);

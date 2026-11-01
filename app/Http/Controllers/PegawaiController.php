@@ -64,7 +64,7 @@ class PegawaiController extends Controller
             'is_superadmin' => $isSuperadmin,
             'current_perusahaan' => $isSuperadmin ? null : $this->service->getCurrentPerusahaanPayload($authUser),
             'perusahaan_filter_options' => $isSuperadmin ? $this->service->getPerusahaanFilterOptions() : [],
-            'perusahaan_buyer_options' => $isSuperadmin ? $this->service->getPerusahaanBuyerOptions() : [],
+            'tenant_options' => $isSuperadmin ? $this->service->getPerusahaanBuyerOptions() : [],
             'vendor_options' => $isSuperadmin ? $this->service->getVendorOptions() : [],
             'default_password' => PegawaiService::DEFAULT_PASSWORD,
         ]);

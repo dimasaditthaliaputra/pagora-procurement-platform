@@ -33,7 +33,7 @@ class IndexVerifikasiDokumenRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:100'],
-            'status_verifikasi' => [
+            'verification_status' => [
                 'nullable',
                 'string',
                 Rule::in(['all', 'pending', 'approved', 'rejected']),

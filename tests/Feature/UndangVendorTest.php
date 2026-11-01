@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\StatusUndanganVendor;
 use App\Mail\OtpMail;
 use App\Mail\UndanganVendorMail;
 use App\Models\UndanganVendor;
@@ -60,27 +61,27 @@ class UndangVendorTest extends TestCase
 
         $response = $this->actingAs($this->superadmin)
             ->post('/master/vendor/undang', [
-                'nama_perusahaan' => 'PT Mitra Sawit Sejahtera',
+                'company_name' => 'PT Mitra Sawit Sejahtera',
                 'email' => 'mitra@sawit.co.id',
                 'kategori_komoditas' => 'Minyak & Lemak Nabati',
-                'pesan' => 'Kami mengundang Anda untuk memasok bahan baku CPO.',
+                'message' => 'Kami mengundang Anda untuk memasok bahan baku CPO.',
             ]);
 
         $response->assertSessionHasNoErrors();
         $response->assertRedirect('/master/vendor');
 
-        $this->assertDatabaseHas('undangan_vendor', [
-            'nama_perusahaan' => 'PT Mitra Sawit Sejahtera',
+        $this->assertDatabaseHas('vendor_invitations', [
+            'company_name' => 'PT Mitra Sawit Sejahtera',
             'email' => 'mitra@sawit.co.id',
             'kategori_komoditas' => 'Minyak & Lemak Nabati',
-            'pesan' => 'Kami mengundang Anda untuk memasok bahan baku CPO.',
+            'message' => 'Kami mengundang Anda untuk memasok bahan baku CPO.',
             'status' => 'pending',
             'invited_by' => $this->superadmin->id,
         ]);
 
         Mail::assertSent(UndanganVendorMail::class, function (UndanganVendorMail $mail) {
             return $mail->hasTo('mitra@sawit.co.id')
-                && $mail->invitation->nama_perusahaan === 'PT Mitra Sawit Sejahtera'
+                && $mail->invitation->company_name === 'PT Mitra Sawit Sejahtera'
                 && str_contains($mail->registrationUrl, $mail->invitation->token);
         });
     }
@@ -91,7 +92,7 @@ class UndangVendorTest extends TestCase
 
         $response = $this->actingAs($this->manajemen)
             ->post('/master/vendor/undang', [
-                'nama_perusahaan' => 'CV Beras Nusantara',
+                'company_name' => 'CV Beras Nusantara',
                 'email' => 'kontak@berasnusantara.id',
                 'kategori_komoditas' => 'Beras & Biji-bijian',
             ]);
@@ -99,8 +100,8 @@ class UndangVendorTest extends TestCase
         $response->assertSessionHasNoErrors();
         $response->assertRedirect('/master/vendor');
 
-        $this->assertDatabaseHas('undangan_vendor', [
-            'nama_perusahaan' => 'CV Beras Nusantara',
+        $this->assertDatabaseHas('vendor_invitations', [
+            'company_name' => 'CV Beras Nusantara',
             'email' => 'kontak@berasnusantara.id',
             'invited_by' => $this->manajemen->id,
         ]);
@@ -114,7 +115,7 @@ class UndangVendorTest extends TestCase
 
         $response = $this->actingAs($this->buyer)
             ->post('/master/vendor/undang', [
-                'nama_perusahaan' => 'PT Terlarang',
+                'company_name' => 'PT Terlarang',
                 'email' => 'terlarang@vendor.com',
             ]);
 
@@ -127,7 +128,7 @@ class UndangVendorTest extends TestCase
         Mail::fake();
 
         $response = $this->post('/master/vendor/undang', [
-            'nama_perusahaan' => 'PT Anonim',
+            'company_name' => 'PT Anonim',
             'email' => 'anonim@vendor.com',
         ]);
 
@@ -141,11 +142,11 @@ class UndangVendorTest extends TestCase
 
         $response = $this->actingAs($this->superadmin)
             ->post('/master/vendor/undang', [
-                'nama_perusahaan' => '',
+                'company_name' => '',
                 'email' => 'not-an-email',
             ]);
 
-        $response->assertSessionHasErrors(['nama_perusahaan', 'email']);
+        $response->assertSessionHasErrors(['company_name', 'email']);
         Mail::assertNothingSent();
     }
 
@@ -154,19 +155,19 @@ class UndangVendorTest extends TestCase
         Mail::fake();
 
         Vendor::create([
-            'nama_perusahaan' => 'PT Vendor Eksis',
+            'company_name' => 'PT Vendor Eksis',
             'slug' => 'pt-vendor-eksis-123456',
-            'email_kontak' => 'eksis@vendor.co.id',
-            'no_telepon' => '081234567890',
-            'alamat' => 'Jl. Raya Industri No. 1',
+            'contact_email' => 'eksis@vendor.co.id',
+            'phone' => '081234567890',
+            'address' => 'Jl. Raya Industri No. 1',
             'kategori_komoditas' => 'Agroindustri & Pangan',
-            'status_verifikasi' => 'approved',
-            'status_aktif' => true,
+            'verification_status' => 'approved',
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->superadmin)
             ->post('/master/vendor/undang', [
-                'nama_perusahaan' => 'PT Vendor Lain',
+                'company_name' => 'PT Vendor Lain',
                 'email' => 'eksis@vendor.co.id',
             ]);
 
@@ -180,7 +181,7 @@ class UndangVendorTest extends TestCase
 
         $response = $this->actingAs($this->superadmin)
             ->post('/master/vendor/undang', [
-                'nama_perusahaan' => 'PT Akun Bentrok',
+                'company_name' => 'PT Akun Bentrok',
                 'email' => $this->manajemen->email,
             ]);
 
@@ -195,7 +196,7 @@ class UndangVendorTest extends TestCase
         // First invitation
         $this->actingAs($this->superadmin)
             ->post('/master/vendor/undang', [
-                'nama_perusahaan' => 'PT Gula Manis',
+                'company_name' => 'PT Gula Manis',
                 'email' => 'gula@manis.test',
                 'kategori_komoditas' => 'Gula, Pemanis & Rempah',
             ]);
@@ -205,25 +206,25 @@ class UndangVendorTest extends TestCase
         // Reinvite with updated notes
         $response = $this->actingAs($this->superadmin)
             ->post('/master/vendor/undang', [
-                'nama_perusahaan' => 'PT Gula Manis Nusantara',
+                'company_name' => 'PT Gula Manis Nusantara',
                 'email' => 'gula@manis.test',
                 'kategori_komoditas' => 'Gula, Pemanis & Rempah',
-                'pesan' => 'Pesan diperbarui.',
+                'message' => 'Pesan diperbarui.',
             ]);
 
         $response->assertSessionHasNoErrors();
         $this->assertEquals(1, UndanganVendor::where('email', 'gula@manis.test')->count());
 
         $updated = UndanganVendor::where('email', 'gula@manis.test')->first();
-        $this->assertEquals('PT Gula Manis Nusantara', $updated->nama_perusahaan);
-        $this->assertEquals('Pesan diperbarui.', $updated->pesan);
+        $this->assertEquals('PT Gula Manis Nusantara', $updated->company_name);
+        $this->assertEquals('Pesan diperbarui.', $updated->message);
         $this->assertNotEquals($firstToken, $updated->token);
     }
 
     public function test_invited_vendor_can_open_registration_page_with_invitation_token(): void
     {
         $invitation = UndanganVendor::create([
-            'nama_perusahaan' => 'PT Jagung Makmur',
+            'company_name' => 'PT Jagung Makmur',
             'email' => 'jagung@makmur.test',
             'kategori_komoditas' => 'Beras & Biji-bijian',
             'token' => Str::random(40),
@@ -239,11 +240,32 @@ class UndangVendorTest extends TestCase
             ->component('Auth/RegisterVendor')
             ->has('invitation', fn ($inv) => $inv
                 ->where('token', $invitation->token)
-                ->where('nama_perusahaan', 'PT Jagung Makmur')
-                ->where('email_kontak', 'jagung@makmur.test')
+                ->where('company_name', 'PT Jagung Makmur')
+                ->where('contact_email', 'jagung@makmur.test')
                 ->where('kategori_komoditas', 'Beras & Biji-bijian')
             )
         );
+    }
+
+    public function test_opening_registration_page_with_expired_invitation_marks_it_as_expired(): void
+    {
+        $invitation = UndanganVendor::create([
+            'company_name' => 'PT Kedaluwarsa',
+            'email' => 'lama@kedaluwarsa.test',
+            'token' => Str::random(40),
+            'status' => StatusUndanganVendor::Pending,
+            'invited_by' => $this->superadmin->id,
+            'expires_at' => now()->subDay(),
+        ]);
+
+        $response = $this->get('/register/vendor?invitation='.$invitation->token);
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Auth/RegisterVendor')
+            ->where('invitation', null)
+        );
+        $this->assertSame(StatusUndanganVendor::Expired, $invitation->fresh()->status);
     }
 
     public function test_registering_vendor_with_invitation_token_marks_invitation_as_registered(): void
@@ -253,7 +275,7 @@ class UndangVendorTest extends TestCase
 
         $email = 'tebu@sejahtera.test';
         $invitation = UndanganVendor::create([
-            'nama_perusahaan' => 'PT Tebu Sejahtera',
+            'company_name' => 'PT Tebu Sejahtera',
             'email' => $email,
             'kategori_komoditas' => 'Gula, Pemanis & Rempah',
             'token' => Str::random(40),
@@ -264,7 +286,7 @@ class UndangVendorTest extends TestCase
 
         // Request OTP
         $otpResponse = $this->postJson('/register/vendor/otp', [
-            'email_kontak' => $email,
+            'contact_email' => $email,
         ]);
         $otpResponse->assertStatus(200);
 
@@ -279,24 +301,24 @@ class UndangVendorTest extends TestCase
         $dummyPdf = UploadedFile::fake()->create('npwp.pdf', 500, 'application/pdf');
 
         $regResponse = $this->post('/register/vendor', [
-            'nama_perusahaan' => 'PT Tebu Sejahtera',
-            'email_kontak' => $email,
-            'no_telepon' => '081234567890',
+            'company_name' => 'PT Tebu Sejahtera',
+            'contact_email' => $email,
+            'phone' => '081234567890',
             'kategori_komoditas' => 'Gula, Pemanis & Rempah',
-            'alamat' => 'Jl. Perkebunan Tebu No. 10',
+            'address' => 'Jl. Perkebunan Tebu No. 10',
             'otp' => $code,
-            'dokumen_legalitas' => $dummyPdf,
+            'legal_document' => $dummyPdf,
             'invitation_token' => $invitation->token,
         ]);
 
         $regResponse->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('vendor', [
-            'nama_perusahaan' => 'PT Tebu Sejahtera',
-            'email_kontak' => $email,
+        $this->assertDatabaseHas('vendors', [
+            'company_name' => 'PT Tebu Sejahtera',
+            'contact_email' => $email,
         ]);
 
         $invitation->refresh();
-        $this->assertEquals('terdaftar', $invitation->status);
+        $this->assertSame(StatusUndanganVendor::Accepted, $invitation->status);
         $this->assertNotNull($invitation->registered_at);
     }
 }

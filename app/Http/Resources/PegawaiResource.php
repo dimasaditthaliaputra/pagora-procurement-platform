@@ -26,13 +26,13 @@ class PegawaiResource extends JsonResource
         if ($this->perusahaanBuyer !== null) {
             $perusahaan = [
                 'uuid' => $this->perusahaanBuyer->uuid,
-                'nama' => $this->perusahaanBuyer->nama_perusahaan,
+                'nama' => $this->perusahaanBuyer->company_name,
                 'tipe' => 'buyer',
             ];
         } elseif ($this->vendor !== null) {
             $perusahaan = [
                 'uuid' => $this->vendor->uuid,
-                'nama' => $this->vendor->nama_perusahaan,
+                'nama' => $this->vendor->company_name,
                 'tipe' => 'vendor',
             ];
         }

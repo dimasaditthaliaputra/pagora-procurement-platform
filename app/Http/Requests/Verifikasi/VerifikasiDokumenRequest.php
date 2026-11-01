@@ -24,7 +24,7 @@ class VerifikasiDokumenRequest extends FormRequest
     {
         return [
             'aksi' => ['required', 'string', 'in:approve,reject'],
-            'alasan_penolakan' => [
+            'rejection_reason' => [
                 'required_if:aksi,reject',
                 'nullable',
                 'string',
@@ -43,8 +43,8 @@ class VerifikasiDokumenRequest extends FormRequest
         return [
             'aksi.required' => 'Aksi verifikasi wajib dipilih.',
             'aksi.in' => 'Aksi verifikasi tidak valid.',
-            'alasan_penolakan.required_if' => 'Alasan penolakan wajib diisi.',
-            'alasan_penolakan.max' => 'Alasan penolakan maksimal 1000 karakter.',
+            'rejection_reason.required_if' => 'Alasan penolakan wajib diisi.',
+            'rejection_reason.max' => 'Alasan penolakan maksimal 1000 karakter.',
         ];
     }
 }

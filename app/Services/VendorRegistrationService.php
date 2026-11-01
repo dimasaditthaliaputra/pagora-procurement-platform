@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\StatusUndanganVendor;
+use App\Enums\VerificationStatus;
 use App\Models\UndanganVendor;
 use App\Models\Vendor;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
@@ -48,11 +50,17 @@ class VendorRegistrationService
     {
         $invitation = $this->undanganRepository->findByToken($token);
 
-        if ($invitation === null || ! $invitation->isValid()) {
+        if ($invitation === null) {
             return null;
         }
 
-        return $invitation;
+        if ($invitation->status === StatusUndanganVendor::Pending && $invitation->isExpired()) {
+            $this->undanganRepository->update($invitation, ['status' => StatusUndanganVendor::Expired]);
+
+            return null;
+        }
+
+        return $invitation->isValid() ? $invitation : null;
     }
 
     /**
@@ -65,7 +73,7 @@ class VendorRegistrationService
         $this->otpService->send(
             OtpService::PURPOSE_VENDOR_REGISTRATION,
             strtolower(trim($email)),
-            'email_kontak'
+            'contact_email'
         );
     }
 
@@ -80,7 +88,7 @@ class VendorRegistrationService
     {
         $this->otpService->verify(
             OtpService::PURPOSE_VENDOR_REGISTRATION,
-            strtolower(trim((string) $data['email_kontak'])),
+            strtolower(trim((string) $data['contact_email'])),
             (string) ($data['otp'] ?? '')
         );
         unset($data['otp']);
@@ -89,7 +97,8 @@ class VendorRegistrationService
         unset($data['invitation_token']);
 
         return DB::transaction(function () use ($data, $invitationToken): Vendor {
-            $file = $data['dokumen_legalitas'] ?? null;
+            $file = $data['legal_document'] ?? null;
+            unset($data['legal_document']);
             $documentPath = null;
 
             if ($file instanceof UploadedFile) {
@@ -107,27 +116,25 @@ class VendorRegistrationService
                         'Dokumen legalitas gagal disimpan.'
                     );
                 }
-
-                $data['dokumen_legalitas'] = $documentPath;
             }
 
-            $baseSlug = Str::slug($data['nama_perusahaan']);
+            $baseSlug = Str::slug($data['company_name']);
             $data['slug'] = $baseSlug.'-'.Str::lower(Str::random(6));
-            $data['status_verifikasi'] = 'pending';
-            $data['status_aktif'] = true;
+            $data['verification_status'] = VerificationStatus::Pending;
+            $data['is_active'] = true;
 
             $vendor = $this->vendorRepository->create($data);
 
             if ($documentPath !== null) {
                 $this->dokumenRepository->create([
                     'vendor_id' => $vendor->getKey(),
-                    'jenis_dokumen' => 'dokumen_legalitas',
-                    'nomor_dokumen' => null,
-                    'file_url' => $documentPath,
-                    'status_verifikasi' => 'pending',
-                    'verif_by' => null,
-                    'diverifikasi_pada' => null,
-                    'alasan_penolakan' => null,
+                    'document_type' => 'legal_document',
+                    'document_number' => null,
+                    'file_path' => $documentPath,
+                    'verification_status' => VerificationStatus::Pending,
+                    'verified_by' => null,
+                    'verified_at' => null,
+                    'rejection_reason' => null,
                 ]);
             }
 
@@ -135,7 +142,7 @@ class VendorRegistrationService
                 $invitation = $this->undanganRepository->findByToken($invitationToken);
                 if ($invitation !== null && $invitation->isValid()) {
                     $this->undanganRepository->update($invitation, [
-                        'status' => 'terdaftar',
+                        'status' => StatusUndanganVendor::Accepted,
                         'registered_at' => now(),
                     ]);
                 }

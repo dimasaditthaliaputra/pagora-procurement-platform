@@ -34,27 +34,28 @@ import { RejectionDialog } from './components/RejectionDialog';
 import { DetailDialog } from './components/DetailDialog';
 
 export default function VerifikasiDokumenIndex({
-    documents,
+    vendors,
     filters = {},
 }) {
-    const data = documents?.data ?? [];
-    const meta = documents?.meta ?? {
-        current_page: documents?.current_page ?? 1,
-        last_page: documents?.last_page ?? 1,
-        per_page: documents?.per_page ?? 10,
-        total: documents?.total ?? data.length,
-        from: documents?.from ?? 1,
-        to: documents?.to ?? data.length,
+    const data = vendors?.data ?? [];
+    const meta = vendors?.meta ?? {
+        current_page: vendors?.current_page ?? 1,
+        last_page: vendors?.last_page ?? 1,
+        per_page: vendors?.per_page ?? 10,
+        total: vendors?.total ?? data.length,
+        from: vendors?.from ?? 1,
+        to: vendors?.to ?? data.length,
     };
 
     const [search, setSearch] = useState(filters.search ?? '');
     const [statusVerifikasi, setStatusVerifikasi] = useState(
-        filters.status_verifikasi ?? 'all'
+        filters.verification_status ?? 'all'
     );
     const [loading, setLoading] = useState(false);
 
     // Dialog state
     const [selectedDoc, setSelectedDoc] = useState(null);
+    const [selectedVendor, setSelectedVendor] = useState(null);
     const [approveDialogOpen, setApproveDialogOpen] = useState(false);
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
@@ -64,13 +65,13 @@ export default function VerifikasiDokumenIndex({
     // Sync state when props change
     useEffect(() => {
         setSearch(filters.search ?? '');
-        setStatusVerifikasi(filters.status_verifikasi ?? 'all');
-    }, [filters.search, filters.status_verifikasi]);
+        setStatusVerifikasi(filters.verification_status ?? 'all');
+    }, [filters.search, filters.verification_status]);
 
     const applyFilters = (newFilters = {}) => {
         const merged = {
             search: search.trim() || undefined,
-            status_verifikasi: statusVerifikasi !== 'all' ? statusVerifikasi : undefined,
+            verification_status: statusVerifikasi !== 'all' ? statusVerifikasi : undefined,
             per_page: meta.per_page,
             page: 1,
             ...newFilters,
@@ -108,7 +109,7 @@ export default function VerifikasiDokumenIndex({
 
     const handleStatusChange = (val) => {
         setStatusVerifikasi(val);
-        applyFilters({ status_verifikasi: val !== 'all' ? val : undefined });
+        applyFilters({ verification_status: val !== 'all' ? val : undefined });
     };
 
     const handleReset = () => {
@@ -135,8 +136,8 @@ export default function VerifikasiDokumenIndex({
         setRejectDialogOpen(true);
     };
 
-    const handleOpenDetail = (doc) => {
-        setSelectedDoc(doc);
+    const handleOpenDetail = (vendor) => {
+        setSelectedVendor(vendor);
         setDetailDialogOpen(true);
     };
 
@@ -144,8 +145,6 @@ export default function VerifikasiDokumenIndex({
     const columns = useMemo(
         () =>
             getColumns({
-                onApprove: handleOpenApprove,
-                onReject: handleOpenReject,
                 onViewDetail: handleOpenDetail,
             }),
         []
@@ -169,9 +168,9 @@ export default function VerifikasiDokumenIndex({
 
     // Count stats from current dataset for summary cards
     const stats = useMemo(() => {
-        const pendingCount = data.filter((d) => d.status_verifikasi === 'pending').length;
-        const approvedCount = data.filter((d) => d.status_verifikasi === 'approved').length;
-        const rejectedCount = data.filter((d) => d.status_verifikasi === 'rejected').length;
+        const pendingCount = data.filter((d) => d.verification_status === 'pending').length;
+        const approvedCount = data.filter((d) => d.verification_status === 'approved').length;
+        const rejectedCount = data.filter((d) => d.verification_status === 'rejected').length;
         return {
             total: meta.total,
             pending: pendingCount,
@@ -207,7 +206,7 @@ export default function VerifikasiDokumenIndex({
                     <Card className="border-border/60 shadow-2xs">
                         <CardContent className="p-4 flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-medium text-muted-foreground">Total Dokumen</p>
+                                <p className="text-xs font-medium text-muted-foreground">Total Vendor</p>
                                 <p className="text-2xl font-bold text-foreground mt-1">{stats.total}</p>
                             </div>
                             <div className="size-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
@@ -326,7 +325,7 @@ export default function VerifikasiDokumenIndex({
             />
 
             <DetailDialog
-                document={selectedDoc}
+                vendor={vendors?.data?.find((v) => v.uuid === selectedVendor?.uuid) ?? selectedVendor}
                 open={detailDialogOpen}
                 onOpenChange={setDetailDialogOpen}
                 onApprove={handleOpenApprove}

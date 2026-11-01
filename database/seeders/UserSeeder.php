@@ -23,10 +23,10 @@ class UserSeeder extends Seeder
             return;
         }
 
-        $buyer = PerusahaanBuyer::where('nama_perusahaan', 'PT Pagora Nusantara')->firstOrFail();
-        $vendor1 = Vendor::where('email_kontak', 'kontak@mitra-agro.test')->firstOrFail();
-        $vendor2 = Vendor::where('email_kontak', 'info@sumber-pangan.test')->firstOrFail();
-        $vendor3 = Vendor::where('email_kontak', 'berkah@tani.test')->firstOrFail();
+        $buyer = PerusahaanBuyer::where('company_name', 'PT Pagora Nusantara')->firstOrFail();
+        $vendor1 = Vendor::where('contact_email', 'kontak@mitra-agro.test')->firstOrFail();
+        $vendor2 = Vendor::where('contact_email', 'info@sumber-pangan.test')->firstOrFail();
+        $vendor3 = Vendor::where('contact_email', 'berkah@tani.test')->firstOrFail();
 
         $accounts = [
             ['email' => 'superadmin@pagora.test', 'name' => 'Super Administrator',         'role_id' => 1, 'tenant_id' => null,       'vendor_id' => null,         'is_active' => true],

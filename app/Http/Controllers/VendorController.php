@@ -52,8 +52,8 @@ class VendorController extends Controller
                 'vendors' => VendorResource::collection($vendors),
                 'filters' => [
                     'search' => $filters['search'] ?? '',
-                    'status_aktif' => $filters['status_aktif'] ?? 'all',
-                    'status_verifikasi' => $filters['status_verifikasi'] ?? 'all',
+                    'is_active' => $filters['is_active'] ?? 'all',
+                    'verification_status' => $filters['verification_status'] ?? 'all',
                     'sort' => $filters['sort'] ?? 'created_at',
                     'direction' => $filters['direction'] ?? 'desc',
                     'per_page' => $perPage,
@@ -102,12 +102,12 @@ class VendorController extends Controller
 
             $vendor = $this->vendorService->blokir(
                 $uuid,
-                $request->string('alasan_pemblokiran')->toString(),
+                $request->string('block_reason')->toString(),
                 $actor
             );
 
             return ResponseHelper::success(
-                "Vendor {$vendor->nama_perusahaan} berhasil diblokir.",
+                "Vendor {$vendor->company_name} berhasil diblokir.",
                 new VendorResource($vendor)
             );
         } catch (ModelNotFoundException) {
@@ -131,7 +131,7 @@ class VendorController extends Controller
             $vendor = $this->vendorService->bukaBlokir($uuid, $actor);
 
             return ResponseHelper::success(
-                "Blokir vendor {$vendor->nama_perusahaan} berhasil dibuka. Status akun kembali aktif.",
+                "Blokir vendor {$vendor->company_name} berhasil dibuka. Status akun kembali aktif.",
                 new VendorResource($vendor)
             );
         } catch (ModelNotFoundException) {

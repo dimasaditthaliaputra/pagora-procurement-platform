@@ -27,9 +27,9 @@ class IndexVendorRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:100'],
-            'status_aktif' => ['nullable', 'string', 'in:all,0,1,true,false'],
-            'status_verifikasi' => ['nullable', 'string', 'in:all,pending,terverifikasi,ditolak'],
-            'sort' => ['nullable', 'string', 'in:nama_perusahaan,email_kontak,kategori_komoditas,status_verifikasi,status_aktif,created_at,diblokir_pada'],
+            'is_active' => ['nullable', 'string', 'in:all,0,1,true,false'],
+            'verification_status' => ['nullable', 'string', 'in:all,pending,approved,rejected'],
+            'sort' => ['nullable', 'string', 'in:company_name,contact_email,kategori_komoditas,verification_status,is_active,created_at,blocked_at'],
             'direction' => ['nullable', 'string', 'in:asc,desc'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];
@@ -42,8 +42,8 @@ class IndexVendorRequest extends FormRequest
     {
         return [
             'search.max' => 'Pencarian maksimal 100 karakter.',
-            'status_aktif.in' => 'Status aktif tidak valid.',
-            'status_verifikasi.in' => 'Status verifikasi tidak valid.',
+            'is_active.in' => 'Status aktif tidak valid.',
+            'verification_status.in' => 'Status verifikasi tidak valid.',
             'sort.in' => 'Kolom pengurutan tidak valid.',
             'direction.in' => 'Arah pengurutan tidak valid.',
             'per_page.min' => 'Jumlah per halaman minimal 1.',

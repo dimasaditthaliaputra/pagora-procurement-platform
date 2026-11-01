@@ -54,7 +54,7 @@ export function BlokirDialog({ vendor, open, onOpenChange }) {
         router.post(
             `/master/vendor/${vendor.uuid}/blokir`,
             {
-                alasan_pemblokiran: trimmed,
+                block_reason: trimmed,
             },
             {
                 preserveScroll: true,
@@ -66,8 +66,8 @@ export function BlokirDialog({ vendor, open, onOpenChange }) {
                 },
                 onError: (errors) => {
                     setLoading(false);
-                    if (errors.alasan_pemblokiran) {
-                        setError(errors.alasan_pemblokiran);
+                    if (errors.block_reason) {
+                        setError(errors.block_reason);
                         notify.validationFailed();
                     } else {
                         notify.error(errors.message || errors.error || 'Gagal memproses pemblokiran vendor.');
@@ -90,18 +90,18 @@ export function BlokirDialog({ vendor, open, onOpenChange }) {
                         </div>
                         <AlertDialogDescription className="pt-2 text-sm text-muted-foreground leading-relaxed">
                             Apakah Anda yakin ingin memblokir rekanan{' '}
-                            <strong className="text-foreground">{vendor.nama_perusahaan}</strong>?
+                            <strong className="text-foreground">{vendor.company_name}</strong>?
                             Vendor yang diblokir tidak dapat login ke sistem, tidak dapat ditunjuk dalam pengadaan,
                             dan seluruh akun anggotanya akan dinonaktifkan sementara.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
 
                     <div className="mt-4 space-y-2">
-                        <Label htmlFor="alasan_pemblokiran" className="flex items-center gap-1 font-medium">
+                        <Label htmlFor="block_reason" className="flex items-center gap-1 font-medium">
                             Alasan Pemblokiran <span className="text-destructive">*</span>
                         </Label>
                         <Textarea
-                            id="alasan_pemblokiran"
+                            id="block_reason"
                             value={alasan}
                             onChange={(e) => {
                                 setAlasan(e.target.value);

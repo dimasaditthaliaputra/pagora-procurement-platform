@@ -36,7 +36,7 @@ class ProfilResource extends JsonResource
                 'vendor' => 'Vendor',
                 default => ucfirst((string) ($roleName ?? '-')),
             },
-            'organisasi' => $this->vendor?->nama_perusahaan ?? $this->perusahaanBuyer?->nama_perusahaan,
+            'organisasi' => $this->vendor?->company_name ?? $this->perusahaanBuyer?->company_name,
             'punya_password' => $this->password !== null,
             'terhubung_google' => $this->google_id !== null,
             'created_at' => $this->created_at?->toISOString(),

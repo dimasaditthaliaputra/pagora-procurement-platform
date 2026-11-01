@@ -2,6 +2,8 @@ import { Head, useForm } from '@inertiajs/react';
 import { UserCircle, Save, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { notify } from '@/lib/notify';
+import { uploadingLabel } from '@/lib/file';
+import { useUploadFeedback } from '@/hooks/use-upload-feedback';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -22,7 +24,7 @@ const PASSWORD_MIN = 8;
 
 function Field({ id, label, required = false, hint, error, className, children }) {
     return (
-        <div className={cn('grid gap-1.5', className)}>
+        <div className={cn('grid grid-cols-1 gap-1.5 min-w-0', className)}>
             <Label htmlFor={id} className={cn('text-sm', error && 'text-destructive')}>
                 {label} {required && <span className="text-destructive">*</span>}
             </Label>
@@ -37,12 +39,14 @@ function Field({ id, label, required = false, hint, error, className, children }
 }
 
 function ProfilForm({ profil }) {
-    const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
+    const form = useForm({
         _method: 'put',
         name: profil.name ?? '',
         avatar: null,
         hapus_avatar: false,
     });
+    const { data, setData, post, processing, errors, setError, clearErrors } = form;
+    const avatarFeedback = useUploadFeedback(form, 'avatar');
 
     const avatarPreview = data.avatar ?? (data.hapus_avatar ? null : profil.avatar_url);
 
@@ -99,7 +103,7 @@ function ProfilForm({ profil }) {
                             }}
                             label="Unggah Foto"
                             description="PNG, JPG, JPEG, atau WEBP (Maks. 2 MB)"
-                            disabled={processing}
+                            {...avatarFeedback}
                         />
                     </Field>
 
@@ -143,7 +147,7 @@ function ProfilForm({ profil }) {
                     <LoadingButton
                         type="submit"
                         loading={processing}
-                        loadingText="Menyimpan Perubahan..."
+                        loadingText={uploadingLabel(avatarFeedback.progress, 'Menyimpan Perubahan...')}
                         className="gap-2 cursor-pointer shadow-sm h-9"
                     >
                         <Save className="size-4" />

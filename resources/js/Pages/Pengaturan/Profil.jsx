@@ -2,6 +2,8 @@ import { useForm } from '@inertiajs/react';
 import { Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { notify } from '@/lib/notify';
+import { uploadingLabel } from '@/lib/file';
+import { useUploadFeedback } from '@/hooks/use-upload-feedback';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { FileDropzone } from '@/Components/file-dropzone';
@@ -18,7 +20,7 @@ import { PengaturanLayout } from '@/Pages/Pengaturan/components/PengaturanLayout
 
 function Field({ id, label, required = false, error, className, children }) {
     return (
-        <div className={cn('grid gap-1.5', className)}>
+        <div className={cn('grid grid-cols-1 gap-1.5 min-w-0', className)}>
             <Label htmlFor={id} className={cn('text-sm', error && 'text-destructive')}>
                 {label} {required && <span className="text-destructive">*</span>}
             </Label>
@@ -29,12 +31,14 @@ function Field({ id, label, required = false, error, className, children }) {
 }
 
 export default function PengaturanProfil({ pengaturan = {} }) {
-    const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
+    const form = useForm({
         nama_aplikasi: pengaturan.nama_aplikasi ?? '',
         tagline: pengaturan.tagline ?? '',
         logo: null,
         hapus_logo: false,
     });
+    const { data, setData, post, processing, errors, setError, clearErrors } = form;
+    const logoFeedback = useUploadFeedback(form, 'logo');
 
     const logoPreview = data.logo ?? (data.hapus_logo ? null : pengaturan.logo_url);
 
@@ -107,7 +111,7 @@ export default function PengaturanProfil({ pengaturan = {} }) {
                                 }}
                                 label="Unggah Logo"
                                 description="Format PNG, JPG, JPEG, atau WEBP (Maksimal 2 MB). Disarankan rasio persegi."
-                                disabled={processing}
+                                {...logoFeedback}
                             />
                         </Field>
                     </CardContent>
@@ -116,7 +120,7 @@ export default function PengaturanProfil({ pengaturan = {} }) {
                         <LoadingButton
                             type="submit"
                             loading={processing}
-                            loadingText="Menyimpan Perubahan..."
+                            loadingText={uploadingLabel(logoFeedback.progress, 'Menyimpan Perubahan...')}
                             className="gap-2 cursor-pointer shadow-sm h-9"
                         >
                             <Save className="size-4" />

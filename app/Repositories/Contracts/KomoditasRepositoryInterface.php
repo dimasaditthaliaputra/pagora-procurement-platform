@@ -13,24 +13,8 @@ interface KomoditasRepositoryInterface
      * Paginate commodities with search, filters, and sorting.
      *
      * @param  array<string, mixed>  $filters
-     * @param  list<string>  $columns
      */
-    public function paginate(
-        array $filters,
-        int $perPage = 10,
-        array $columns = [
-            'id',
-            'uuid',
-            'nama_komoditas',
-            'sku',
-            'kategori',
-            'satuan',
-            'batas_susut',
-            'kode_referensi_api',
-            'status',
-            'created_at',
-        ]
-    ): LengthAwarePaginator;
+    public function paginate(array $filters, int $perPage = 10): LengthAwarePaginator;
 
     /**
      * Find a commodity by its UUID.

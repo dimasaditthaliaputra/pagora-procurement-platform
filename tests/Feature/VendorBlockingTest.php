@@ -29,42 +29,42 @@ class VendorBlockingTest extends TestCase
 
         $this->superadmin = User::factory()->create([
             'role_id' => 1, // Superadmin
-            'nama_lengkap' => 'Super Administrator',
+            'name' => 'Super Administrator',
             'email' => 'superadmin@pagora.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $this->manajemen = User::factory()->create([
             'role_id' => 5, // Manajemen
-            'nama_lengkap' => 'Admin Manajemen',
+            'name' => 'Admin Manajemen',
             'email' => 'manajemen@pagora.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $this->buyer = User::factory()->create([
             'role_id' => 2, // Buyer
-            'nama_lengkap' => 'Staff Buyer',
+            'name' => 'Staff Buyer',
             'email' => 'buyer@pagora.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
     }
 
     private function createVendor(array $attributes = []): Vendor
     {
-        $name = $attributes['nama_perusahaan'] ?? 'PT Mitra Tani Makmur';
+        $name = $attributes['company_name'] ?? 'PT Mitra Tani Makmur';
         $slug = Str::slug($name).'-'.Str::lower(Str::random(6));
 
         return Vendor::create(array_merge([
-            'nama_perusahaan' => $name,
+            'company_name' => $name,
             'slug' => $slug,
-            'email_kontak' => 'kontak@mitratani.test',
-            'no_telepon' => '081234567890',
+            'contact_email' => 'kontak@mitratani.test',
+            'phone' => '081234567890',
             'kategori_komoditas' => 'Beras & Jagung',
-            'status_verifikasi' => 'terverifikasi',
-            'status_aktif' => true,
-            'alasan_pemblokiran' => null,
+            'verification_status' => 'approved',
+            'is_active' => true,
+            'block_reason' => null,
             'blocked_by' => null,
-            'diblokir_pada' => null,
+            'blocked_at' => null,
         ], $attributes));
     }
 
@@ -96,15 +96,15 @@ class VendorBlockingTest extends TestCase
         $vendorUser = User::factory()->create([
             'role_id' => 4, // Vendor role
             'vendor_id' => $vendor->id,
-            'nama_lengkap' => 'Staff Vendor',
+            'name' => 'Staff Vendor',
             'email' => 'staff@mitratani.test',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->manajemen)->post(
             "/master/vendor/{$vendor->uuid}/blokir",
             [
-                'alasan_pemblokiran' => 'Ditemukan pelanggaran kontrak pada PO-2026-009.',
+                'block_reason' => 'Ditemukan pelanggaran kontrak pada PO-2026-009.',
             ]
         );
 
@@ -112,14 +112,14 @@ class VendorBlockingTest extends TestCase
 
         // Check vendor record in DB
         $vendor->refresh();
-        $this->assertFalse($vendor->status_aktif);
-        $this->assertSame('Ditemukan pelanggaran kontrak pada PO-2026-009.', $vendor->alasan_pemblokiran);
+        $this->assertFalse($vendor->is_active);
+        $this->assertSame('Ditemukan pelanggaran kontrak pada PO-2026-009.', $vendor->block_reason);
         $this->assertSame($this->manajemen->id, $vendor->blocked_by);
-        $this->assertNotNull($vendor->diblokir_pada);
+        $this->assertNotNull($vendor->blocked_at);
 
         // Check associated vendor member accounts are also deactivated
         $vendorUser->refresh();
-        $this->assertFalse($vendorUser->status_aktif);
+        $this->assertFalse($vendorUser->is_active);
     }
 
     public function test_blocking_requires_valid_reason(): void
@@ -130,41 +130,41 @@ class VendorBlockingTest extends TestCase
         $responseEmpty = $this->actingAs($this->manajemen)->post(
             "/master/vendor/{$vendor->uuid}/blokir",
             [
-                'alasan_pemblokiran' => '',
+                'block_reason' => '',
             ]
         );
-        $responseEmpty->assertSessionHasErrors(['alasan_pemblokiran']);
+        $responseEmpty->assertSessionHasErrors(['block_reason']);
 
         // Too short (< 5 chars)
         $responseShort = $this->actingAs($this->manajemen)->post(
             "/master/vendor/{$vendor->uuid}/blokir",
             [
-                'alasan_pemblokiran' => 'bad',
+                'block_reason' => 'bad',
             ]
         );
-        $responseShort->assertSessionHasErrors(['alasan_pemblokiran']);
+        $responseShort->assertSessionHasErrors(['block_reason']);
 
         $vendor->refresh();
-        $this->assertTrue($vendor->status_aktif);
+        $this->assertTrue($vendor->is_active);
     }
 
     public function test_cannot_block_already_blocked_vendor(): void
     {
         $vendor = $this->createVendor([
-            'status_aktif' => false,
-            'alasan_pemblokiran' => 'Sudah diblokir sebelumnya.',
+            'is_active' => false,
+            'block_reason' => 'Sudah diblokir sebelumnya.',
             'blocked_by' => $this->superadmin->id,
-            'diblokir_pada' => now(),
+            'blocked_at' => now(),
         ]);
 
         $response = $this->actingAs($this->manajemen)->post(
             "/master/vendor/{$vendor->uuid}/blokir",
             [
-                'alasan_pemblokiran' => 'Alasan pemblokiran kedua.',
+                'block_reason' => 'Alasan pemblokiran kedua.',
             ]
         );
 
-        $response->assertSessionHasErrors(['alasan_pemblokiran']);
+        $response->assertSessionHasErrors(['block_reason']);
     }
 
     public function test_non_management_user_cannot_block_vendor(): void
@@ -174,31 +174,31 @@ class VendorBlockingTest extends TestCase
         $response = $this->actingAs($this->buyer)->post(
             "/master/vendor/{$vendor->uuid}/blokir",
             [
-                'alasan_pemblokiran' => 'Percobaan pemblokiran oleh buyer.',
+                'block_reason' => 'Percobaan pemblokiran oleh buyer.',
             ]
         );
 
         $response->assertForbidden();
 
         $vendor->refresh();
-        $this->assertTrue($vendor->status_aktif);
+        $this->assertTrue($vendor->is_active);
     }
 
     public function test_management_user_can_unblock_blocked_vendor(): void
     {
         $vendor = $this->createVendor([
-            'status_aktif' => false,
-            'alasan_pemblokiran' => 'Sedang dalam evaluasi audit.',
+            'is_active' => false,
+            'block_reason' => 'Sedang dalam evaluasi audit.',
             'blocked_by' => $this->superadmin->id,
-            'diblokir_pada' => now()->subDays(3),
+            'blocked_at' => now()->subDays(3),
         ]);
 
         $vendorUser = User::factory()->create([
             'role_id' => 4,
             'vendor_id' => $vendor->id,
-            'nama_lengkap' => 'Staff Vendor',
+            'name' => 'Staff Vendor',
             'email' => 'staff2@mitratani.test',
-            'status_aktif' => false,
+            'is_active' => false,
         ]);
 
         $response = $this->actingAs($this->manajemen)->post(
@@ -208,23 +208,23 @@ class VendorBlockingTest extends TestCase
         $response->assertSessionHas('success');
 
         $vendor->refresh();
-        $this->assertTrue($vendor->status_aktif);
-        $this->assertNull($vendor->alasan_pemblokiran);
+        $this->assertTrue($vendor->is_active);
+        $this->assertNull($vendor->block_reason);
         $this->assertNull($vendor->blocked_by);
-        $this->assertNull($vendor->diblokir_pada);
+        $this->assertNull($vendor->blocked_at);
 
         // Check associated user accounts are reactivated
         $vendorUser->refresh();
-        $this->assertTrue($vendorUser->status_aktif);
+        $this->assertTrue($vendorUser->is_active);
     }
 
     public function test_non_management_user_cannot_unblock_vendor(): void
     {
         $vendor = $this->createVendor([
-            'status_aktif' => false,
-            'alasan_pemblokiran' => 'Sedang dalam evaluasi audit.',
+            'is_active' => false,
+            'block_reason' => 'Sedang dalam evaluasi audit.',
             'blocked_by' => $this->superadmin->id,
-            'diblokir_pada' => now(),
+            'blocked_at' => now(),
         ]);
 
         $response = $this->actingAs($this->buyer)->post(
@@ -234,6 +234,6 @@ class VendorBlockingTest extends TestCase
         $response->assertForbidden();
 
         $vendor->refresh();
-        $this->assertFalse($vendor->status_aktif);
+        $this->assertFalse($vendor->is_active);
     }
 }

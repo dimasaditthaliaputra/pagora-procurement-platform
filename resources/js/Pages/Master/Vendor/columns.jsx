@@ -22,7 +22,7 @@ import {
 export function getColumns({ onBlock, onUnblock, onViewDetail, canManage }) {
     return [
         {
-            accessorKey: 'nama_perusahaan',
+            accessorKey: 'company_name',
             header: 'Vendor & Kontak',
             cell: ({ row }) => {
                 const vendor = row.original;
@@ -32,15 +32,15 @@ export function getColumns({ onBlock, onUnblock, onViewDetail, canManage }) {
                         <div className="flex items-center gap-2">
                             <Building2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                             <span className="font-semibold text-foreground">
-                                {vendor.nama_perusahaan}
+                                {vendor.company_name}
                             </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                            <span>{vendor.email_kontak || '-'}</span>
-                            {vendor.no_telepon && (
+                            <span>{vendor.contact_email || '-'}</span>
+                            {vendor.phone && (
                                 <span className="flex items-center gap-1">
                                     <Phone className="size-3 text-muted-foreground" />
-                                    {vendor.no_telepon}
+                                    {vendor.phone}
                                 </span>
                             )}
                         </div>
@@ -65,12 +65,12 @@ export function getColumns({ onBlock, onUnblock, onViewDetail, canManage }) {
             },
         },
         {
-            accessorKey: 'status_verifikasi',
+            accessorKey: 'verification_status',
             header: 'Verifikasi Legalitas',
             cell: ({ row }) => {
-                const status = row.original.status_verifikasi;
+                const status = row.original.verification_status;
 
-                if (status === 'terverifikasi') {
+                if (status === 'approved') {
                     return (
                         <Badge className="bg-emerald-600 text-white hover:bg-emerald-700">
                             Terverifikasi
@@ -78,7 +78,7 @@ export function getColumns({ onBlock, onUnblock, onViewDetail, canManage }) {
                     );
                 }
 
-                if (status === 'ditolak') {
+                if (status === 'rejected') {
                     return (
                         <Badge variant="destructive">
                             Ditolak
@@ -94,11 +94,11 @@ export function getColumns({ onBlock, onUnblock, onViewDetail, canManage }) {
             },
         },
         {
-            accessorKey: 'status_aktif',
+            accessorKey: 'is_active',
             header: 'Status Rekanan',
             cell: ({ row }) => {
                 const vendor = row.original;
-                const isBlocked = !vendor.status_aktif;
+                const isBlocked = !vendor.is_active;
 
                 if (isBlocked) {
                     return (
@@ -107,9 +107,9 @@ export function getColumns({ onBlock, onUnblock, onViewDetail, canManage }) {
                                 <ShieldAlert className="size-3" />
                                 DIBLOKIR
                             </Badge>
-                            {vendor.alasan_pemblokiran && (
+                            {vendor.block_reason && (
                                 <span className="text-[11px] text-muted-foreground truncate max-w-[180px] italic">
-                                    {vendor.alasan_pemblokiran}
+                                    {vendor.block_reason}
                                 </span>
                             )}
                         </div>
@@ -147,7 +147,7 @@ export function getColumns({ onBlock, onUnblock, onViewDetail, canManage }) {
             header: () => <div className="text-right">Aksi</div>,
             cell: ({ row }) => {
                 const vendor = row.original;
-                const isBlocked = !vendor.status_aktif;
+                const isBlocked = !vendor.is_active;
 
                 return (
                     <div className="flex items-center justify-end gap-1">

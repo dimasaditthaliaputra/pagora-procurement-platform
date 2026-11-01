@@ -26,7 +26,7 @@ import {
 export function VendorDetailDialog({ vendor, open, onOpenChange, onBlock, onUnblock, canManage }) {
     if (!vendor) return null;
 
-    const isBlocked = !vendor.status_aktif;
+    const isBlocked = !vendor.is_active;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -47,7 +47,7 @@ export function VendorDetailDialog({ vendor, open, onOpenChange, onBlock, onUnbl
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <div>
                                 <h3 className="font-semibold text-lg text-foreground">
-                                    {vendor.nama_perusahaan}
+                                    {vendor.company_name}
                                 </h3>
                                 <p className="text-xs text-muted-foreground">
                                     Slug: <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{vendor.slug}</code>
@@ -71,15 +71,15 @@ export function VendorDetailDialog({ vendor, open, onOpenChange, onBlock, onUnbl
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs border-t pt-3">
                             <div className="flex items-center gap-2 text-muted-foreground">
                                 <Mail className="size-4 shrink-0 text-foreground" />
-                                <span className="text-foreground font-medium">{vendor.email_kontak || '-'}</span>
+                                <span className="text-foreground font-medium">{vendor.contact_email || '-'}</span>
                             </div>
                             <div className="flex items-center gap-2 text-muted-foreground">
                                 <Phone className="size-4 shrink-0 text-foreground" />
-                                <span className="text-foreground font-medium">{vendor.no_telepon || '-'}</span>
+                                <span className="text-foreground font-medium">{vendor.phone || '-'}</span>
                             </div>
                             <div className="flex items-center gap-2 text-muted-foreground sm:col-span-2">
                                 <MapPin className="size-4 shrink-0 text-foreground" />
-                                <span className="text-foreground">{vendor.alamat || 'Alamat belum dilengkapi'}</span>
+                                <span className="text-foreground">{vendor.address || 'Alamat belum dilengkapi'}</span>
                             </div>
                         </div>
                     </div>
@@ -99,9 +99,9 @@ export function VendorDetailDialog({ vendor, open, onOpenChange, onBlock, onUnbl
                                 <FileText className="size-3.5" /> Verifikasi Dokumen Legalitas
                             </span>
                             <div>
-                                {vendor.status_verifikasi === 'terverifikasi' ? (
+                                {vendor.verification_status === 'approved' ? (
                                     <Badge className="bg-emerald-600 text-white">Terverifikasi</Badge>
-                                ) : vendor.status_verifikasi === 'ditolak' ? (
+                                ) : vendor.verification_status === 'rejected' ? (
                                     <Badge variant="destructive">Ditolak</Badge>
                                 ) : (
                                     <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/40">
@@ -120,14 +120,14 @@ export function VendorDetailDialog({ vendor, open, onOpenChange, onBlock, onUnbl
                                 <span>Informasi Pemblokiran Vendor</span>
                             </div>
                             <p className="text-sm font-medium text-foreground bg-background/60 p-2.5 rounded border border-destructive/20 italic">
-                                "{vendor.alasan_pemblokiran || 'Tidak ada catatan alasan pemblokiran.'}"
+                                "{vendor.block_reason || 'Tidak ada catatan alasan pemblokiran.'}"
                             </p>
                             <div className="flex flex-wrap items-center justify-between text-xs text-muted-foreground pt-1">
                                 <span>
-                                    Eksekutor: <strong className="text-foreground">{vendor.blocked_by_user?.nama_lengkap ?? 'Manajemen'}</strong>
+                                    Eksekutor: <strong className="text-foreground">{vendor.blocked_by_user?.name ?? 'Manajemen'}</strong>
                                 </span>
                                 <span>
-                                    Waktu: {vendor.diblokir_pada ? new Date(vendor.diblokir_pada).toLocaleString('id-ID') : '-'}
+                                    Waktu: {vendor.blocked_at ? new Date(vendor.blocked_at).toLocaleString('id-ID') : '-'}
                                 </span>
                             </div>
                         </div>

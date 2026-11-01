@@ -53,36 +53,25 @@ const mainNavItems = [
     { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', routeName: 'dashboard' },
     { title: 'Pengadaan', icon: ShoppingCart, href: '#', badge: 'Baru' },
     { title: 'Katalog Produk', icon: Package, href: '#' },
-    { title: 'Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index' },
-    { title: 'Purchase Order', icon: FileText, href: '/purchase-order', routeName: 'purchase-order' },
+    { title: 'Purchase Order', icon: FileText, href: '/purchase-order', routeName: 'purchase-order', ability: 'purchase_order.view_any' },
     { title: 'Pengiriman', icon: Truck, href: '#' },
 ];
 
 const masterNavItems = [
-    { title: 'Komoditas', icon: Boxes, href: '/master/komoditas', routeName: 'master.komoditas.index', badge: 'Utama' },
+    { title: 'Komoditas', icon: Boxes, href: '/master/komoditas', routeName: 'master.komoditas.index', badge: 'Utama', ability: 'komoditas.view_any' },
     { title: 'Harga Referensi & Pagu', icon: TrendingUp, href: '#' },
-    { title: 'Data Rekanan Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index' },
-    { title: 'Verifikasi Legalitas', icon: ShieldCheck, href: '/master/vendor/verifikasi-dokumen', routeName: 'master.vendor.verifikasi-dokumen.index' },
-    { title: 'Role & Akses', icon: ShieldCheck, href: '#' },
+    { title: 'Data Rekanan Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index', exact: true, ability: 'vendor.view_any' },
+    { title: 'Verifikasi Legalitas', icon: ShieldCheck, href: '/master/vendor/verifikasi-dokumen', routeName: 'master.vendor.verifikasi-dokumen.index', ability: 'dokumen_legalitas.view_any' },
 ];
 
 const managementNavItems = [
     { title: 'Inspeksi QC', icon: ClipboardCheck, href: '#' },
     { title: 'Laporan', icon: BarChart3, href: '#' },
     { title: 'Notifikasi', icon: Bell, href: '#' },
-    { title: 'Pengguna', icon: Users, href: '/manajemen/pengguna', routeName: 'manajemen.pengguna.index' },
-    { title: 'Pengaturan', icon: Settings, href: '/pengaturan/profil', routeName: 'pengaturan' },
+    { title: 'Pengguna', icon: Users, href: '/manajemen/pengguna', routeName: 'manajemen.pengguna.index', ability: 'pengguna.view_any' },
+    { title: 'Role & Hak Akses', icon: ShieldCheck, href: '/manajemen/role-akses', routeName: 'manajemen.role-akses.index', ability: 'role.view_any' },
+    { title: 'Pengaturan', icon: Settings, href: '/pengaturan/profil', routeName: 'pengaturan', ability: 'pengaturan.view_any' },
 ];
-
-function getRoleName(roleId) {
-    switch (roleId) {
-        case 1: return 'Superadmin';
-        case 2: return 'Buyer';
-        case 3: return 'QC Gudang';
-        case 4: return 'Vendor';
-        default: return 'User';
-    }
-}
 
 function getInitials(name) {
     if (!name) return 'U';
@@ -90,25 +79,28 @@ function getInitials(name) {
 }
 
 export function AppSidebar({ className, ...props }) {
-    const { user, aplikasi } = usePage().props;
+    const { user, auth, aplikasi } = usePage().props;
     const namaAplikasi = aplikasi?.nama || 'PAGORA';
+    const roleLabel = auth?.role?.label ?? 'Pengguna';
+    const permissions = auth?.can ?? {};
     const [searchQuery, setSearchQuery] = useState('');
 
     const handleLogout = () => {
         router.post('/logout');
     };
 
-    // Filter menu berdasarkan query pencarian
+    // Filter menu berdasarkan izin dari backend (Policy) lalu query pencarian
     const filterItems = (items) => {
-        if (!searchQuery.trim()) return items;
-        return items.filter((item) =>
+        const allowed = items.filter((item) => !item.ability || permissions[item.ability]);
+        if (!searchQuery.trim()) return allowed;
+        return allowed.filter((item) =>
             item.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
         );
     };
 
-    const filteredMain = useMemo(() => filterItems(mainNavItems), [searchQuery]);
-    const filteredMaster = useMemo(() => filterItems(masterNavItems), [searchQuery]);
-    const filteredManagement = useMemo(() => filterItems(managementNavItems), [searchQuery]);
+    const filteredMain = useMemo(() => filterItems(mainNavItems), [searchQuery, permissions]);
+    const filteredMaster = useMemo(() => filterItems(masterNavItems), [searchQuery, permissions]);
+    const filteredManagement = useMemo(() => filterItems(managementNavItems), [searchQuery, permissions]);
 
     const hasResults = filteredMain.length > 0 || filteredMaster.length > 0 || filteredManagement.length > 0;
 
@@ -204,6 +196,7 @@ export function AppSidebar({ className, ...props }) {
                                                 icon={item.icon}
                                                 href={item.href}
                                                 routeName={item.routeName}
+                                                exact={item.exact}
                                                 badge={item.badge}
                                             />
                                         ))}
@@ -226,6 +219,7 @@ export function AppSidebar({ className, ...props }) {
                                                 icon={item.icon}
                                                 href={item.href}
                                                 routeName={item.routeName}
+                                                exact={item.exact}
                                                 badge={item.badge}
                                             />
                                         ))}
@@ -248,6 +242,7 @@ export function AppSidebar({ className, ...props }) {
                                                 icon={item.icon}
                                                 href={item.href}
                                                 routeName={item.routeName}
+                                                exact={item.exact}
                                                 badge={item.badge}
                                             />
                                         ))}
@@ -270,17 +265,17 @@ export function AppSidebar({ className, ...props }) {
                                     className="group flex h-12 w-full items-center gap-3 rounded-lg p-2 transition-all hover:bg-zinc-900 data-[state=open]:bg-zinc-900"
                                 >
                                     <Avatar className="size-9 rounded-lg border border-zinc-800 shrink-0">
-                                        <AvatarImage src={user?.avatar_url} alt={user?.nama_lengkap} />
+                                        <AvatarImage src={user?.avatar_url} alt={user?.name} />
                                         <AvatarFallback className="rounded-lg bg-zinc-800 font-bold text-white text-xs border border-zinc-700">
-                                            {getInitials(user?.nama_lengkap)}
+                                            {getInitials(user?.name)}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="grid flex-1 text-left text-sm leading-tight overflow-hidden group-data-[collapsible=icon]:hidden">
                                         <span className="truncate font-semibold text-white text-xs">
-                                            {user?.nama_lengkap ?? 'Pengguna'}
+                                            {user?.name ?? 'Pengguna'}
                                         </span>
                                         <span className="truncate text-[11px] text-zinc-400">
-                                            {user?.email ?? getRoleName(user?.role_id)}
+                                            {user?.email ?? roleLabel}
                                         </span>
                                     </div>
                                     <ChevronsUpDown className="size-4 text-zinc-500 group-data-[collapsible=icon]:hidden shrink-0 ml-auto" />
@@ -295,17 +290,17 @@ export function AppSidebar({ className, ...props }) {
                                 <DropdownMenuLabel className="p-0 font-normal">
                                     <div className="flex items-center gap-2.5 px-2 py-2 text-left text-sm">
                                         <Avatar className="size-8 rounded-lg border border-zinc-800">
-                                            <AvatarImage src={user?.avatar_url} alt={user?.nama_lengkap} />
+                                            <AvatarImage src={user?.avatar_url} alt={user?.name} />
                                             <AvatarFallback className="rounded-lg bg-zinc-800 font-bold text-white text-xs">
-                                                {getInitials(user?.nama_lengkap)}
+                                                {getInitials(user?.name)}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="grid flex-1 text-left text-xs leading-tight">
                                             <span className="truncate font-semibold text-white">
-                                                {user?.nama_lengkap}
+                                                {user?.name}
                                             </span>
                                             <span className="truncate text-[10px] text-zinc-400">
-                                                {getRoleName(user?.role_id)}
+                                                {roleLabel}
                                             </span>
                                         </div>
                                     </div>

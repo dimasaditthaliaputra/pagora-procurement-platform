@@ -35,7 +35,7 @@ class PasswordResetTest extends TestCase
         $user = User::factory()->create([
             'email' => 'buyer@pagora.id',
             'email_verified_at' => now(),
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $response = $this->from('/forgot-password')->post('/forgot-password', [
@@ -54,7 +54,7 @@ class PasswordResetTest extends TestCase
         $user = User::factory()->create([
             'email' => 'pegawai.baru@pagora.id',
             'email_verified_at' => null,
-            'status_aktif' => false,
+            'is_active' => false,
         ]);
 
         $response = $this->from('/forgot-password')->post('/forgot-password', [
@@ -74,7 +74,7 @@ class PasswordResetTest extends TestCase
         User::factory()->create([
             'email' => 'blokir@pagora.id',
             'email_verified_at' => now(),
-            'status_aktif' => false,
+            'is_active' => false,
         ]);
 
         $this->from('/forgot-password')
@@ -105,7 +105,7 @@ class PasswordResetTest extends TestCase
         $user = User::factory()->create([
             'email' => 'buyer@pagora.id',
             'email_verified_at' => now(),
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $token = Password::createToken($user);
@@ -129,7 +129,7 @@ class PasswordResetTest extends TestCase
             'email' => 'buyer@pagora.id',
             'password' => Hash::make('passwordLama123'),
             'email_verified_at' => now(),
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $response = $this->from('/reset-password/salah')->post('/reset-password', [

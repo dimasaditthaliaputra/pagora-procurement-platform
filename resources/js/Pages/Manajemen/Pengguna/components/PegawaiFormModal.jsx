@@ -24,8 +24,9 @@ import {
 } from '@/Components/ui/select';
 import { LoadingButton } from '@/Components/loading-button';
 import { Button } from '@/Components/ui/button';
+import { isEmail } from '@/lib/validators';
 
-const BUYER_COMPANY_ROLES = new Set(['owner', 'manajemen', 'buyer', 'qc_gudang']);
+const BUYER_COMPANY_ROLES = new Set(['owner', 'manajemen', 'purchasing', 'qc_gudang']);
 
 export function PegawaiFormModal({
     open,
@@ -34,7 +35,7 @@ export function PegawaiFormModal({
     role_options = [],
     is_superadmin = false,
     current_perusahaan = null,
-    perusahaan_buyer_options = [],
+    tenant_options = [],
     vendor_options = [],
     currentUserUuid = null,
     default_password = 'password123',
@@ -53,38 +54,38 @@ export function PegawaiFormModal({
         clearErrors,
         reset,
     } = useForm({
-        nama_lengkap: '',
+        name: '',
         email: '',
         role: '',
-        perusahaan_uuid: '',
+        tenant_uuid: '',
         vendor_uuid: '',
         password: '',
-        status_aktif: true,
+        is_active: true,
     });
 
     useEffect(() => {
         if (open) {
             if (pegawai) {
                 setData({
-                    nama_lengkap: pegawai.nama_lengkap ?? '',
+                    name: pegawai.name ?? '',
                     email: pegawai.email ?? '',
                     role: pegawai.role?.name ?? '',
-                    perusahaan_uuid:
+                    tenant_uuid:
                         pegawai.perusahaan?.tipe === 'buyer' ? (pegawai.perusahaan.uuid ?? '') : '',
                     vendor_uuid:
                         pegawai.perusahaan?.tipe === 'vendor' ? (pegawai.perusahaan.uuid ?? '') : '',
                     password: '',
-                    status_aktif: pegawai.status_aktif ?? true,
+                    is_active: pegawai.is_active ?? true,
                 });
             } else {
                 setData({
-                    nama_lengkap: '',
+                    name: '',
                     email: '',
                     role: role_options.length === 1 ? role_options[0].value : '',
-                    perusahaan_uuid: '',
+                    tenant_uuid: '',
                     vendor_uuid: '',
                     password: '',
-                    status_aktif: true,
+                    is_active: true,
                 });
             }
             clearErrors();
@@ -119,16 +120,16 @@ export function PegawaiFormModal({
         };
 
         if (val === 'superadmin') {
-            nextUpdates.perusahaan_uuid = '';
+            nextUpdates.tenant_uuid = '';
             nextUpdates.vendor_uuid = '';
         } else if (val === 'vendor') {
-            nextUpdates.perusahaan_uuid = '';
+            nextUpdates.tenant_uuid = '';
         } else if (BUYER_COMPANY_ROLES.has(val)) {
             nextUpdates.vendor_uuid = '';
         }
 
         setData(nextUpdates);
-        clearErrors('role', 'perusahaan_uuid', 'vendor_uuid');
+        clearErrors('role', 'tenant_uuid', 'vendor_uuid');
     };
 
     const handleSubmit = (e) => {
@@ -136,19 +137,18 @@ export function PegawaiFormModal({
 
         let hasError = false;
 
-        if (!data.nama_lengkap.trim()) {
-            setError('nama_lengkap', 'Nama lengkap pegawai wajib diisi.');
+        if (!data.name.trim()) {
+            setError('name', 'Nama lengkap pegawai wajib diisi.');
             hasError = true;
-        } else if (data.nama_lengkap.trim().length < 3) {
-            setError('nama_lengkap', 'Nama lengkap minimal 3 karakter.');
+        } else if (data.name.trim().length < 3) {
+            setError('name', 'Nama lengkap minimal 3 karakter.');
             hasError = true;
         }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!data.email.trim()) {
             setError('email', 'Email pegawai wajib diisi.');
             hasError = true;
-        } else if (!emailRegex.test(data.email.trim())) {
+        } else if (!isEmail(data.email)) {
             setError('email', 'Format email tidak valid.');
             hasError = true;
         }
@@ -158,8 +158,8 @@ export function PegawaiFormModal({
             hasError = true;
         }
 
-        if (needsBuyerCompany && perusahaan_buyer_options.length > 0 && !data.perusahaan_uuid) {
-            setError('perusahaan_uuid', 'Perusahaan buyer wajib dipilih untuk role ini.');
+        if (needsBuyerCompany && tenant_options.length > 0 && !data.tenant_uuid) {
+            setError('tenant_uuid', 'Perusahaan buyer wajib dipilih untuk role ini.');
             hasError = true;
         }
 
@@ -258,24 +258,24 @@ export function PegawaiFormModal({
 
                         {/* Nama Lengkap */}
                         <div className="space-y-1.5">
-                            <Label htmlFor="nama_lengkap" className={cn('text-xs font-semibold', errors.nama_lengkap && 'text-destructive')}>
+                            <Label htmlFor="name" className={cn('text-xs font-semibold', errors.name && 'text-destructive')}>
                                 Nama Lengkap Pengguna <span className="text-destructive">*</span>
                             </Label>
                             <Input
-                                id="nama_lengkap"
+                                id="name"
                                 placeholder="Masukkan nama lengkap"
-                                value={data.nama_lengkap}
+                                value={data.name}
                                 onChange={(e) => {
-                                    setData('nama_lengkap', e.target.value);
-                                    if (errors.nama_lengkap) clearErrors('nama_lengkap');
+                                    setData('name', e.target.value);
+                                    if (errors.name) clearErrors('name');
                                 }}
                                 disabled={processing}
-                                aria-invalid={Boolean(errors.nama_lengkap)}
-                                className={cn('h-9 text-sm', errors.nama_lengkap && 'border-destructive focus-visible:ring-destructive')}
+                                aria-invalid={Boolean(errors.name)}
+                                className={cn('h-9 text-sm', errors.name && 'border-destructive focus-visible:ring-destructive')}
                             />
-                            {errors.nama_lengkap && (
+                            {errors.name && (
                                 <p className="text-xs font-medium text-destructive">
-                                    {errors.nama_lengkap}
+                                    {errors.name}
                                 </p>
                             )}
                         </div>
@@ -340,26 +340,26 @@ export function PegawaiFormModal({
                         {/* Superadmin Only: Pilih Perusahaan Buyer */}
                         {needsBuyerCompany && (
                             <div className="space-y-1.5">
-                                <Label className={cn('text-xs font-semibold', errors.perusahaan_uuid && 'text-destructive')}>
-                                    Perusahaan Buyer {perusahaan_buyer_options.length > 0 && <span className="text-destructive">*</span>}
+                                <Label className={cn('text-xs font-semibold', errors.tenant_uuid && 'text-destructive')}>
+                                    Perusahaan Buyer {tenant_options.length > 0 && <span className="text-destructive">*</span>}
                                 </Label>
                                 <Combobox
-                                    options={perusahaan_buyer_options}
-                                    value={data.perusahaan_uuid}
+                                    options={tenant_options}
+                                    value={data.tenant_uuid}
                                     onChange={(val) => {
-                                        setData('perusahaan_uuid', val || '');
-                                        if (errors.perusahaan_uuid) clearErrors('perusahaan_uuid');
+                                        setData('tenant_uuid', val || '');
+                                        if (errors.tenant_uuid) clearErrors('tenant_uuid');
                                     }}
                                     placeholder="Pilih perusahaan buyer..."
                                     searchPlaceholder="Cari perusahaan buyer..."
                                     emptyMessage="Perusahaan buyer belum tersedia."
-                                    error={errors.perusahaan_uuid}
+                                    error={errors.tenant_uuid}
                                     disabled={processing}
                                     className="h-9"
                                 />
-                                {errors.perusahaan_uuid && (
+                                {errors.tenant_uuid && (
                                     <p className="text-xs font-medium text-destructive">
-                                        {errors.perusahaan_uuid}
+                                        {errors.tenant_uuid}
                                     </p>
                                 )}
                             </div>
@@ -431,7 +431,7 @@ export function PegawaiFormModal({
                         {isEdit && (
                             <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 mt-2">
                                 <div className="space-y-0.5 pr-2">
-                                    <Label htmlFor="status_aktif" className="text-xs font-semibold cursor-pointer">
+                                    <Label htmlFor="is_active" className="text-xs font-semibold cursor-pointer">
                                         Status Keaktifan Akun
                                     </Label>
                                     <p className="text-[11px] text-muted-foreground leading-tight">
@@ -439,9 +439,9 @@ export function PegawaiFormModal({
                                     </p>
                                 </div>
                                 <Switch
-                                    id="status_aktif"
-                                    checked={data.status_aktif}
-                                    onCheckedChange={(checked) => setData('status_aktif', checked)}
+                                    id="is_active"
+                                    checked={data.is_active}
+                                    onCheckedChange={(checked) => setData('is_active', checked)}
                                     disabled={processing || (isEditingSelf && !is_superadmin)}
                                 />
                             </div>

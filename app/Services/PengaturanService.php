@@ -60,7 +60,8 @@ class PengaturanService
     ];
 
     public function __construct(
-        protected PengaturanRepositoryInterface $repository
+        protected PengaturanRepositoryInterface $repository,
+        protected FileStorageService $fileStorage
     ) {}
 
     /**
@@ -151,26 +152,22 @@ class PengaturanService
     public function updateProfil(array $data, ?UploadedFile $logo, bool $hapusLogo, ?int $userId): void
     {
         $logoLama = $this->get('logo');
-        $logoBaru = $logo?->store(self::LOGO_DIRECTORY, self::LOGO_DISK);
+        $logoBaru = $logo ? $this->fileStorage->store($logo, self::LOGO_DIRECTORY, self::LOGO_DISK) : null;
 
-        if ($logoBaru !== null && $logoBaru !== false) {
+        if ($logoBaru !== null) {
             $data['logo'] = $logoBaru;
         } elseif ($hapusLogo) {
             $data['logo'] = null;
         }
 
-        try {
-            $this->simpan(self::GRUP_PROFIL, $data, $userId);
-        } catch (\Throwable $e) {
-            if (is_string($logoBaru)) {
-                Storage::disk(self::LOGO_DISK)->delete($logoBaru);
-            }
-
-            throw $e;
-        }
+        $this->fileStorage->rollbackOnFailure(
+            self::LOGO_DISK,
+            $logoBaru,
+            fn () => $this->simpan(self::GRUP_PROFIL, $data, $userId)
+        );
 
         if (array_key_exists('logo', $data) && is_string($logoLama) && $logoLama !== $data['logo']) {
-            Storage::disk(self::LOGO_DISK)->delete($logoLama);
+            $this->fileStorage->delete(self::LOGO_DISK, $logoLama);
         }
     }
 
@@ -208,10 +205,10 @@ class PengaturanService
                 $terenkripsi = self::DEFINISI[$kunci]['terenkripsi'] ?? false;
 
                 $this->repository->upsert($kunci, [
-                    'grup' => self::DEFINISI[$kunci]['grup'],
-                    'nilai' => $this->serialize($kunci, $nilai, $terenkripsi),
-                    'terenkripsi' => $terenkripsi,
-                    'diubah_oleh' => $userId,
+                    'group' => self::DEFINISI[$kunci]['grup'],
+                    'value' => $this->serialize($kunci, $nilai, $terenkripsi),
+                    'is_encrypted' => $terenkripsi,
+                    'updated_by' => $userId,
                 ]);
             }
         });
@@ -238,8 +235,8 @@ class PengaturanService
             // (serializable_classes = false), so a cached Collection would come back broken.
             $rows = Cache::rememberForever(self::CACHE_KEY, fn (): array => $this->repository->allKeyed()
                 ->map(fn (Pengaturan $row): array => [
-                    'nilai' => $row->nilai,
-                    'terenkripsi' => $row->terenkripsi,
+                    'nilai' => $row->value,
+                    'terenkripsi' => $row->is_encrypted,
                 ])
                 ->all());
 

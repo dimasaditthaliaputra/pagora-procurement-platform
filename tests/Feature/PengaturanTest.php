@@ -30,12 +30,12 @@ class PengaturanTest extends TestCase
 
         $this->superadmin = User::factory()->create([
             'role_id' => 1, // Superadmin
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $this->buyer = User::factory()->create([
             'role_id' => 2, // Buyer
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
     }
 
@@ -105,9 +105,9 @@ class PengaturanTest extends TestCase
         $this->assertNotNull($logo);
         Storage::disk('public')->assertExists($logo);
 
-        $this->assertDatabaseHas('pengaturan', [
-            'kunci' => 'nama_aplikasi',
-            'diubah_oleh' => $this->superadmin->id,
+        $this->assertDatabaseHas('settings', [
+            'key' => 'nama_aplikasi',
+            'updated_by' => $this->superadmin->id,
         ]);
 
         $this->get('/pengaturan/profil')->assertInertia(fn (Assert $page) => $page
@@ -164,10 +164,10 @@ class PengaturanTest extends TestCase
             ->assertRedirect('/pengaturan/integrasi')
             ->assertSessionHas('success');
 
-        $row = Pengaturan::where('kunci', 'pg_server_key')->firstOrFail();
-        $this->assertTrue($row->terenkripsi);
-        $this->assertNotSame('SB-Mid-server-rahasia', $row->nilai);
-        $this->assertSame('SB-Mid-server-rahasia', Crypt::decryptString($row->nilai));
+        $row = Pengaturan::where('key', 'pg_server_key')->firstOrFail();
+        $this->assertTrue($row->is_encrypted);
+        $this->assertNotSame('SB-Mid-server-rahasia', $row->value);
+        $this->assertSame('SB-Mid-server-rahasia', Crypt::decryptString($row->value));
         $this->assertSame('SB-Mid-server-rahasia', app(PengaturanService::class)->get('pg_server_key'));
 
         $response = $this->get('/pengaturan/integrasi');
@@ -228,6 +228,6 @@ class PengaturanTest extends TestCase
         $this->actingAs($this->superadmin)
             ->put('/pengaturan/integrasi', $this->integrasiPayload(['nama_aplikasi' => 'Disusupkan']));
 
-        $this->assertDatabaseMissing('pengaturan', ['kunci' => 'nama_aplikasi']);
+        $this->assertDatabaseMissing('settings', ['key' => 'nama_aplikasi']);
     }
 }

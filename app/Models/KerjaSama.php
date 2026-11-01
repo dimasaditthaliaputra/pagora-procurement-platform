@@ -13,17 +13,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'uuid',
-    'id_perusahaan',
-    'id_vendor',
-    'status_kerjasama',
-    'catatan_penolakan',
+    'tenant_id',
+    'vendor_id',
+    'requested_by',
+    'status',
+    'rejection_reason',
+    'block_reason',
+    'blocked_by',
+    'blocked_at',
 ])]
 #[Hidden(['id'])]
 class KerjaSama extends Model
 {
     use HasUuids;
 
-    protected $table = 'kerja_sama';
+    protected $table = 'partnerships';
 
     /**
      * Columns that store UUIDs.
@@ -51,17 +55,23 @@ class KerjaSama extends Model
     protected function casts(): array
     {
         return [
-            'status_kerjasama' => StatusKerjaSama::class,
+            'status' => StatusKerjaSama::class,
+            'blocked_at' => 'datetime',
         ];
     }
 
     public function perusahaanBuyer(): BelongsTo
     {
-        return $this->belongsTo(PerusahaanBuyer::class, 'id_perusahaan');
+        return $this->belongsTo(PerusahaanBuyer::class, 'tenant_id');
     }
 
     public function vendor(): BelongsTo
     {
-        return $this->belongsTo(Vendor::class, 'id_vendor');
+        return $this->belongsTo(Vendor::class, 'vendor_id');
+    }
+
+    public function blocker(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'blocked_by');
     }
 }

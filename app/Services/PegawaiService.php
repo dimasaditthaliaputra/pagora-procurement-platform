@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\RoleName;
 use App\Models\User;
 use App\Notifications\AkunPegawaiDibuatNotification;
 use App\Repositories\Contracts\PerusahaanBuyerRepositoryInterface;
@@ -14,6 +15,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -36,7 +38,7 @@ class PegawaiService
         'superadmin' => 'Super Administrator',
         'owner' => 'Owner (Pemilik Perusahaan)',
         'manajemen' => 'Manajemen (Admin Internal)',
-        'buyer' => 'Buyer (Tim Purchasing)',
+        'purchasing' => 'Purchasing / Finance',
         'qc_gudang' => 'QC Gudang (Inspeksi Mutu)',
         'vendor' => 'Vendor',
     ];
@@ -49,53 +51,9 @@ class PegawaiService
     public const BUYER_COMPANY_FILTER_ROLES = [
         'owner' => 'Owner (Pemilik Perusahaan)',
         'manajemen' => 'Manajemen (Admin Internal)',
-        'buyer' => 'Buyer (Tim Purchasing)',
+        'purchasing' => 'Purchasing / Finance',
         'qc_gudang' => 'QC Gudang (Inspeksi Mutu)',
     ];
-
-    /**
-     * Allowed roles for owner accounts to create/manage.
-     *
-     * @var array<string, string>
-     */
-    public const OWNER_ROLES = [
-        'manajemen' => 'Manajemen (Admin Internal)',
-        'buyer' => 'Buyer (Tim Purchasing)',
-        'qc_gudang' => 'QC Gudang (Inspeksi Mutu)',
-    ];
-
-    /**
-     * Allowed roles for manajemen accounts to create/manage.
-     *
-     * @var array<string, string>
-     */
-    public const MANAJEMEN_ROLES = [
-        'buyer' => 'Buyer (Tim Purchasing)',
-        'qc_gudang' => 'QC Gudang (Inspeksi Mutu)',
-    ];
-
-    /**
-     * Allowed internal roles for buyer-side employee accounts.
-     *
-     * @var array<string, string>
-     */
-    public const INTERNAL_ROLES = self::MANAJEMEN_ROLES;
-
-    /**
-     * Allowed roles for vendor-side accounts.
-     *
-     * @var array<string, string>
-     */
-    public const VENDOR_ROLES = [
-        'vendor' => 'Vendor',
-    ];
-
-    /**
-     * Roles that superadmin can create (semua roles).
-     *
-     * @var array<string, string>
-     */
-    public const SUPERADMIN_ROLES = self::ALL_ROLES;
 
     /**
      * Default selected columns for user listing.
@@ -105,13 +63,13 @@ class PegawaiService
     private const DEFAULT_COLUMNS = [
         'id',
         'uuid',
-        'nama_lengkap',
+        'name',
         'email',
         'avatar',
         'role_id',
-        'perusahaan_id',
+        'tenant_id',
         'vendor_id',
-        'status_aktif',
+        'is_active',
         'created_at',
         'updated_at',
     ];
@@ -182,18 +140,10 @@ class PegawaiService
                     $forceEmpty = true;
                 }
             }
-        } elseif ($actor->isVendor()) {
-            if ($actor->vendor_id !== null) {
-                $vendorId = (int) $actor->vendor_id;
-            } else {
-                $forceEmpty = true;
-            }
-        } elseif ($actor->isOwner() || $actor->isManajemen()) {
-            if ($actor->perusahaan_id !== null) {
-                $perusahaanId = (int) $actor->perusahaan_id;
-            } else {
-                $forceEmpty = true;
-            }
+        } elseif ($actor->tenant_id !== null) {
+            $perusahaanId = (int) $actor->tenant_id;
+        } elseif ($actor->vendor_id !== null) {
+            $vendorId = (int) $actor->vendor_id;
         } else {
             $forceEmpty = true;
         }
@@ -235,35 +185,28 @@ class PegawaiService
     public function findByUuidForActor(string $uuid, User $actor): User
     {
         $user = $this->findByUuid($uuid);
-
-        if (! $actor->isSuperadmin()) {
-            $this->ensureActorSameCompany($actor, $user, 'melihat');
-        }
+        Gate::forUser($actor)->authorize('view', $user);
 
         return $user;
     }
 
     /**
-     * Determine which roles a creator is allowed to assign.
-     *
-     * - superadmin: semua roles
-     * - owner: manajemen, buyer, qc_gudang
-     * - manajemen: buyer, qc_gudang
-     * - vendor user: vendor
+     * Determine which roles a creator is allowed to assign (see RoleName::assignableRoles()).
      *
      * @return array<string, string>
      */
     public function getAllowedRolesForUser(User $user): array
     {
-        $roleName = $user->role?->nama_role ?? '';
+        if (! Gate::forUser($user)->allows('create', User::class)) {
+            return [];
+        }
 
-        return match (true) {
-            $roleName === 'superadmin' => self::ALL_ROLES,
-            $roleName === 'owner' => self::OWNER_ROLES,
-            $roleName === 'manajemen' => self::MANAJEMEN_ROLES,
-            $user->vendor_id !== null => self::VENDOR_ROLES,
-            default => [],
-        };
+        $allowed = array_map(
+            fn (RoleName $role): string => $role->value,
+            $user->roleName()?->assignableRoles() ?? []
+        );
+
+        return array_intersect_key(self::ALL_ROLES, array_flip($allowed));
     }
 
     /**
@@ -306,14 +249,14 @@ class PegawaiService
 
             $payload = [
                 'uuid' => (string) Str::uuid(),
-                'nama_lengkap' => trim((string) $data['nama_lengkap']),
+                'name' => trim((string) $data['name']),
                 'email' => strtolower(trim((string) $data['email'])),
                 'password' => Hash::make($defaultPassword),
                 'role_id' => $role->getKey(),
-                'perusahaan_id' => $perusahaanId,
+                'tenant_id' => $perusahaanId,
                 'vendor_id' => $vendorId,
                 // Stays inactive until the user passes the first-login OTP.
-                'status_aktif' => false,
+                'is_active' => false,
                 'email_verified_at' => null,
             ];
 
@@ -332,8 +275,8 @@ class PegawaiService
 
             return $user->load([
                 'role',
-                'perusahaanBuyer:id,uuid,nama_perusahaan',
-                'vendor:id,uuid,nama_perusahaan',
+                'perusahaanBuyer:id,uuid,company_name',
+                'vendor:id,uuid,company_name',
             ]);
         });
     }
@@ -350,39 +293,24 @@ class PegawaiService
     public function update(string $uuid, array $data, User $actor): User
     {
         $user = $this->findByUuid($uuid);
+        Gate::forUser($actor)->authorize('update', $user);
+
         $isSuperadmin = $actor->isSuperadmin();
-
-        if (! $isSuperadmin) {
-            $this->ensureActorSameCompany($actor, $user, 'mengubah');
-        }
-
         $roleName = (string) ($data['role'] ?? '');
         $allowedRoles = array_keys($this->getAllowedRolesForUser($actor));
-        $targetCurrentRole = $user->role?->nama_role ?? '';
+        $targetCurrentRole = $user->role?->name ?? '';
 
-        if (! $isSuperadmin) {
-            if ($user->getKey() === $actor->getKey()) {
-                if ($roleName !== $targetCurrentRole) {
-                    throw ValidationException::withMessages([
-                        'role' => 'Anda tidak dapat mengubah jabatan akun Anda sendiri.',
-                    ]);
-                }
+        if (! $isSuperadmin && $user->is($actor)) {
+            if ($roleName !== $targetCurrentRole) {
+                throw ValidationException::withMessages([
+                    'role' => 'Anda tidak dapat mengubah jabatan akun Anda sendiri.',
+                ]);
+            }
 
-                if (isset($data['status_aktif']) && ! (bool) $data['status_aktif']) {
-                    throw ValidationException::withMessages([
-                        'status_aktif' => 'Anda tidak dapat menonaktifkan akun Anda sendiri.',
-                    ]);
-                }
-            } else {
-                if (! in_array($targetCurrentRole, $allowedRoles, true)) {
-                    throw new AuthorizationException('Anda tidak memiliki izin untuk mengubah akun dengan jabatan tersebut.');
-                }
-
-                if (! in_array($roleName, $allowedRoles, true)) {
-                    throw ValidationException::withMessages([
-                        'role' => 'Role yang dipilih tidak diizinkan untuk akun Anda.',
-                    ]);
-                }
+            if (isset($data['is_active']) && ! (bool) $data['is_active']) {
+                throw ValidationException::withMessages([
+                    'is_active' => 'Anda tidak dapat menonaktifkan akun Anda sendiri.',
+                ]);
             }
         } elseif (! in_array($roleName, $allowedRoles, true)) {
             throw ValidationException::withMessages([
@@ -404,10 +332,10 @@ class PegawaiService
 
         return DB::transaction(function () use ($user, $data, $role, $companyUpdates): User {
             $payload = [
-                'nama_lengkap' => trim((string) $data['nama_lengkap']),
+                'name' => trim((string) $data['name']),
                 'email' => strtolower(trim((string) $data['email'])),
                 'role_id' => $role->getKey(),
-                'status_aktif' => (bool) ($data['status_aktif'] ?? true),
+                'is_active' => (bool) ($data['is_active'] ?? true),
                 ...$companyUpdates,
             ];
 
@@ -419,8 +347,8 @@ class PegawaiService
 
             return $user->fresh()->load([
                 'role',
-                'perusahaanBuyer:id,uuid,nama_perusahaan',
-                'vendor:id,uuid,nama_perusahaan',
+                'perusahaanBuyer:id,uuid,company_name',
+                'vendor:id,uuid,company_name',
             ]);
         });
     }
@@ -432,38 +360,18 @@ class PegawaiService
      * @throws AuthorizationException
      * @throws ValidationException
      */
-    public function delete(string $uuid, ?User $currentUser = null): bool
+    public function delete(string $uuid, User $actor): bool
     {
         $user = $this->findByUuid($uuid);
-
-        if ($currentUser !== null && $user->getKey() === $currentUser->getKey()) {
+        if ($user->is($actor)) {
             throw ValidationException::withMessages([
                 'error' => 'Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif.',
             ]);
         }
 
-        if ($currentUser !== null && ! $currentUser->isSuperadmin()) {
-            $this->ensureActorSameCompany($currentUser, $user, 'menghapus');
-
-            $allowedRoles = array_keys($this->getAllowedRolesForUser($currentUser));
-            $targetCurrentRole = $user->role?->nama_role ?? '';
-
-            if (! in_array($targetCurrentRole, $allowedRoles, true)) {
-                throw new AuthorizationException('Anda tidak memiliki izin untuk menghapus akun dengan jabatan tersebut.');
-            }
-        }
+        Gate::forUser($actor)->authorize('delete', $user);
 
         return $this->userRepository->delete($user);
-    }
-
-    /**
-     * Get available role options formatted for frontend Combobox / Select.
-     *
-     * @return list<array{value: string, label: string}>
-     */
-    public function getRoleOptions(): array
-    {
-        return $this->formatMapOptions(self::INTERNAL_ROLES);
     }
 
     /**
@@ -483,12 +391,10 @@ class PegawaiService
      */
     public function getFilterRoleOptionsForUser(User $user): array
     {
-        $roleName = $user->role?->nama_role ?? '';
-
         $map = match (true) {
-            $roleName === 'superadmin' => self::ALL_ROLES,
-            in_array($roleName, ['owner', 'manajemen'], true) => self::BUYER_COMPANY_FILTER_ROLES,
-            $user->vendor_id !== null => self::VENDOR_ROLES,
+            $user->isSuperadmin() => self::ALL_ROLES,
+            $user->tenant_id !== null => self::BUYER_COMPANY_FILTER_ROLES,
+            $user->vendor_id !== null => array_intersect_key(self::ALL_ROLES, ['vendor' => true]),
             default => [],
         };
 
@@ -507,14 +413,14 @@ class PegawaiService
         foreach ($this->perusahaanBuyerRepository->getAllOrdered() as $perusahaan) {
             $options[] = [
                 'value' => $perusahaan->uuid,
-                'label' => "{$perusahaan->nama_perusahaan} (Buyer)",
+                'label' => "{$perusahaan->company_name} (Buyer)",
             ];
         }
 
         foreach ($this->vendorRepository->getAllOrdered() as $vendor) {
             $options[] = [
                 'value' => $vendor->uuid,
-                'label' => "{$vendor->nama_perusahaan} (Vendor)",
+                'label' => "{$vendor->company_name} (Vendor)",
             ];
         }
 
@@ -533,7 +439,7 @@ class PegawaiService
         foreach ($this->perusahaanBuyerRepository->getAllOrdered() as $perusahaan) {
             $options[] = [
                 'value' => $perusahaan->uuid,
-                'label' => $perusahaan->nama_perusahaan,
+                'label' => $perusahaan->company_name,
             ];
         }
 
@@ -552,7 +458,7 @@ class PegawaiService
         foreach ($this->vendorRepository->getAllOrdered() as $vendor) {
             $options[] = [
                 'value' => $vendor->uuid,
-                'label' => $vendor->nama_perusahaan,
+                'label' => $vendor->company_name,
             ];
         }
 
@@ -566,12 +472,12 @@ class PegawaiService
      */
     public function getCurrentPerusahaanPayload(User $user): ?array
     {
-        $user->loadMissing(['perusahaanBuyer:id,uuid,nama_perusahaan', 'vendor:id,uuid,nama_perusahaan']);
+        $user->loadMissing(['perusahaanBuyer:id,uuid,company_name', 'vendor:id,uuid,company_name']);
 
         if ($user->perusahaanBuyer !== null) {
             return [
                 'uuid' => $user->perusahaanBuyer->uuid,
-                'nama' => $user->perusahaanBuyer->nama_perusahaan,
+                'nama' => $user->perusahaanBuyer->company_name,
                 'tipe' => 'buyer',
             ];
         }
@@ -579,7 +485,7 @@ class PegawaiService
         if ($user->vendor !== null) {
             return [
                 'uuid' => $user->vendor->uuid,
-                'nama' => $user->vendor->nama_perusahaan,
+                'nama' => $user->vendor->company_name,
                 'tipe' => 'vendor',
             ];
         }
@@ -588,37 +494,7 @@ class PegawaiService
     }
 
     /**
-     * Ensure a non-superadmin actor belongs to the exact same company as the target user.
-     *
-     * @throws AuthorizationException
-     */
-    private function ensureActorSameCompany(User $actor, User $target, string $actionVerb): void
-    {
-        if ($target->isSuperadmin()) {
-            throw new AuthorizationException("Anda tidak memiliki izin untuk {$actionVerb} akun Super Administrator.");
-        }
-
-        if ($actor->isVendor()) {
-            if ($actor->vendor_id === null || $target->vendor_id !== $actor->vendor_id || $target->perusahaan_id !== null) {
-                throw new AuthorizationException("Anda tidak memiliki izin untuk {$actionVerb} akun dari perusahaan lain.");
-            }
-
-            return;
-        }
-
-        if ($actor->isOwner() || $actor->isManajemen()) {
-            if ($actor->perusahaan_id === null || $target->perusahaan_id !== $actor->perusahaan_id || $target->vendor_id !== null) {
-                throw new AuthorizationException("Anda tidak memiliki izin untuk {$actionVerb} akun dari perusahaan lain.");
-            }
-
-            return;
-        }
-
-        throw new AuthorizationException("Anda tidak memiliki izin untuk {$actionVerb} akun pengguna.");
-    }
-
-    /**
-     * Resolve `perusahaan_id` and `vendor_id` when creating a new user.
+     * Resolve `tenant_id` and `vendor_id` when creating a new user.
      *
      * @param  array<string, mixed>  $data
      * @return array{0: int|null, 1: int|null}
@@ -636,7 +512,7 @@ class PegawaiService
                 return [null, $this->resolveVendorId($data['vendor_uuid'] ?? null)];
             }
 
-            return [$this->resolvePerusahaanBuyerId($data['perusahaan_uuid'] ?? null), null];
+            return [$this->resolvePerusahaanBuyerId($data['tenant_uuid'] ?? null), null];
         }
 
         if ($creator->isVendor()) {
@@ -649,17 +525,17 @@ class PegawaiService
             return [null, (int) $creator->vendor_id];
         }
 
-        if ($creator->perusahaan_id === null) {
+        if ($creator->tenant_id === null) {
             throw ValidationException::withMessages([
                 'role' => 'Akun Anda belum terhubung dengan perusahaan mana pun.',
             ]);
         }
 
-        return [(int) $creator->perusahaan_id, null];
+        return [(int) $creator->tenant_id, null];
     }
 
     /**
-     * Resolve `perusahaan_id` / `vendor_id` updates when a superadmin updates a user.
+     * Resolve `tenant_id` / `vendor_id` updates when a superadmin updates a user.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, int|null>
@@ -670,13 +546,13 @@ class PegawaiService
     {
         if ($roleName === 'superadmin') {
             return [
-                'perusahaan_id' => null,
+                'tenant_id' => null,
                 'vendor_id' => null,
             ];
         }
 
         if ($roleName === 'vendor') {
-            $updates = ['perusahaan_id' => null];
+            $updates = ['tenant_id' => null];
             if (array_key_exists('vendor_uuid', $data)) {
                 $updates['vendor_id'] = $this->resolveVendorId($data['vendor_uuid']);
             }
@@ -685,8 +561,8 @@ class PegawaiService
         }
 
         $updates = ['vendor_id' => null];
-        if (array_key_exists('perusahaan_uuid', $data)) {
-            $updates['perusahaan_id'] = $this->resolvePerusahaanBuyerId($data['perusahaan_uuid']);
+        if (array_key_exists('tenant_uuid', $data)) {
+            $updates['tenant_id'] = $this->resolvePerusahaanBuyerId($data['tenant_uuid']);
         }
 
         return $updates;
@@ -707,7 +583,7 @@ class PegawaiService
         $perusahaan = $this->perusahaanBuyerRepository->findByUuid($clean);
         if (! $perusahaan) {
             throw ValidationException::withMessages([
-                'perusahaan_uuid' => 'Perusahaan buyer yang dipilih tidak ditemukan.',
+                'tenant_uuid' => 'Perusahaan buyer yang dipilih tidak ditemukan.',
             ]);
         }
 

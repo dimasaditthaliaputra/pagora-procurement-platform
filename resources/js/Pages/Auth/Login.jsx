@@ -10,6 +10,7 @@ import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import { isEmail } from '@/lib/validators';
 
 function OtpStep({ otp, status }) {
     const { data, setData, post, processing, errors, setError, clearErrors, reset } = useForm({ otp: '' });
@@ -118,7 +119,7 @@ export default function Login({ status, otp = null }) {
         if (!trimmedEmail) {
             setError('email', 'Alamat email wajib diisi.');
             hasError = true;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        } else if (!isEmail(trimmedEmail)) {
             setError('email', 'Format alamat email tidak valid.');
             hasError = true;
         }

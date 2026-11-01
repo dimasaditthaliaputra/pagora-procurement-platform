@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\VerificationStatus;
 use App\Models\PerusahaanBuyer;
 use Illuminate\Database\Seeder;
 
@@ -19,13 +20,13 @@ class PerusahaanBuyerSeeder extends Seeder
         }
 
         PerusahaanBuyer::updateOrCreate(
-            ['nama_perusahaan' => 'PT Pagora Nusantara'],
+            ['company_name' => 'PT Pagora Nusantara'],
             [
-                'nomor_npwp' => '01.234.567.8-012.000',
-                'file_url' => null,
-                'alamat' => 'Jl. Industri Raya No. 1, Surabaya, Jawa Timur',
-                'tipe_paket' => 'enterprise',
-                'status_aktif' => true,
+                'tax_number' => '01.234.567.8-012.000',
+                'legal_document_path' => null,
+                'address' => 'Jl. Industri Raya No. 1, Surabaya, Jawa Timur',
+                'verification_status' => VerificationStatus::Approved,
+                'is_active' => true,
             ]
         );
     }

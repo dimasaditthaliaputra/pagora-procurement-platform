@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Verifikasi;
 
+use App\Models\DokumenLegalitasVendor;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -14,17 +15,14 @@ class VerifikasiDokumenRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        /** @var User|null $user */
-        $user = $this->user();
-
-        return $user instanceof User && $user->isSuperadmin();
+        return $this->user()?->can('viewAny', DokumenLegalitasVendor::class) ?? false;
     }
 
     public function rules(): array
     {
         return [
             'aksi' => ['required', 'string', 'in:approve,reject'],
-            'alasan_penolakan' => [
+            'rejection_reason' => [
                 'required_if:aksi,reject',
                 'nullable',
                 'string',
@@ -43,8 +41,8 @@ class VerifikasiDokumenRequest extends FormRequest
         return [
             'aksi.required' => 'Aksi verifikasi wajib dipilih.',
             'aksi.in' => 'Aksi verifikasi tidak valid.',
-            'alasan_penolakan.required_if' => 'Alasan penolakan wajib diisi.',
-            'alasan_penolakan.max' => 'Alasan penolakan maksimal 1000 karakter.',
+            'rejection_reason.required_if' => 'Alasan penolakan wajib diisi.',
+            'rejection_reason.max' => 'Alasan penolakan maksimal 1000 karakter.',
         ];
     }
 }

@@ -28,7 +28,7 @@ class LoginOtpTest extends TestCase
         return User::factory()->create([
             'email' => 'pegawai@pagora.id',
             'password' => Hash::make('password123'),
-            'status_aktif' => false,
+            'is_active' => false,
             'email_verified_at' => null,
         ]);
     }
@@ -83,7 +83,7 @@ class LoginOtpTest extends TestCase
 
         $this->assertAuthenticatedAs($user);
         $user->refresh();
-        $this->assertTrue($user->status_aktif);
+        $this->assertTrue($user->is_active);
         $this->assertNotNull($user->email_verified_at);
     }
 
@@ -95,7 +95,7 @@ class LoginOtpTest extends TestCase
         $this->from('/login')->post('/login/otp', ['otp' => '000000'])->assertSessionHasErrors('otp');
 
         $this->assertGuest();
-        $this->assertFalse($user->fresh()->status_aktif);
+        $this->assertFalse($user->fresh()->is_active);
     }
 
     public function test_otp_is_locked_after_too_many_wrong_attempts(): void
@@ -147,7 +147,7 @@ class LoginOtpTest extends TestCase
         User::factory()->create([
             'email' => 'pegawai@pagora.id',
             'password' => Hash::make('password123'),
-            'status_aktif' => false,
+            'is_active' => false,
             'email_verified_at' => now(),
         ]);
 

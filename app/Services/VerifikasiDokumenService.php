@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\VerificationStatus;
 use App\Mail\VendorApprovalMail;
 use App\Models\DokumenLegalitasVendor;
+use App\Models\User;
+use App\Models\Vendor;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
@@ -20,7 +25,7 @@ class VerifikasiDokumenService
     ) {}
 
     /**
-     * Get paginated legal documents.
+     * Get paginated vendors with all of their legal documents.
      *
      * @param  array<string, mixed>  $filters
      */
@@ -28,7 +33,7 @@ class VerifikasiDokumenService
         array $filters,
         int $perPage = 10
     ): LengthAwarePaginator {
-        return $this->repository->paginate($filters, $perPage);
+        return $this->repository->paginateVendors($filters, $perPage);
     }
 
     /**
@@ -48,12 +53,26 @@ class VerifikasiDokumenService
     }
 
     /**
+     * Find a legal document the actor is allowed to open.
+     *
+     * @throws ModelNotFoundException
+     * @throws AuthorizationException
+     */
+    public function findViewableByUuid(User $actor, string $uuid): DokumenLegalitasVendor
+    {
+        $document = $this->findByUuid($uuid);
+        Gate::forUser($actor)->authorize('view', $document);
+
+        return $document;
+    }
+
+    /**
      * Approve or reject a vendor legal document.
      */
     public function verify(
         string $uuid,
         string $action,
-        int $verifierId,
+        User $verifier,
         ?string $rejectionReason = null
     ): DokumenLegalitasVendor {
         if (! in_array($action, ['approve', 'reject'], true)) {
@@ -67,16 +86,16 @@ class VerifikasiDokumenService
             && trim((string) $rejectionReason) === ''
         ) {
             throw ValidationException::withMessages([
-                'alasan_penolakan' => 'Alasan penolakan wajib diisi.',
+                'rejection_reason' => 'Alasan penolakan wajib diisi.',
             ]);
         }
 
-        $document = DB::transaction(function () use (
+        [$document, $allApproved] = DB::transaction(function () use (
             $uuid,
             $action,
-            $verifierId,
+            $verifier,
             $rejectionReason
-        ): DokumenLegalitasVendor {
+        ): array {
             $document = $this->repository->findByUuid($uuid);
 
             if ($document === null) {
@@ -85,9 +104,11 @@ class VerifikasiDokumenService
                 ))->setModel(DokumenLegalitasVendor::class, [$uuid]);
             }
 
-            if ($document->status_verifikasi !== 'pending') {
+            Gate::forUser($verifier)->authorize('verify', $document);
+
+            if ($document->verification_status !== VerificationStatus::Pending) {
                 throw ValidationException::withMessages([
-                    'status_verifikasi' => 'Dokumen ini sudah diverifikasi dan tidak dapat diproses ulang.',
+                    'verification_status' => 'Dokumen ini sudah diverifikasi dan tidak dapat diproses ulang.',
                 ]);
             }
 
@@ -102,36 +123,58 @@ class VerifikasiDokumenService
             $approved = $action === 'approve';
 
             $this->repository->update($document, [
-                'status_verifikasi' => $approved ? 'approved' : 'rejected',
-                'verif_by' => $verifierId,
-                'diverifikasi_pada' => now(),
-                'alasan_penolakan' => $approved
+                'verification_status' => $approved
+                    ? VerificationStatus::Approved
+                    : VerificationStatus::Rejected,
+                'verified_by' => $verifier->id,
+                'verified_at' => now(),
+                'rejection_reason' => $approved
                     ? null
                     : trim((string) $rejectionReason),
             ]);
 
-            $vendor->status_verifikasi = $approved
-                ? 'approved'
-                : 'rejected';
+            $allApproved = $this->syncVendorStatus($vendor);
 
-            $vendor->save();
-
-            return $document->fresh(['vendor']);
+            return [$document->fresh(['vendor']), $allApproved];
         });
 
-        if ($action === 'approve') {
+        if ($allApproved) {
             $vendor = $document->vendor;
 
-            if ($vendor !== null && filled($vendor->email_kontak)) {
-                Mail::to($vendor->email_kontak)->send(
+            if ($vendor !== null && filled($vendor->contact_email)) {
+                Mail::to($vendor->contact_email)->send(
                     new VendorApprovalMail(
-                        vendorName: $vendor->nama_perusahaan,
-                        companyName: $vendor->nama_perusahaan,
+                        vendorName: $vendor->company_name,
+                        companyName: $vendor->company_name,
                     )
                 );
             }
         }
 
         return $document;
+    }
+
+    /**
+     * Derive the vendor status from all of its documents: it stays pending while any document
+     * is unprocessed, becomes rejected if any is rejected, and approved only when all are approved.
+     *
+     * @return bool true when every document is approved (the vendor can be notified)
+     */
+    private function syncVendorStatus(Vendor $vendor): bool
+    {
+        $statuses = $this->repository->getByVendorId($vendor->getKey())
+            ->map(fn (DokumenLegalitasVendor $document): VerificationStatus => $document->verification_status);
+
+        if ($statuses->contains(VerificationStatus::Pending)) {
+            $vendor->verification_status = VerificationStatus::Pending;
+        } elseif ($statuses->contains(VerificationStatus::Rejected)) {
+            $vendor->verification_status = VerificationStatus::Rejected;
+        } else {
+            $vendor->verification_status = VerificationStatus::Approved;
+        }
+
+        $vendor->save();
+
+        return $vendor->verification_status === VerificationStatus::Approved;
     }
 }

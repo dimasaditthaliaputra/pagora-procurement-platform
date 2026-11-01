@@ -9,6 +9,7 @@ import { LoadingButton } from '@/Components/loading-button';
 import { FileDropzone } from '@/Components/file-dropzone';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
+import { isEmail } from '@/lib/validators';
 import { Building2, ArrowRight, ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export default function Register() {
@@ -42,7 +43,7 @@ export default function Register() {
         if (!trimmedEmail) {
             setError('email', 'Alamat email wajib diisi.');
             hasError = true;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        } else if (!isEmail(trimmedEmail)) {
             setError('email', 'Format alamat email tidak valid.');
             hasError = true;
         }

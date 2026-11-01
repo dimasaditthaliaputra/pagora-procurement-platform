@@ -21,7 +21,7 @@ class PrediksiHargaSeeder extends Seeder
             return;
         }
 
-        $komoditasList = Komoditas::where('status', true)->get();
+        $komoditasList = Komoditas::where('is_active', true)->get();
 
         foreach ($komoditasList as $komoditas) {
             $data = HargaReferensiKomoditas::where('komoditas_id', $komoditas->id)

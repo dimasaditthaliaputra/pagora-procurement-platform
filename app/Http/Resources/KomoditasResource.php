@@ -23,16 +23,21 @@ class KomoditasResource extends JsonResource
         return [
             'uuid' => $this->uuid,
             'slug' => $this->whenNotNull($this->slug),
-            'nama_komoditas' => $this->nama_komoditas,
+            'name' => $this->name,
             'sku' => $this->sku,
-            'kategori' => $this->kategori,
-            'satuan' => $this->satuan,
-            'batas_susut' => $this->batas_susut !== null ? (float) $this->batas_susut : null,
-            'kode_referensi_api' => $this->kode_referensi_api,
-            'spesifikasi' => $this->spesifikasi,
-            'status' => (bool) $this->status,
+            'commodity_category_uuid' => $this->whenLoaded('category', fn () => $this->category?->uuid),
+            'category_name' => $this->whenLoaded('category', fn () => $this->category?->name),
+            'unit' => $this->unit,
+            'default_shrinkage_tolerance' => $this->default_shrinkage_tolerance !== null ? (float) $this->default_shrinkage_tolerance : null,
+            'api_reference_code' => $this->api_reference_code,
+            'specification' => $this->specification,
+            'is_active' => (bool) $this->is_active,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
+            'can' => [
+                'update' => (bool) $request->user()?->can('update', $this->resource),
+                'delete' => (bool) $request->user()?->can('delete', $this->resource),
+            ],
         ];
     }
 }

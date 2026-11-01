@@ -20,15 +20,15 @@ class ProfilResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $roleName = $this->role?->nama_role;
+        $roleName = $this->role?->name;
 
         return [
             'uuid' => $this->uuid,
-            'nama_lengkap' => $this->nama_lengkap,
+            'name' => $this->name,
             'email' => $this->email,
             'avatar_url' => $this->avatar_url,
             'role' => match ($roleName) {
-                'buyer' => 'Buyer',
+                'purchasing' => 'Purchasing / Finance',
                 'qc_gudang' => 'QC Gudang',
                 'superadmin' => 'Superadmin',
                 'manajemen' => 'Manajemen',
@@ -36,7 +36,7 @@ class ProfilResource extends JsonResource
                 'vendor' => 'Vendor',
                 default => ucfirst((string) ($roleName ?? '-')),
             },
-            'organisasi' => $this->vendor?->nama_perusahaan ?? $this->perusahaanBuyer?->nama_perusahaan,
+            'organisasi' => $this->vendor?->company_name ?? $this->perusahaanBuyer?->company_name,
             'punya_password' => $this->password !== null,
             'terhubung_google' => $this->google_id !== null,
             'created_at' => $this->created_at?->toISOString(),

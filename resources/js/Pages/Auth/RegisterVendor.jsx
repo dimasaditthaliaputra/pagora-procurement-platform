@@ -6,6 +6,8 @@ import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { Combobox } from '@/Components/combobox';
 import { FileDropzone } from '@/Components/file-dropzone';
+import { uploadingLabel } from '@/lib/file';
+import { useUploadFeedback } from '@/hooks/use-upload-feedback';
 import { LoadingButton } from '@/Components/loading-button';
 import { FlashHandler } from '@/Components/flash-handler';
 import { OtpField, OTP_LENGTH } from '@/Components/otp-field';
@@ -21,22 +23,25 @@ import {
     AlertCircle,
 } from 'lucide-react';
 import Logo from '../../../assets/logo/logo.webp';
+import { isEmail, isPhoneNumber, normalizePhoneNumber } from '@/lib/validators';
 
 export default function RegisterVendor({ kategori_options = [], status, invitation = null }) {
-    const { data, setData, post, processing, errors, setError, clearErrors, reset } = useForm({
-        nama_perusahaan: invitation?.nama_perusahaan ?? '',
-        email_kontak: invitation?.email_kontak ?? '',
-        no_telepon: '',
+    const form = useForm({
+        company_name: invitation?.company_name ?? '',
+        contact_email: invitation?.contact_email ?? '',
+        phone: '',
         kategori_komoditas: invitation?.kategori_komoditas ?? '',
-        alamat: '',
+        address: '',
         otp: '',
-        dokumen_legalitas: null,
+        legal_document: null,
         invitation_token: invitation?.token ?? '',
     });
+    const { data, setData, post, processing, errors, setError, clearErrors, reset } = form;
+    const legalDocumentFeedback = useUploadFeedback(form, 'legal_document');
 
     const [otpSent, setOtpSent] = useState(false);
     const resend = useCountdown();
-    const otpRequest = useHttp({ email_kontak: '' });
+    const otpRequest = useHttp({ contact_email: '' });
 
     const categories = kategori_options.length > 0 ? kategori_options : [
         'Agroindustri & Pangan',
@@ -51,21 +56,21 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
     ];
 
     const sendOtp = () => {
-        const email = data.email_kontak.trim();
+        const email = data.contact_email.trim();
 
         if (!email) {
-            setError('email_kontak', 'Email bisnis wajib diisi.');
+            setError('contact_email', 'Email bisnis wajib diisi.');
             notify.validationFailed();
             return;
         }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            setError('email_kontak', 'Format email bisnis tidak valid.');
+        if (!isEmail(email)) {
+            setError('contact_email', 'Format email bisnis tidak valid.');
             notify.validationFailed();
             return;
         }
 
-        clearErrors('email_kontak', 'otp');
-        otpRequest.transform(() => ({ email_kontak: email }));
+        clearErrors('contact_email', 'otp');
+        otpRequest.transform(() => ({ contact_email: email }));
         otpRequest.post('/register/vendor/otp', {
             onSuccess: () => {
                 setOtpSent(true);
@@ -73,7 +78,7 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
                 notify.success('Kode OTP telah dikirim ke email bisnis Anda.');
             },
             onError: (errs) => {
-                setError('email_kontak', errs.email_kontak ?? 'Gagal mengirim kode OTP.');
+                setError('contact_email', errs.contact_email ?? 'Gagal mengirim kode OTP.');
                 notify.validationFailed();
             },
         });
@@ -83,24 +88,27 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
         let hasError = false;
         clearErrors();
 
-        const namaTrimmed = data.nama_perusahaan.trim();
+        const namaTrimmed = data.company_name.trim();
         if (!namaTrimmed) {
-            setError('nama_perusahaan', 'Nama perusahaan wajib diisi.');
+            setError('company_name', 'Nama perusahaan wajib diisi.');
             hasError = true;
         }
 
-        const emailTrimmed = data.email_kontak.trim();
+        const emailTrimmed = data.contact_email.trim();
         if (!emailTrimmed) {
-            setError('email_kontak', 'Email bisnis wajib diisi.');
+            setError('contact_email', 'Email bisnis wajib diisi.');
             hasError = true;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
-            setError('email_kontak', 'Format email bisnis tidak valid.');
+        } else if (!isEmail(emailTrimmed)) {
+            setError('contact_email', 'Format email bisnis tidak valid.');
             hasError = true;
         }
 
-        const telpTrimmed = data.no_telepon.trim();
+        const telpTrimmed = normalizePhoneNumber(data.phone);
         if (!telpTrimmed) {
-            setError('no_telepon', 'Nomor telepon wajib diisi.');
+            setError('phone', 'Nomor telepon wajib diisi.');
+            hasError = true;
+        } else if (!isPhoneNumber(telpTrimmed)) {
+            setError('phone', 'Format nomor telepon tidak valid. Gunakan 8–15 digit angka, contoh: 081234567890.');
             hasError = true;
         }
 
@@ -109,9 +117,9 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
             hasError = true;
         }
 
-        const alamatTrimmed = data.alamat.trim();
+        const alamatTrimmed = data.address.trim();
         if (!alamatTrimmed) {
-            setError('alamat', 'Alamat lengkap wajib diisi.');
+            setError('address', 'Alamat lengkap wajib diisi.');
             hasError = true;
         }
 
@@ -123,8 +131,8 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
             hasError = true;
         }
 
-        if (!data.dokumen_legalitas) {
-            setError('dokumen_legalitas', 'Dokumen legalitas (NPWP/SIUP) wajib diunggah.');
+        if (!data.legal_document) {
+            setError('legal_document', 'Dokumen legalitas (NPWP/SIUP) wajib diunggah.');
             hasError = true;
         }
 
@@ -229,7 +237,7 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
                             <div className="text-sm">
                                 <p className="font-semibold">Pendaftaran melalui Undangan Resmi</p>
                                 <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-1 leading-relaxed">
-                                    Anda mendaftar menggunakan tautan undangan resmi untuk rekanan <strong>{invitation.nama_perusahaan}</strong>. Silakan lengkapi kontak, alamat, kode OTP email, dan dokumen legalitas perusahaan.
+                                    Anda mendaftar menggunakan tautan undangan resmi untuk rekanan <strong>{invitation.company_name}</strong>. Silakan lengkapi kontak, alamat, kode OTP email, dan dokumen legalitas perusahaan.
                                 </p>
                             </div>
                         </div>
@@ -240,25 +248,25 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
                             {/* Nama Perusahaan */}
                             <div className="space-y-1.5">
-                                <Label htmlFor="nama_perusahaan" className={cn('text-sm font-medium', errors.nama_perusahaan && 'text-destructive')}>
+                                <Label htmlFor="company_name" className={cn('text-sm font-medium', errors.company_name && 'text-destructive')}>
                                     Nama Perusahaan <span className="text-destructive">*</span>
                                 </Label>
                                 <Input
-                                    id="nama_perusahaan"
+                                    id="company_name"
                                     type="text"
                                     placeholder="Contoh: PT Sumber Pangan Makmur"
-                                    value={data.nama_perusahaan}
+                                    value={data.company_name}
                                     onChange={(e) => {
-                                        setData('nama_perusahaan', e.target.value);
-                                        clearErrors('nama_perusahaan');
+                                        setData('company_name', e.target.value);
+                                        clearErrors('company_name');
                                     }}
-                                    aria-invalid={!!errors.nama_perusahaan}
-                                    className={cn('h-10 w-full', errors.nama_perusahaan && 'border-destructive focus-visible:ring-destructive')}
+                                    aria-invalid={!!errors.company_name}
+                                    className={cn('h-10 w-full', errors.company_name && 'border-destructive focus-visible:ring-destructive')}
                                 />
-                                {errors.nama_perusahaan && (
+                                {errors.company_name && (
                                     <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
                                         <AlertCircle className="size-3.5 shrink-0" />
-                                        <span>{errors.nama_perusahaan}</span>
+                                        <span>{errors.company_name}</span>
                                     </p>
                                 )}
                             </div>
@@ -294,17 +302,17 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
                             {/* Email Bisnis */}
                             <div className="space-y-1.5">
-                                <Label htmlFor="email_kontak" className={cn('text-sm font-medium', errors.email_kontak && 'text-destructive')}>
+                                <Label htmlFor="contact_email" className={cn('text-sm font-medium', errors.contact_email && 'text-destructive')}>
                                     Email Bisnis <span className="text-destructive">*</span>
                                 </Label>
                                 <Input
-                                    id="email_kontak"
+                                    id="contact_email"
                                     type="email"
                                     placeholder="Contoh: procurement@sumberpangan.co.id"
-                                    value={data.email_kontak}
+                                    value={data.contact_email}
                                     onChange={(e) => {
-                                        setData('email_kontak', e.target.value);
-                                        clearErrors('email_kontak');
+                                        setData('contact_email', e.target.value);
+                                        clearErrors('contact_email');
                                         if (otpSent) {
                                             // The OTP belongs to the previous address.
                                             setOtpSent(false);
@@ -312,38 +320,39 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
                                             resend.start(0);
                                         }
                                     }}
-                                    aria-invalid={!!errors.email_kontak}
-                                    className={cn('h-10 w-full', errors.email_kontak && 'border-destructive focus-visible:ring-destructive')}
+                                    aria-invalid={!!errors.contact_email}
+                                    className={cn('h-10 w-full', errors.contact_email && 'border-destructive focus-visible:ring-destructive')}
                                 />
-                                {errors.email_kontak && (
+                                {errors.contact_email && (
                                     <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
                                         <AlertCircle className="size-3.5 shrink-0" />
-                                        <span>{errors.email_kontak}</span>
+                                        <span>{errors.contact_email}</span>
                                     </p>
                                 )}
                             </div>
 
                             {/* Nomor Telepon */}
                             <div className="space-y-1.5">
-                                <Label htmlFor="no_telepon" className={cn('text-sm font-medium', errors.no_telepon && 'text-destructive')}>
+                                <Label htmlFor="phone" className={cn('text-sm font-medium', errors.phone && 'text-destructive')}>
                                     Nomor Telepon <span className="text-destructive">*</span>
                                 </Label>
                                 <Input
-                                    id="no_telepon"
+                                    id="phone"
                                     type="tel"
                                     placeholder="Contoh: 0812-3456-7890"
-                                    value={data.no_telepon}
+                                    value={data.phone}
                                     onChange={(e) => {
-                                        setData('no_telepon', e.target.value);
-                                        clearErrors('no_telepon');
+                                        setData('phone', e.target.value);
+                                        clearErrors('phone');
                                     }}
-                                    aria-invalid={!!errors.no_telepon}
-                                    className={cn('h-10 w-full', errors.no_telepon && 'border-destructive focus-visible:ring-destructive')}
+                                    onBlur={() => setData('phone', normalizePhoneNumber(data.phone))}
+                                    aria-invalid={!!errors.phone}
+                                    className={cn('h-10 w-full', errors.phone && 'border-destructive focus-visible:ring-destructive')}
                                 />
-                                {errors.no_telepon && (
+                                {errors.phone && (
                                     <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
                                         <AlertCircle className="size-3.5 shrink-0" />
-                                        <span>{errors.no_telepon}</span>
+                                        <span>{errors.phone}</span>
                                     </p>
                                 )}
                             </div>
@@ -393,46 +402,46 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
 
                         {/* Alamat Lengkap */}
                         <div className="space-y-1.5">
-                            <Label htmlFor="alamat" className={cn('text-sm font-medium', errors.alamat && 'text-destructive')}>
+                            <Label htmlFor="address" className={cn('text-sm font-medium', errors.address && 'text-destructive')}>
                                 Alamat Lengkap <span className="text-destructive">*</span>
                             </Label>
                             <Textarea
-                                id="alamat"
+                                id="address"
                                 rows={3}
                                 placeholder="Contoh: Kawasan Industri MM2100 Blok C-3 No. 8, Cikarang Barat, Kab. Bekasi, Jawa Barat 17530"
-                                value={data.alamat}
+                                value={data.address}
                                 onChange={(e) => {
-                                    setData('alamat', e.target.value);
-                                    clearErrors('alamat');
+                                    setData('address', e.target.value);
+                                    clearErrors('address');
                                 }}
-                                aria-invalid={!!errors.alamat}
-                                className={cn('w-full resize-none min-h-[80px]', errors.alamat && 'border-destructive focus-visible:ring-destructive')}
+                                aria-invalid={!!errors.address}
+                                className={cn('w-full resize-none min-h-[80px]', errors.address && 'border-destructive focus-visible:ring-destructive')}
                             />
-                            {errors.alamat && (
+                            {errors.address && (
                                 <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
                                     <AlertCircle className="size-3.5 shrink-0" />
-                                    <span>{errors.alamat}</span>
+                                    <span>{errors.address}</span>
                                 </p>
                             )}
                         </div>
 
                         {/* Dokumen Legalitas (NPWP/SIUP) */}
                         <div className="space-y-1.5">
-                            <Label className={cn('text-sm font-medium', errors.dokumen_legalitas && 'text-destructive')}>
+                            <Label className={cn('text-sm font-medium', errors.legal_document && 'text-destructive')}>
                                 Dokumen Legalitas (NPWP/SIUP) <span className="text-destructive">*</span>
                             </Label>
                             <FileDropzone
-                                value={data.dokumen_legalitas}
+                                value={data.legal_document}
                                 onChange={(file) => {
-                                    setData('dokumen_legalitas', file);
-                                    clearErrors('dokumen_legalitas');
+                                    setData('legal_document', file);
+                                    clearErrors('legal_document');
                                 }}
                                 onError={(errMsg) => {
-                                    setError('dokumen_legalitas', errMsg);
+                                    setError('legal_document', errMsg);
                                     notify.validationFailed();
                                 }}
-                                error={errors.dokumen_legalitas}
-                                disabled={processing}
+                                error={errors.legal_document}
+                                {...legalDocumentFeedback}
                                 accept={{
                                     'application/pdf': ['.pdf'],
                                     'image/jpeg': ['.jpg', '.jpeg'],
@@ -448,7 +457,7 @@ export default function RegisterVendor({ kategori_options = [], status, invitati
                             <LoadingButton
                                 type="submit"
                                 loading={processing}
-                                loadingText="Mengirim Pendaftaran..."
+                                loadingText={uploadingLabel(legalDocumentFeedback.progress, 'Mengirim Pendaftaran...')}
                                 className="w-full h-11 text-sm font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
                             >
                                 <span>Kirim Pendaftaran Calon Vendor</span>

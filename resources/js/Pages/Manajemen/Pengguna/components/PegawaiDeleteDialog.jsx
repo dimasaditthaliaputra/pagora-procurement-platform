@@ -60,7 +60,7 @@ export function PegawaiDeleteDialog({
                 <div className="py-2 text-sm text-muted-foreground space-y-2">
                     <p>
                         Apakah Anda yakin ingin menghapus akun pegawai{' '}
-                        <strong className="text-foreground">{pegawai.nama_lengkap}</strong> (
+                        <strong className="text-foreground">{pegawai.name}</strong> (
                         <span className="font-mono text-xs">{pegawai.email}</span>)?
                     </p>
                     <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs leading-relaxed">

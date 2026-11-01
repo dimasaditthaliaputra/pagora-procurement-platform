@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\RoleName;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Role;
@@ -77,7 +78,7 @@ class AuthService
             ];
         }
 
-        if (! $user->status_aktif && $user->email_verified_at !== null) {
+        if (! $user->is_active && $user->email_verified_at !== null) {
             $this->limiter->increment($request);
 
             return [
@@ -106,7 +107,7 @@ class AuthService
 
         $remember = $request->boolean('remember');
 
-        if (! $user->status_aktif) {
+        if (! $user->is_active) {
             $this->limiter->clear($request);
 
             return $this->startLoginOtp($request, $user, $remember);
@@ -159,7 +160,7 @@ class AuthService
         $this->otpService->verify(OtpService::PURPOSE_LOGIN, $user->email, $code);
 
         $this->userRepository->update($user, [
-            'status_aktif' => true,
+            'is_active' => true,
             'email_verified_at' => now(),
         ]);
 
@@ -231,7 +232,7 @@ class AuthService
 
         $user = $this->userRepository->findByUuid($uuid);
 
-        return $user && ! $user->status_aktif && $user->email_verified_at === null ? $user : null;
+        return $user && ! $user->is_active && $user->email_verified_at === null ? $user : null;
     }
 
     private function maskEmail(string $email): string
@@ -316,7 +317,7 @@ class AuthService
             ]);
         }
 
-        if (! $user->status_aktif) {
+        if (! $user->is_active) {
             throw ValidationException::withMessages([
                 'email' => 'Akun Anda dinonaktifkan. Silakan hubungi administrator.',
             ]);
@@ -358,24 +359,25 @@ class AuthService
 
         $user = DB::transaction(function () use ($name, $email, $password, $namaPerusahaan, $nomorNpwp, $alamat, $documentPath): User {
             $perusahaan = $this->perusahaanBuyerRepository->create([
-                'nama_perusahaan' => $namaPerusahaan,
-                'nomor_npwp' => $nomorNpwp,
-                'file_url' => $documentPath,
-                'alamat' => $alamat,
-                'status_aktif' => true,
+                'company_name' => $namaPerusahaan,
+                'tax_number' => $nomorNpwp,
+                'legal_document_path' => $documentPath,
+                'address' => $alamat,
+                'is_active' => true,
             ]);
 
-            $ownerRole = Role::where('nama_role', 'owner')->first()
-                ?? Role::where('nama_role', 'buyer')->first();
+            $ownerRole = Role::where('name', RoleName::Owner->value)->first()
+                ?? Role::where('name', 'owner')->first()
+                ?? Role::where('name', 'purchasing')->first();
             $roleId = $ownerRole ? (int) $ownerRole->getKey() : 6;
 
             return $this->userRepository->create([
-                'nama_lengkap' => $name,
+                'name' => $name,
                 'email' => $email,
                 'password' => Hash::make($password),
                 'role_id' => $roleId,
-                'perusahaan_id' => (int) $perusahaan->getKey(),
-                'status_aktif' => true,
+                'tenant_id' => (int) $perusahaan->getKey(),
+                'is_active' => true,
             ]);
         });
 
@@ -446,7 +448,7 @@ class AuthService
             ];
         }
 
-        if (! $user->status_aktif) {
+        if (! $user->is_active) {
             $needsActivation = $user->email_verified_at === null;
 
             return [

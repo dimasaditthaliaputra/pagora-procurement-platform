@@ -16,13 +16,17 @@ class DatabaseMigrationTest extends TestCase
     public function test_all_design_db_tables_exist(): void
     {
         $tables = [
-            'role',
-            'perusahaan_buyer',
-            'vendor',
+            'roles',
+            'tenants',
+            'vendors',
             'users',
-            'dokumen_legalitas_vendor',
-            'kerja_sama',
-            'komoditas',
+            'vendor_legal_documents',
+            'vendor_invitations',
+            'settings',
+            'partnerships',
+            'commodity_categories',
+            'commodities',
+            'tenant_commodities',
             'harga_referensi_komoditas',
             'prediksi_harga',
             'purchase_order',
@@ -46,104 +50,166 @@ class DatabaseMigrationTest extends TestCase
      */
     public function test_table_columns_match_design(): void
     {
-        $this->assertTrue(Schema::hasColumns('role', [
+        $this->assertTrue(Schema::hasColumns('roles', [
             'id',
-            'nama_role',
-            'deskripsi',
+            'name',
+            'description',
             'created_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('perusahaan_buyer', [
+        $this->assertTrue(Schema::hasColumns('tenants', [
             'id',
             'uuid',
-            'nama_perusahaan',
-            'nomor_npwp',
-            'file_url',
-            'alamat',
-            'tipe_paket',
-            'status_aktif',
-            'created_at',
-            'updated_at',
-        ]));
-
-        $this->assertTrue(Schema::hasColumns('kerja_sama', [
-            'id',
-            'uuid',
-            'id_perusahaan',
-            'id_vendor',
-            'status_kerjasama',
-            'catatan_penolakan',
-            'created_at',
-            'updated_at',
-        ]));
-
-        $this->assertTrue(Schema::hasColumns('vendor', [
-            'id',
-            'uuid',
-            'slug',
-            'nama_perusahaan',
-            'email_kontak',
-            'no_telepon',
-            'alamat',
-            'kategori_komoditas',
-            'dokumen_legalitas',
-            'status_verifikasi',
-            'status_aktif',
-            'alasan_pemblokiran',
-            'blocked_by',
-            'diblokir_pada',
+            'company_name',
+            'tax_number',
+            'legal_document_path',
+            'address',
+            'verification_status',
+            'verification_note',
+            'verified_by',
+            'verified_at',
+            'is_active',
             'created_at',
             'updated_at',
             'deleted_at',
         ]));
+        $this->assertFalse(Schema::hasColumn('tenants', 'tipe_paket'));
+
+        $this->assertTrue(Schema::hasColumns('partnerships', [
+            'id',
+            'uuid',
+            'tenant_id',
+            'vendor_id',
+            'requested_by',
+            'status',
+            'rejection_reason',
+            'block_reason',
+            'blocked_by',
+            'blocked_at',
+            'created_at',
+            'updated_at',
+        ]));
+
+        $this->assertTrue(Schema::hasColumns('vendors', [
+            'id',
+            'uuid',
+            'slug',
+            'company_name',
+            'tax_number',
+            'contact_email',
+            'phone',
+            'address',
+            'kategori_komoditas',
+            'verification_status',
+            'is_active',
+            'block_reason',
+            'blocked_by',
+            'blocked_at',
+            'created_at',
+            'updated_at',
+            'deleted_at',
+        ]));
+        $this->assertFalse(Schema::hasColumn('vendors', 'dokumen_legalitas'));
 
         $this->assertTrue(Schema::hasColumns('users', [
             'id',
             'uuid',
-            'nama_lengkap',
+            'name',
             'email',
             'password',
             'google_id',
             'avatar',
             'role_id',
+            'tenant_id',
             'vendor_id',
-            'vendor_id',
-            'status_aktif',
+            'is_active',
             'created_at',
             'updated_at',
             'deleted_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('dokumen_legalitas_vendor', [
+        $this->assertTrue(Schema::hasColumns('vendor_legal_documents', [
             'id',
             'uuid',
             'vendor_id',
-            'jenis_dokumen',
-            'nomor_dokumen',
-            'file_url',
-            'status_verifikasi',
-            'verif_by',
-            'diverifikasi_pada',
-            'alasan_penolakan',
+            'document_type',
+            'document_number',
+            'file_path',
+            'verification_status',
+            'verified_by',
+            'verified_at',
+            'rejection_reason',
             'created_at',
+            'updated_at',
             'deleted_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('komoditas', [
+        $this->assertTrue(Schema::hasColumns('vendor_invitations', [
+            'id',
+            'uuid',
+            'company_name',
+            'email',
+            'kategori_komoditas',
+            'message',
+            'token',
+            'status',
+            'invited_by',
+            'tenant_id',
+            'expires_at',
+            'registered_at',
+            'created_at',
+            'updated_at',
+            'deleted_at',
+        ]));
+
+        $this->assertTrue(Schema::hasColumns('settings', [
+            'id',
+            'group',
+            'key',
+            'value',
+            'is_encrypted',
+            'updated_by',
+            'created_at',
+            'updated_at',
+        ]));
+
+        $this->assertTrue(Schema::hasColumns('commodity_categories', [
+            'id',
+            'uuid',
+            'name',
+            'description',
+            'is_active',
+            'created_at',
+            'updated_at',
+            'deleted_at',
+        ]));
+
+        $this->assertTrue(Schema::hasColumns('commodities', [
             'id',
             'uuid',
             'sku',
             'slug',
-            'nama_komoditas',
-            'kategori',
-            'satuan',
-            'batas_susut',
-            'kode_referensi_api',
-            'spesifikasi',
-            'status',
+            'name',
+            'commodity_category_id',
+            'unit',
+            'default_shrinkage_tolerance',
+            'api_reference_code',
+            'specification',
+            'is_active',
             'created_at',
             'updated_at',
             'deleted_at',
+        ]));
+        $this->assertFalse(Schema::hasColumn('commodities', 'kategori'));
+
+        $this->assertTrue(Schema::hasColumns('tenant_commodities', [
+            'id',
+            'tenant_id',
+            'commodity_id',
+            'is_active',
+            'shrinkage_tolerance',
+            'created_at',
+            'updated_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('harga_referensi_komoditas', [

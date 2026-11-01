@@ -10,16 +10,16 @@ use Illuminate\Support\Collection;
 interface PengaturanRepositoryInterface
 {
     /**
-     * Get all settings keyed by their kunci.
+     * Get all settings keyed by their key.
      *
      * @return Collection<string, Pengaturan>
      */
     public function allKeyed(): Collection;
 
     /**
-     * Insert or update a setting by its kunci.
+     * Insert or update a setting by its key.
      *
      * @param  array<string, mixed>  $data
      */
-    public function upsert(string $kunci, array $data): Pengaturan;
+    public function upsert(string $key, array $data): Pengaturan;
 }

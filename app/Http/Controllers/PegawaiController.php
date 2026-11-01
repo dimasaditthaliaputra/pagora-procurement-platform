@@ -39,10 +39,6 @@ class PegawaiController extends Controller
         /** @var User $authUser */
         $authUser = $request->user()->loadMissing('role');
 
-        if (! $authUser->canManagePengguna()) {
-            return ResponseHelper::forbidden('Anda tidak memiliki akses ke halaman Manajemen Pengguna.');
-        }
-
         $filters = $request->validated();
         $perPage = (int) $request->input('per_page', 10);
         $pegawai = $this->service->paginateForActor($filters, $authUser, $perPage);
@@ -58,15 +54,18 @@ class PegawaiController extends Controller
 
         return Inertia::render('Manajemen/Pengguna/Index', [
             'pegawai' => PegawaiResource::collection($pegawai),
-            'filters' => $request->only('search', 'role', 'perusahaan', 'status_aktif', 'sort', 'direction', 'per_page'),
+            'filters' => $request->only('search', 'role', 'perusahaan', 'is_active', 'sort', 'direction', 'per_page'),
             'role_options' => $this->service->getRoleOptionsForUser($authUser),
             'filter_role_options' => $this->service->getFilterRoleOptionsForUser($authUser),
             'is_superadmin' => $isSuperadmin,
             'current_perusahaan' => $isSuperadmin ? null : $this->service->getCurrentPerusahaanPayload($authUser),
             'perusahaan_filter_options' => $isSuperadmin ? $this->service->getPerusahaanFilterOptions() : [],
-            'perusahaan_buyer_options' => $isSuperadmin ? $this->service->getPerusahaanBuyerOptions() : [],
+            'tenant_options' => $isSuperadmin ? $this->service->getPerusahaanBuyerOptions() : [],
             'vendor_options' => $isSuperadmin ? $this->service->getVendorOptions() : [],
             'default_password' => PegawaiService::DEFAULT_PASSWORD,
+            'can' => [
+                'create' => $authUser->can('create', User::class),
+            ],
         ]);
     }
 
@@ -77,10 +76,6 @@ class PegawaiController extends Controller
     {
         /** @var User $authUser */
         $authUser = $request->user()->loadMissing('role');
-
-        if (! $authUser->canManagePengguna()) {
-            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk melihat detail akun pengguna.');
-        }
 
         try {
             $pegawai = $this->service->findByUuidForActor($uuid, $authUser);
@@ -106,10 +101,6 @@ class PegawaiController extends Controller
         /** @var User $authUser */
         $authUser = $request->user()->loadMissing('role');
 
-        if (! $authUser->canManagePengguna()) {
-            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk membuat akun pengguna.');
-        }
-
         try {
             $pegawai = $this->service->create($request->validated(), $authUser);
 
@@ -134,10 +125,6 @@ class PegawaiController extends Controller
     {
         /** @var User $authUser */
         $authUser = $request->user()->loadMissing('role');
-
-        if (! $authUser->canManagePengguna()) {
-            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk mengubah akun pengguna.');
-        }
 
         try {
             $pegawai = $this->service->update($uuid, $request->validated(), $authUser);
@@ -165,10 +152,6 @@ class PegawaiController extends Controller
     {
         /** @var User $authUser */
         $authUser = $request->user()->loadMissing('role');
-
-        if (! $authUser->canManagePengguna()) {
-            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk menghapus akun pengguna.');
-        }
 
         try {
             $this->service->delete($uuid, $authUser);

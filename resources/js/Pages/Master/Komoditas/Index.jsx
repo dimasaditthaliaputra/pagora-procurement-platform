@@ -23,7 +23,8 @@ import {
 export default function KomoditasIndex({
     komoditas,
     filters: rawFilters = {},
-    kategori_options = [],
+    category_options = [],
+    can = {},
 }) {
     const filters = Array.isArray(rawFilters) || !rawFilters ? {} : rawFilters;
     const data = komoditas?.data ?? [];
@@ -37,7 +38,7 @@ export default function KomoditasIndex({
     };
 
     const [search, setSearch] = useState(filters.search ?? '');
-    const [kategori, setKategori] = useState(filters.kategori ?? 'all');
+    const [kategori, setKategori] = useState(filters.commodity_category_uuid ?? 'all');
     const [statusAktif, setStatusAktif] = useState(
         filters.status !== undefined && filters.status !== null && filters.status !== ''
             ? String(filters.status)
@@ -57,7 +58,7 @@ export default function KomoditasIndex({
     // Sync state with incoming props (e.g. from popstate, reset, or URL change)
     useEffect(() => {
         setSearch(filters.search ?? '');
-        setKategori(filters.kategori ?? 'all');
+        setKategori(filters.commodity_category_uuid ?? 'all');
         setStatusAktif(
             filters.status !== undefined && filters.status !== null && filters.status !== ''
                 ? String(filters.status)
@@ -68,13 +69,13 @@ export default function KomoditasIndex({
         } else {
             setSorting([]);
         }
-    }, [filters.search, filters.kategori, filters.status, filters.sort, filters.direction]);
+    }, [filters.search, filters.commodity_category_uuid, filters.status, filters.sort, filters.direction]);
 
     const applyFilters = (newFilters = {}) => {
         const activeSort = typeof sorting[0]?.id === 'string' ? sorting[0].id : undefined;
         const merged = {
             search: search.trim() || undefined,
-            kategori: kategori !== 'all' ? kategori : undefined,
+            commodity_category_uuid: kategori !== 'all' ? kategori : undefined,
             status: statusAktif !== 'all' ? statusAktif : undefined,
             sort: activeSort,
             direction: activeSort && sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
@@ -130,7 +131,7 @@ export default function KomoditasIndex({
     const handleKategoriChange = (val) => {
         const nextVal = (!val || val === 'all') ? 'all' : val;
         setKategori(nextVal);
-        applyFilters({ kategori: nextVal !== 'all' ? nextVal : undefined, page: 1 });
+        applyFilters({ commodity_category_uuid: nextVal !== 'all' ? nextVal : undefined, page: 1 });
     };
 
     const handleStatusChange = (val) => {
@@ -155,8 +156,8 @@ export default function KomoditasIndex({
 
     const kategoriComboboxOptions = useMemo(() => [
         { value: 'all', label: 'Semua Kategori' },
-        ...kategori_options.map((k) => ({ value: k, label: k })),
-    ], [kategori_options]);
+        ...category_options.map((category) => ({ value: category.uuid, label: category.name })),
+    ], [category_options]);
 
     const columns = useMemo(
         () => getColumns({ onSortChange: handleSortChange }),
@@ -199,14 +200,16 @@ export default function KomoditasIndex({
                             Kelola data bahan baku manufaktur, acuan kode API pangan, dan satuan pengadaan.
                         </p>
                     </div>
-                    <div>
-                        <Button asChild className="gap-2 cursor-pointer shadow-sm">
-                            <Link href="/master/komoditas/create">
-                                <Plus className="size-4" />
-                                Tambah Komoditas
-                            </Link>
-                        </Button>
-                    </div>
+                    {can.create && (
+                        <div>
+                            <Button asChild className="gap-2 cursor-pointer shadow-sm">
+                                <Link href="/master/komoditas/create">
+                                    <Plus className="size-4" />
+                                    Tambah Komoditas
+                                </Link>
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Filter Toolbar */}

@@ -39,7 +39,7 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create([
             'email' => 'buyer@pagora.id',
             'password' => Hash::make('password123'),
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $response = $this->post('/login', [
@@ -51,6 +51,26 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect('/dashboard');
         $this->assertAuthenticatedAs($user);
         $response->assertCookie(Auth::guard()->getRecallerName());
+    }
+
+    public function test_remember_me_cookie_expires_after_at_most_thirty_days(): void
+    {
+        User::factory()->create([
+            'email' => 'buyer@pagora.id',
+            'password' => Hash::make('password123'),
+            'is_active' => true,
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => 'buyer@pagora.id',
+            'password' => 'password123',
+            'remember' => true,
+        ]);
+
+        $cookie = $response->getCookie(Auth::guard()->getRecallerName(), false);
+
+        $this->assertNotNull($cookie);
+        $this->assertEqualsWithDelta(now()->addDays(30)->getTimestamp(), $cookie->getExpiresTime(), 60);
     }
 
     public function test_login_fails_when_email_not_registered_and_does_not_create_user(): void
@@ -74,7 +94,7 @@ class AuthenticationTest extends TestCase
         User::factory()->create([
             'email' => 'buyer@pagora.id',
             'password' => Hash::make('correct_password'),
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $response = $this->from('/login')->post('/login', [
@@ -126,28 +146,28 @@ class AuthenticationTest extends TestCase
 
         $response->assertRedirect('/dashboard');
 
-        $this->assertDatabaseHas('perusahaan_buyer', [
-            'nama_perusahaan' => 'PT Sumber Pangan Makmur',
-            'nomor_npwp' => '01.234.567.8-901.000',
-            'alamat' => 'Jl. Industri No. 10, Cikarang, Jawa Barat',
-            'status_aktif' => true,
+        $this->assertDatabaseHas('tenants', [
+            'company_name' => 'PT Sumber Pangan Makmur',
+            'tax_number' => '01.234.567.8-901.000',
+            'address' => 'Jl. Industri No. 10, Cikarang, Jawa Barat',
+            'is_active' => true,
         ]);
 
-        $perusahaan = PerusahaanBuyer::where('nama_perusahaan', 'PT Sumber Pangan Makmur')->first();
+        $perusahaan = PerusahaanBuyer::where('company_name', 'PT Sumber Pangan Makmur')->first();
         $this->assertNotNull($perusahaan);
-        $this->assertNotNull($perusahaan->file_url);
-        Storage::disk('local')->assertExists($perusahaan->file_url);
+        $this->assertNotNull($perusahaan->legal_document_path);
+        Storage::disk('local')->assertExists($perusahaan->legal_document_path);
 
         $this->assertDatabaseHas('users', [
-            'nama_lengkap' => 'Budi Santoso',
+            'name' => 'Budi Santoso',
             'email' => 'budi@perusahaan.co.id',
-            'perusahaan_id' => $perusahaan->id,
-            'status_aktif' => true,
+            'tenant_id' => $perusahaan->id,
+            'is_active' => true,
         ]);
 
         $user = User::where('email', 'budi@perusahaan.co.id')->first();
         $this->assertNotNull($user);
-        $this->assertSame($perusahaan->id, $user->perusahaan_id);
+        $this->assertSame($perusahaan->id, $user->tenant_id);
         $this->assertAuthenticatedAs($user);
     }
 
@@ -190,7 +210,7 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create([
             'email' => 'partner@pagora.id',
             'google_id' => null,
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $socialiteUser = Mockery::mock(SocialiteUserContract::class);
@@ -236,7 +256,7 @@ class AuthenticationTest extends TestCase
 
     public function test_logout_invalidates_session_and_redirects(): void
     {
-        $user = User::factory()->create(['status_aktif' => true]);
+        $user = User::factory()->create(['is_active' => true]);
 
         $response = $this->actingAs($user)->post('/logout');
 

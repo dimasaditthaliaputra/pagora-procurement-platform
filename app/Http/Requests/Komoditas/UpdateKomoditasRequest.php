@@ -16,7 +16,7 @@ class UpdateKomoditasRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user()?->can('viewAny', Komoditas::class) ?? false;
     }
 
     /**
@@ -31,34 +31,38 @@ class UpdateKomoditasRequest extends FormRequest
         $ignoreId = $komoditas?->id;
 
         return [
-            'nama_komoditas' => [
+            'name' => [
                 'required',
                 'string',
                 'max:150',
-                Rule::unique('komoditas', 'nama_komoditas')
+                Rule::unique('commodities', 'name')
                     ->whereNull('deleted_at')
                     ->ignore($ignoreId),
             ],
-            'satuan' => ['required', 'string', 'max:20', Rule::in(KomoditasService::SATUAN_OPTIONS)],
-            'batas_susut' => [
+            'unit' => ['required', 'string', 'max:20', Rule::in(KomoditasService::SATUAN_OPTIONS)],
+            'default_shrinkage_tolerance' => [
                 'nullable',
                 'numeric',
                 'min:0',
                 'max:100',
-                'regex:/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/',
+                'regex:'.KomoditasService::SHRINKAGE_TOLERANCE_PATTERN,
             ],
-            'kode_referensi_api' => ['nullable', 'string', 'max:50'],
+            'api_reference_code' => ['nullable', 'string', 'max:50'],
             'sku' => [
                 'nullable',
                 'string',
                 'max:50',
-                Rule::unique('komoditas', 'sku')
+                Rule::unique('commodities', 'sku')
                     ->whereNull('deleted_at')
                     ->ignore($ignoreId),
             ],
-            'kategori' => ['nullable', 'string', 'max:50', Rule::in(KomoditasService::KATEGORI_OPTIONS)],
-            'spesifikasi' => ['nullable', 'string', 'max:2000'],
-            'status' => ['nullable', 'boolean'],
+            'commodity_category_uuid' => [
+                'nullable',
+                'uuid',
+                Rule::exists('commodity_categories', 'uuid')->where('is_active', true)->whereNull('deleted_at'),
+            ],
+            'specification' => ['nullable', 'string', 'max:2000'],
+            'is_active' => ['nullable', 'boolean'],
         ];
     }
 
@@ -70,21 +74,22 @@ class UpdateKomoditasRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nama_komoditas.required' => 'Nama komoditas wajib diisi.',
-            'nama_komoditas.max' => 'Nama komoditas tidak boleh lebih dari 150 karakter.',
-            'nama_komoditas.unique' => 'Nama komoditas sudah digunakan oleh data lain.',
-            'satuan.required' => 'Satuan komoditas wajib dipilih.',
-            'satuan.in' => 'Satuan yang dipilih tidak valid.',
-            'batas_susut.numeric' => 'Batas susut harus berupa angka.',
-            'batas_susut.min' => 'Batas susut minimal 0 persen.',
-            'batas_susut.max' => 'Batas susut maksimal 100 persen.',
-            'batas_susut.regex' => 'Batas susut hanya menerima format angka desimal dengan titik (contoh: 2.5).',
-            'kode_referensi_api.max' => 'Kode referensi API maksimal 50 karakter.',
+            'name.required' => 'Nama komoditas wajib diisi.',
+            'name.max' => 'Nama komoditas tidak boleh lebih dari 150 karakter.',
+            'name.unique' => 'Nama komoditas sudah digunakan oleh data lain.',
+            'unit.required' => 'Satuan komoditas wajib dipilih.',
+            'unit.in' => 'Satuan yang dipilih tidak valid.',
+            'default_shrinkage_tolerance.numeric' => 'Batas susut harus berupa angka.',
+            'default_shrinkage_tolerance.min' => 'Batas susut minimal 0 persen.',
+            'default_shrinkage_tolerance.max' => 'Batas susut maksimal 100 persen.',
+            'default_shrinkage_tolerance.regex' => 'Batas susut hanya menerima format angka desimal dengan titik (contoh: 2.5).',
+            'api_reference_code.max' => 'Kode referensi API maksimal 50 karakter.',
             'sku.unique' => 'SKU komoditas sudah digunakan oleh data lain.',
             'sku.max' => 'SKU tidak boleh lebih dari 50 karakter.',
-            'kategori.in' => 'Kategori yang dipilih tidak valid.',
-            'spesifikasi.max' => 'Spesifikasi tidak boleh lebih dari 2000 karakter.',
-            'status.boolean' => 'Format status aktif tidak valid.',
+            'commodity_category_uuid.exists' => 'Kategori yang dipilih tidak valid.',
+            'commodity_category_uuid.uuid' => 'Kategori yang dipilih tidak valid.',
+            'specification.max' => 'Spesifikasi tidak boleh lebih dari 2000 karakter.',
+            'is_active.boolean' => 'Format status aktif tidak valid.',
         ];
     }
 }

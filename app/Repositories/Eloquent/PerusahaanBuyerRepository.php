@@ -30,8 +30,8 @@ class PerusahaanBuyerRepository implements PerusahaanBuyerRepositoryInterface
     public function getAllOrdered(): Collection
     {
         return $this->model->newQuery()
-            ->select(['id', 'uuid', 'nama_perusahaan', 'status_aktif'])
-            ->orderBy('nama_perusahaan')
+            ->select(['id', 'uuid', 'company_name', 'is_active'])
+            ->orderBy('company_name')
             ->get();
     }
 

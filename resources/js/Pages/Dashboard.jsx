@@ -13,16 +13,6 @@ import {
     ArrowUpRight,
 } from 'lucide-react';
 
-function getRoleName(roleId) {
-    switch (roleId) {
-        case 1: return 'Superadmin';
-        case 2: return 'Buyer';
-        case 3: return 'QC Gudang';
-        case 4: return 'Vendor';
-        default: return 'User';
-    }
-}
-
 const statsCards = [
     {
         title: 'Total Pengadaan',
@@ -83,16 +73,12 @@ export default function Dashboard({ user }) {
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">
-                            Selamat Datang, {user?.nama_lengkap}!
+                            Selamat Datang, {user?.name}!
                         </h1>
                         <p className="text-muted-foreground text-sm">
                             Ringkasan aktivitas sistem E-Procurement PAGORA
                         </p>
                     </div>
-                    <Badge variant="outline" className="w-fit gap-1.5">
-                        <span className="size-2 rounded-full bg-emerald-500" />
-                        {getRoleName(user?.role_id)} — {user?.status_aktif ? 'Aktif' : 'Nonaktif'}
-                    </Badge>
                 </div>
 
                 {/* Stats grid */}

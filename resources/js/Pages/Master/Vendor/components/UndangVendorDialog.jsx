@@ -16,13 +16,14 @@ import { LoadingButton } from '@/Components/loading-button';
 import { MailPlus, Info } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
+import { isEmail } from '@/lib/validators';
 
 export function UndangVendorDialog({ open, onOpenChange, kategoriOptions = [] }) {
     const { data, setData, post, processing, errors, setError, clearErrors, reset } = useForm({
-        nama_perusahaan: '',
+        company_name: '',
         email: '',
         kategori_komoditas: '',
-        pesan: '',
+        message: '',
     });
 
     const handleClose = (nextOpen) => {
@@ -39,21 +40,21 @@ export function UndangVendorDialog({ open, onOpenChange, kategoriOptions = [] })
 
         let hasError = false;
 
-        const nama = data.nama_perusahaan.trim();
+        const nama = data.company_name.trim();
         const email = data.email.trim();
 
         if (!nama) {
-            setError('nama_perusahaan', 'Nama perusahaan vendor wajib diisi.');
+            setError('company_name', 'Nama perusahaan vendor wajib diisi.');
             hasError = true;
         } else if (nama.length < 3) {
-            setError('nama_perusahaan', 'Nama perusahaan minimal 3 karakter.');
+            setError('company_name', 'Nama perusahaan minimal 3 karakter.');
             hasError = true;
         }
 
         if (!email) {
             setError('email', 'Email kontak vendor wajib diisi.');
             hasError = true;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        } else if (!isEmail(email)) {
             setError('email', 'Format email kontak tidak valid.');
             hasError = true;
         }
@@ -111,28 +112,28 @@ export function UndangVendorDialog({ open, onOpenChange, kategoriOptions = [] })
 
                         {/* Nama Perusahaan */}
                         <div className="space-y-1.5">
-                            <Label htmlFor="undang_nama_perusahaan" className="text-xs font-semibold">
+                            <Label htmlFor="undang_company_name" className="text-xs font-semibold">
                                 Nama Perusahaan / Rekanan <span className="text-destructive">*</span>
                             </Label>
                             <Input
-                                id="undang_nama_perusahaan"
+                                id="undang_company_name"
                                 type="text"
-                                value={data.nama_perusahaan}
+                                value={data.company_name}
                                 onChange={(e) => {
-                                    setData('nama_perusahaan', e.target.value);
-                                    clearErrors('nama_perusahaan');
+                                    setData('company_name', e.target.value);
+                                    clearErrors('company_name');
                                 }}
                                 disabled={processing}
                                 placeholder="Contoh: PT Agro Perkasa Sentosa"
-                                aria-invalid={Boolean(errors.nama_perusahaan)}
+                                aria-invalid={Boolean(errors.company_name)}
                                 className={cn(
                                     'h-9 text-sm',
-                                    errors.nama_perusahaan && 'border-destructive focus-visible:ring-destructive'
+                                    errors.company_name && 'border-destructive focus-visible:ring-destructive'
                                 )}
                             />
-                            {errors.nama_perusahaan && (
+                            {errors.company_name && (
                                 <p className="text-xs text-destructive font-medium">
-                                    {errors.nama_perusahaan}
+                                    {errors.company_name}
                                 </p>
                             )}
                         </div>
@@ -197,23 +198,23 @@ export function UndangVendorDialog({ open, onOpenChange, kategoriOptions = [] })
                             </Label>
                             <Textarea
                                 id="undang_pesan"
-                                value={data.pesan}
+                                value={data.message}
                                 onChange={(e) => {
-                                    setData('pesan', e.target.value);
-                                    clearErrors('pesan');
+                                    setData('message', e.target.value);
+                                    clearErrors('message');
                                 }}
                                 disabled={processing}
                                 placeholder="Tuliskan instruksi atau pengantar kemitraan bagi calon rekanan..."
                                 rows={3}
-                                aria-invalid={Boolean(errors.pesan)}
+                                aria-invalid={Boolean(errors.message)}
                                 className={cn(
                                     'text-sm resize-none',
-                                    errors.pesan && 'border-destructive focus-visible:ring-destructive'
+                                    errors.message && 'border-destructive focus-visible:ring-destructive'
                                 )}
                             />
-                            {errors.pesan && (
+                            {errors.message && (
                                 <p className="text-xs text-destructive font-medium">
-                                    {errors.pesan}
+                                    {errors.message}
                                 </p>
                             )}
                         </div>

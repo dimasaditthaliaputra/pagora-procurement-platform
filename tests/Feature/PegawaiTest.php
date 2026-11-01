@@ -28,9 +28,9 @@ class PegawaiTest extends TestCase
 
         $this->admin = User::factory()->create([
             'role_id' => 1, // Superadmin
-            'nama_lengkap' => 'Admin Manajemen',
+            'name' => 'Admin Manajemen',
             'email' => 'admin@perusahaan.com',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
     }
 
@@ -40,9 +40,9 @@ class PegawaiTest extends TestCase
         $response->assertRedirect('/login');
 
         $response = $this->post('/manajemen/pengguna', [
-            'nama_lengkap' => 'Budi Purchasing',
+            'name' => 'Budi Purchasing',
             'email' => 'budi@perusahaan.com',
-            'role' => 'buyer',
+            'role' => 'purchasing',
         ]);
         $response->assertRedirect('/login');
     }
@@ -51,19 +51,19 @@ class PegawaiTest extends TestCase
     {
         // Create 2 internal employees
         User::factory()->create([
-            'nama_lengkap' => 'Siti Buyer',
+            'name' => 'Siti Buyer',
             'email' => 'siti@perusahaan.com',
-            'role_id' => 2, // buyer
+            'role_id' => 2, // purchasing
             'vendor_id' => null,
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         User::factory()->create([
-            'nama_lengkap' => 'Joko QC',
+            'name' => 'Joko QC',
             'email' => 'joko@perusahaan.com',
             'role_id' => 3, // qc_gudang
             'vendor_id' => null,
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->get('/manajemen/pengguna');
@@ -80,19 +80,19 @@ class PegawaiTest extends TestCase
     public function test_can_filter_and_search_pegawai(): void
     {
         User::factory()->create([
-            'nama_lengkap' => 'Dimas Purchasing',
+            'name' => 'Dimas Purchasing',
             'email' => 'dimas@perusahaan.com',
-            'role_id' => 2, // buyer
+            'role_id' => 2, // purchasing
             'vendor_id' => null,
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         User::factory()->create([
-            'nama_lengkap' => 'Enes QC',
+            'name' => 'Enes QC',
             'email' => 'enes@perusahaan.com',
             'role_id' => 3, // qc_gudang
             'vendor_id' => null,
-            'status_aktif' => false,
+            'is_active' => false,
         ]);
 
         // Search test
@@ -101,7 +101,7 @@ class PegawaiTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('Manajemen/Pengguna/Index')
             ->has('pegawai.data', 1)
-            ->where('pegawai.data.0.nama_lengkap', 'Dimas Purchasing')
+            ->where('pegawai.data.0.name', 'Dimas Purchasing')
         );
 
         // Role filter test
@@ -110,16 +110,16 @@ class PegawaiTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('Manajemen/Pengguna/Index')
             ->has('pegawai.data', 1)
-            ->where('pegawai.data.0.nama_lengkap', 'Enes QC')
+            ->where('pegawai.data.0.name', 'Enes QC')
         );
 
         // Status filter test
-        $response = $this->actingAs($this->admin)->get('/manajemen/pengguna?status_aktif=false');
+        $response = $this->actingAs($this->admin)->get('/manajemen/pengguna?is_active=false');
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
             ->component('Manajemen/Pengguna/Index')
             ->has('pegawai.data', 1)
-            ->where('pegawai.data.0.nama_lengkap', 'Enes QC')
+            ->where('pegawai.data.0.name', 'Enes QC')
         );
     }
 
@@ -128,9 +128,9 @@ class PegawaiTest extends TestCase
         Notification::fake();
 
         $payload = [
-            'nama_lengkap' => 'Andi Wijaya',
+            'name' => 'Andi Wijaya',
             'email' => 'andi.wijaya@perusahaan.com',
-            'role' => 'buyer',
+            'role' => 'purchasing',
         ];
 
         $response = $this->actingAs($this->admin)->post('/manajemen/pengguna', $payload);
@@ -139,10 +139,10 @@ class PegawaiTest extends TestCase
         $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('users', [
-            'nama_lengkap' => 'Andi Wijaya',
+            'name' => 'Andi Wijaya',
             'email' => 'andi.wijaya@perusahaan.com',
             'role_id' => 2,
-            'status_aktif' => false,
+            'is_active' => false,
             'email_verified_at' => null,
             'deleted_at' => null,
         ]);
@@ -156,7 +156,7 @@ class PegawaiTest extends TestCase
             AkunPegawaiDibuatNotification::class,
             function (AkunPegawaiDibuatNotification $notification) {
                 return $notification->defaultPassword === PegawaiService::DEFAULT_PASSWORD
-                    && str_contains($notification->roleLabel, 'Buyer');
+                    && str_contains($notification->roleLabel, 'Purchasing');
             }
         );
     }
@@ -165,12 +165,12 @@ class PegawaiTest extends TestCase
     {
         // 1. Incomplete form
         $response = $this->actingAs($this->admin)->post('/manajemen/pengguna', [
-            'nama_lengkap' => '',
+            'name' => '',
             'email' => 'invalid-email',
             'role' => '',
         ]);
 
-        $response->assertSessionHasErrors(['nama_lengkap', 'email', 'role']);
+        $response->assertSessionHasErrors(['name', 'email', 'role']);
 
         // 2. Email already registered
         User::factory()->create([
@@ -179,9 +179,9 @@ class PegawaiTest extends TestCase
         ]);
 
         $responseExisting = $this->actingAs($this->admin)->post('/manajemen/pengguna', [
-            'nama_lengkap' => 'Pegawai Baru',
+            'name' => 'Pegawai Baru',
             'email' => 'existing@perusahaan.com',
-            'role' => 'buyer',
+            'role' => 'purchasing',
         ]);
 
         $responseExisting->assertSessionHasErrors(['email']);
@@ -190,11 +190,11 @@ class PegawaiTest extends TestCase
     public function test_can_view_employee_detail_by_uuid(): void
     {
         $pegawai = User::factory()->create([
-            'nama_lengkap' => 'Rina QC',
+            'name' => 'Rina QC',
             'email' => 'rina.qc@perusahaan.com',
             'role_id' => 3, // qc_gudang
             'vendor_id' => null,
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->getJson("/manajemen/pengguna/{$pegawai->uuid}");
@@ -204,13 +204,13 @@ class PegawaiTest extends TestCase
             'success' => true,
             'data' => [
                 'uuid' => $pegawai->uuid,
-                'nama_lengkap' => 'Rina QC',
+                'name' => 'Rina QC',
                 'email' => 'rina.qc@perusahaan.com',
                 'role' => [
                     'name' => 'qc_gudang',
                     'label' => 'QC Gudang',
                 ],
-                'status_aktif' => true,
+                'is_active' => true,
             ],
         ]);
     }
@@ -218,19 +218,19 @@ class PegawaiTest extends TestCase
     public function test_can_update_employee_credentials_and_password(): void
     {
         $pegawai = User::factory()->create([
-            'nama_lengkap' => 'Bambang Staff',
+            'name' => 'Bambang Staff',
             'email' => 'bambang@perusahaan.com',
-            'role_id' => 2, // buyer
+            'role_id' => 2, // purchasing
             'vendor_id' => null,
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $updatePayload = [
-            'nama_lengkap' => 'Bambang Sukses, S.E.',
+            'name' => 'Bambang Sukses, S.E.',
             'email' => 'bambang.baru@perusahaan.com',
             'role' => 'qc_gudang',
             'password' => 'NewSecretPass123!',
-            'status_aktif' => false,
+            'is_active' => false,
         ];
 
         $response = $this->actingAs($this->admin)->put("/manajemen/pengguna/{$pegawai->uuid}", $updatePayload);
@@ -240,10 +240,10 @@ class PegawaiTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'uuid' => $pegawai->uuid,
-            'nama_lengkap' => 'Bambang Sukses, S.E.',
+            'name' => 'Bambang Sukses, S.E.',
             'email' => 'bambang.baru@perusahaan.com',
             'role_id' => 3, // qc_gudang
-            'status_aktif' => false,
+            'is_active' => false,
         ]);
 
         $updatedUser = $pegawai->fresh();
@@ -253,11 +253,11 @@ class PegawaiTest extends TestCase
     public function test_can_soft_delete_employee_account(): void
     {
         $pegawai = User::factory()->create([
-            'nama_lengkap' => 'Eko Hendra',
+            'name' => 'Eko Hendra',
             'email' => 'eko@perusahaan.com',
             'role_id' => 2,
             'vendor_id' => null,
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->delete("/manajemen/pengguna/{$pegawai->uuid}");
@@ -286,18 +286,22 @@ class PegawaiTest extends TestCase
     {
         $superadmin = $this->admin; // role_id = 1 (superadmin)
 
+        $tenant = PerusahaanBuyer::factory()->create();
+
         $owner = User::factory()->create([
             'role_id' => 6, // owner
-            'nama_lengkap' => 'Pak Owner',
+            'tenant_id' => $tenant->id,
+            'name' => 'Pak Owner',
             'email' => 'owner@perusahaan.com',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $manajemen = User::factory()->create([
             'role_id' => 5, // manajemen
-            'nama_lengkap' => 'Bu Manajemen',
+            'tenant_id' => $tenant->id,
+            'name' => 'Bu Manajemen',
             'email' => 'manajemen@perusahaan.com',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         /** @var PegawaiService $service */
@@ -305,26 +309,25 @@ class PegawaiTest extends TestCase
 
         // 1. Superadmin has all roles
         $superadminOptions = collect($service->getRoleOptionsForUser($superadmin))->pluck('value')->all();
-        $this->assertEquals(['superadmin', 'owner', 'manajemen', 'buyer', 'qc_gudang', 'vendor'], $superadminOptions);
+        $this->assertEquals(['superadmin', 'owner', 'manajemen', 'purchasing', 'qc_gudang', 'vendor'], $superadminOptions);
 
-        // 2. Owner has manajemen, buyer, qc_gudang
+        // 2. Owner has manajemen, purchasing, qc_gudang
         $ownerOptions = collect($service->getRoleOptionsForUser($owner))->pluck('value')->all();
-        $this->assertEquals(['manajemen', 'buyer', 'qc_gudang'], $ownerOptions);
+        $this->assertEquals(['manajemen', 'purchasing', 'qc_gudang'], $ownerOptions);
 
-        // 3. Manajemen has buyer, qc_gudang
-        $manajemenOptions = collect($service->getRoleOptionsForUser($manajemen))->pluck('value')->all();
-        $this->assertEquals(['buyer', 'qc_gudang'], $manajemenOptions);
+        // 3. Manajemen cannot manage accounts (UC-08 is Owner only)
+        $this->assertSame([], $service->getRoleOptionsForUser($manajemen));
     }
 
     public function test_superadmin_can_create_any_role(): void
     {
         Notification::fake();
 
-        $rolesToTest = ['owner', 'manajemen', 'buyer', 'qc_gudang', 'superadmin', 'vendor'];
+        $rolesToTest = ['owner', 'manajemen', 'purchasing', 'qc_gudang', 'superadmin', 'vendor'];
 
         foreach ($rolesToTest as $index => $role) {
             $payload = [
-                'nama_lengkap' => "User {$role}",
+                'name' => "User {$role}",
                 'email' => "user.{$role}.{$index}@perusahaan.com",
                 'role' => $role,
             ];
@@ -339,31 +342,31 @@ class PegawaiTest extends TestCase
         }
     }
 
-    public function test_owner_can_create_manajemen_buyer_and_qc_gudang_only(): void
+    public function test_owner_can_create_manajemen_purchasing_and_qc_gudang_only(): void
     {
         Notification::fake();
 
         $perusahaan = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Pagora Owner Test',
-            'nomor_npwp' => '01.111.222.3-444.000',
-            'alamat' => 'Jl. Industri No. 10',
+            'company_name' => 'PT Pagora Owner Test',
+            'tax_number' => '01.111.222.3-444.000',
+            'address' => 'Jl. Industri No. 10',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $owner = User::factory()->create([
             'role_id' => 6, // owner
-            'perusahaan_id' => $perusahaan->id,
-            'nama_lengkap' => 'Pak Owner',
+            'tenant_id' => $perusahaan->id,
+            'name' => 'Pak Owner',
             'email' => 'owner.test@perusahaan.com',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         // Allowed roles for Owner
-        $allowedRoles = ['manajemen', 'buyer', 'qc_gudang'];
+        $allowedRoles = ['manajemen', 'purchasing', 'qc_gudang'];
         foreach ($allowedRoles as $role) {
             $response = $this->actingAs($owner)->post('/manajemen/pengguna', [
-                'nama_lengkap' => "Staff {$role}",
+                'name' => "Staff {$role}",
                 'email' => "owner.created.{$role}@perusahaan.com",
                 'role' => $role,
             ]);
@@ -372,7 +375,7 @@ class PegawaiTest extends TestCase
             $response->assertRedirect('/manajemen/pengguna');
             $this->assertDatabaseHas('users', [
                 'email' => "owner.created.{$role}@perusahaan.com",
-                'perusahaan_id' => $perusahaan->id,
+                'tenant_id' => $perusahaan->id,
             ]);
         }
 
@@ -380,7 +383,7 @@ class PegawaiTest extends TestCase
         $disallowedRoles = ['superadmin', 'owner', 'vendor'];
         foreach ($disallowedRoles as $role) {
             $response = $this->actingAs($owner)->post('/manajemen/pengguna', [
-                'nama_lengkap' => "Disallowed {$role}",
+                'name' => "Disallowed {$role}",
                 'email' => "owner.disallowed.{$role}@perusahaan.com",
                 'role' => $role,
             ]);
@@ -390,55 +393,25 @@ class PegawaiTest extends TestCase
         }
     }
 
-    public function test_manajemen_can_create_buyer_and_qc_gudang_only(): void
+    public function test_manajemen_cannot_access_or_create_accounts(): void
     {
-        Notification::fake();
-
-        $perusahaan = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Pagora Manajemen Test',
-            'nomor_npwp' => '02.111.222.3-444.000',
-            'alamat' => 'Jl. Industri No. 20',
-            'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
-        ]);
+        $perusahaan = PerusahaanBuyer::factory()->create();
 
         $manajemen = User::factory()->create([
             'role_id' => 5, // manajemen
-            'perusahaan_id' => $perusahaan->id,
-            'nama_lengkap' => 'Bu Manajemen',
-            'email' => 'manajemen.test@perusahaan.com',
-            'status_aktif' => true,
+            'tenant_id' => $perusahaan->id,
+            'is_active' => true,
         ]);
 
-        // Allowed roles for Manajemen
-        $allowedRoles = ['buyer', 'qc_gudang'];
-        foreach ($allowedRoles as $role) {
-            $response = $this->actingAs($manajemen)->post('/manajemen/pengguna', [
-                'nama_lengkap' => "Staff {$role}",
-                'email' => "manajemen.created.{$role}@perusahaan.com",
-                'role' => $role,
-            ]);
+        $this->actingAs($manajemen)->get('/manajemen/pengguna')->assertForbidden();
 
-            $response->assertSessionHasNoErrors();
-            $response->assertRedirect('/manajemen/pengguna');
-            $this->assertDatabaseHas('users', [
-                'email' => "manajemen.created.{$role}@perusahaan.com",
-                'perusahaan_id' => $perusahaan->id,
-            ]);
-        }
+        $this->actingAs($manajemen)->post('/manajemen/pengguna', [
+            'name' => 'Staff Purchasing',
+            'email' => 'manajemen.created@perusahaan.com',
+            'role' => 'purchasing',
+        ])->assertForbidden();
 
-        // Disallowed roles for Manajemen: manajemen, owner, superadmin, vendor
-        $disallowedRoles = ['manajemen', 'owner', 'superadmin', 'vendor'];
-        foreach ($disallowedRoles as $role) {
-            $response = $this->actingAs($manajemen)->post('/manajemen/pengguna', [
-                'nama_lengkap' => "Disallowed {$role}",
-                'email' => "manajemen.disallowed.{$role}@perusahaan.com",
-                'role' => $role,
-            ]);
-
-            $response->assertSessionHasErrors(['role']);
-            $this->assertDatabaseMissing('users', ['email' => "manajemen.disallowed.{$role}@perusahaan.com"]);
-        }
+        $this->assertDatabaseMissing('users', ['email' => 'manajemen.created@perusahaan.com']);
     }
 
     public function test_perusahaan_buyer_only_sees_and_manages_own_company_users(): void
@@ -446,46 +419,46 @@ class PegawaiTest extends TestCase
         Notification::fake();
 
         $companyA = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Alpha Manufaktur',
-            'nomor_npwp' => '11.111.111.1-111.000',
-            'alamat' => 'Surabaya',
+            'company_name' => 'PT Alpha Manufaktur',
+            'tax_number' => '11.111.111.1-111.000',
+            'address' => 'Surabaya',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $companyB = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Beta Pangan',
-            'nomor_npwp' => '22.222.222.2-222.000',
-            'alamat' => 'Jakarta',
+            'company_name' => 'PT Beta Pangan',
+            'tax_number' => '22.222.222.2-222.000',
+            'address' => 'Jakarta',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $ownerA = User::factory()->create([
             'role_id' => 6,
-            'perusahaan_id' => $companyA->id,
-            'nama_lengkap' => 'Owner Alpha',
+            'tenant_id' => $companyA->id,
+            'name' => 'Owner Alpha',
             'email' => 'owner@alpha.test',
         ]);
 
         $buyerA = User::factory()->create([
             'role_id' => 2,
-            'perusahaan_id' => $companyA->id,
-            'nama_lengkap' => 'Buyer Alpha',
+            'tenant_id' => $companyA->id,
+            'name' => 'Buyer Alpha',
             'email' => 'buyer@alpha.test',
         ]);
 
         $ownerB = User::factory()->create([
             'role_id' => 6,
-            'perusahaan_id' => $companyB->id,
-            'nama_lengkap' => 'Owner Beta',
+            'tenant_id' => $companyB->id,
+            'name' => 'Owner Beta',
             'email' => 'owner@beta.test',
         ]);
 
         $buyerB = User::factory()->create([
             'role_id' => 2,
-            'perusahaan_id' => $companyB->id,
-            'nama_lengkap' => 'Buyer Beta',
+            'tenant_id' => $companyB->id,
+            'name' => 'Buyer Beta',
             'email' => 'buyer@beta.test',
         ]);
 
@@ -500,7 +473,7 @@ class PegawaiTest extends TestCase
                 ->where('current_perusahaan.uuid', $companyA->uuid)
                 ->where('perusahaan_filter_options', [])
                 ->missing('pegawai.data.0.id')
-                ->missing('pegawai.data.0.perusahaan_id')
+                ->missing('pegawai.data.0.tenant_id')
             );
 
         // 2. Spoofing ?perusahaan=CompanyB UUID still only returns Company A's users
@@ -509,19 +482,19 @@ class PegawaiTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page->has('pegawai.data', 2));
 
-        // 3. Creating a user while spoofing perusahaan_uuid of Company B still binds to Company A
+        // 3. Creating a user while spoofing tenant_uuid of Company B still binds to Company A
         $this->actingAs($ownerA)
             ->post('/manajemen/pengguna', [
-                'nama_lengkap' => 'QC Alpha Baru',
+                'name' => 'QC Alpha Baru',
                 'email' => 'qc.baru@alpha.test',
                 'role' => 'qc_gudang',
-                'perusahaan_uuid' => $companyB->uuid,
+                'tenant_uuid' => $companyB->uuid,
             ])
             ->assertRedirect('/manajemen/pengguna');
 
         $this->assertDatabaseHas('users', [
             'email' => 'qc.baru@alpha.test',
-            'perusahaan_id' => $companyA->id,
+            'tenant_id' => $companyA->id,
         ]);
 
         // 4. Cannot view, update, or delete Company B's user or Superadmin
@@ -535,10 +508,10 @@ class PegawaiTest extends TestCase
 
         $this->actingAs($ownerA)
             ->putJson("/manajemen/pengguna/{$buyerB->uuid}", [
-                'nama_lengkap' => 'Bajak Beta',
+                'name' => 'Bajak Beta',
                 'email' => 'buyer@beta.test',
-                'role' => 'buyer',
-                'status_aktif' => false,
+                'role' => 'purchasing',
+                'is_active' => false,
             ])
             ->assertForbidden();
 
@@ -551,17 +524,17 @@ class PegawaiTest extends TestCase
         // 5. Can update and delete own company's subordinate user
         $this->actingAs($ownerA)
             ->put("/manajemen/pengguna/{$buyerA->uuid}", [
-                'nama_lengkap' => 'Buyer Alpha Updated',
+                'name' => 'Buyer Alpha Updated',
                 'email' => 'buyer@alpha.test',
-                'role' => 'buyer',
-                'status_aktif' => true,
+                'role' => 'purchasing',
+                'is_active' => true,
             ])
             ->assertRedirect('/manajemen/pengguna');
 
         $this->assertDatabaseHas('users', [
             'uuid' => $buyerA->uuid,
-            'nama_lengkap' => 'Buyer Alpha Updated',
-            'perusahaan_id' => $companyA->id,
+            'name' => 'Buyer Alpha Updated',
+            'tenant_id' => $companyA->id,
         ]);
 
         // Suppress unused variable notice for $ownerB while keeping realistic multi-tenant fixture
@@ -571,37 +544,37 @@ class PegawaiTest extends TestCase
     public function test_manajemen_cannot_modify_or_delete_owner_or_fellow_manajemen_in_same_company(): void
     {
         $company = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Hirarki Test',
-            'nomor_npwp' => '33.333.333.3-333.000',
-            'alamat' => 'Bandung',
+            'company_name' => 'PT Hirarki Test',
+            'tax_number' => '33.333.333.3-333.000',
+            'address' => 'Bandung',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $owner = User::factory()->create([
             'role_id' => 6,
-            'perusahaan_id' => $company->id,
+            'tenant_id' => $company->id,
             'email' => 'owner@hirarki.test',
         ]);
 
         $manajemen1 = User::factory()->create([
             'role_id' => 5,
-            'perusahaan_id' => $company->id,
+            'tenant_id' => $company->id,
             'email' => 'manajemen1@hirarki.test',
         ]);
 
         $manajemen2 = User::factory()->create([
             'role_id' => 5,
-            'perusahaan_id' => $company->id,
+            'tenant_id' => $company->id,
             'email' => 'manajemen2@hirarki.test',
         ]);
 
         $this->actingAs($manajemen1)
             ->putJson("/manajemen/pengguna/{$owner->uuid}", [
-                'nama_lengkap' => 'Ubah Owner',
+                'name' => 'Ubah Owner',
                 'email' => 'owner@hirarki.test',
                 'role' => 'owner',
-                'status_aktif' => false,
+                'is_active' => false,
             ])
             ->assertForbidden();
 
@@ -620,24 +593,24 @@ class PegawaiTest extends TestCase
 
         $vendor1 = Vendor::create([
             'slug' => 'vendor-satu',
-            'nama_perusahaan' => 'CV Vendor Satu',
-            'email_kontak' => 'kontak@vendor1.test',
-            'no_telepon' => '0811111111',
-            'alamat' => 'Malang',
+            'company_name' => 'CV Vendor Satu',
+            'contact_email' => 'kontak@vendor1.test',
+            'phone' => '0811111111',
+            'address' => 'Malang',
             'kategori_komoditas' => 'Pangan Pokok',
-            'status_verifikasi' => 'approved',
-            'status_aktif' => true,
+            'verification_status' => 'approved',
+            'is_active' => true,
         ]);
 
         $vendor2 = Vendor::create([
             'slug' => 'vendor-dua',
-            'nama_perusahaan' => 'CV Vendor Dua',
-            'email_kontak' => 'kontak@vendor2.test',
-            'no_telepon' => '0822222222',
-            'alamat' => 'Kediri',
+            'company_name' => 'CV Vendor Dua',
+            'contact_email' => 'kontak@vendor2.test',
+            'phone' => '0822222222',
+            'address' => 'Kediri',
             'kategori_komoditas' => 'Pangan Pokok',
-            'status_verifikasi' => 'approved',
-            'status_aktif' => true,
+            'verification_status' => 'approved',
+            'is_active' => true,
         ]);
 
         $userV1 = User::factory()->create([
@@ -662,7 +635,7 @@ class PegawaiTest extends TestCase
 
         $this->actingAs($userV1)
             ->post('/manajemen/pengguna', [
-                'nama_lengkap' => 'Rekan Vendor Satu',
+                'name' => 'Rekan Vendor Satu',
                 'email' => 'staff@vendor1.test',
                 'role' => 'vendor',
                 'vendor_uuid' => $vendor2->uuid,
@@ -672,7 +645,7 @@ class PegawaiTest extends TestCase
         $this->assertDatabaseHas('users', [
             'email' => 'staff@vendor1.test',
             'vendor_id' => $vendor1->id,
-            'perusahaan_id' => null,
+            'tenant_id' => null,
         ]);
 
         $this->actingAs($userV1)
@@ -685,44 +658,44 @@ class PegawaiTest extends TestCase
         Notification::fake();
 
         $companyA = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Super Buyer A',
-            'nomor_npwp' => '44.444.444.4-444.000',
-            'alamat' => 'Semarang',
+            'company_name' => 'PT Super Buyer A',
+            'tax_number' => '44.444.444.4-444.000',
+            'address' => 'Semarang',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $vendorA = Vendor::create([
             'slug' => 'pt-super-vendor-a',
-            'nama_perusahaan' => 'PT Super Vendor A',
-            'email_kontak' => 'info@supervendora.test',
-            'no_telepon' => '0833333333',
-            'alamat' => 'Solo',
+            'company_name' => 'PT Super Vendor A',
+            'contact_email' => 'info@supervendora.test',
+            'phone' => '0833333333',
+            'address' => 'Solo',
             'kategori_komoditas' => 'Pangan Pokok',
-            'status_verifikasi' => 'approved',
-            'status_aktif' => true,
+            'verification_status' => 'approved',
+            'is_active' => true,
         ]);
 
         // Superadmin creates a Buyer Company Owner assigned to Company A via UUID
         $this->actingAs($this->admin)
             ->post('/manajemen/pengguna', [
-                'nama_lengkap' => 'Owner Super Buyer A',
+                'name' => 'Owner Super Buyer A',
                 'email' => 'owner@superbuyera.test',
                 'role' => 'owner',
-                'perusahaan_uuid' => $companyA->uuid,
+                'tenant_uuid' => $companyA->uuid,
             ])
             ->assertRedirect('/manajemen/pengguna');
 
         $this->assertDatabaseHas('users', [
             'email' => 'owner@superbuyera.test',
-            'perusahaan_id' => $companyA->id,
+            'tenant_id' => $companyA->id,
             'vendor_id' => null,
         ]);
 
         // Superadmin creates a Vendor account assigned to Vendor A via UUID
         $this->actingAs($this->admin)
             ->post('/manajemen/pengguna', [
-                'nama_lengkap' => 'PIC Super Vendor A',
+                'name' => 'PIC Super Vendor A',
                 'email' => 'pic@supervendora.test',
                 'role' => 'vendor',
                 'vendor_uuid' => $vendorA->uuid,
@@ -732,7 +705,7 @@ class PegawaiTest extends TestCase
         $this->assertDatabaseHas('users', [
             'email' => 'pic@supervendora.test',
             'vendor_id' => $vendorA->id,
-            'perusahaan_id' => null,
+            'tenant_id' => null,
         ]);
 
         // Filter: All companies (superadmin + owner + vendor = 3)
@@ -775,25 +748,25 @@ class PegawaiTest extends TestCase
             );
     }
 
-    public function test_staff_roles_buyer_and_qc_cannot_access_manajemen_pengguna(): void
+    public function test_staff_roles_purchasing_and_qc_cannot_access_manajemen_pengguna(): void
     {
         $company = PerusahaanBuyer::create([
-            'nama_perusahaan' => 'PT Staff Test',
-            'nomor_npwp' => '55.555.555.5-555.000',
-            'alamat' => 'Yogyakarta',
+            'company_name' => 'PT Staff Test',
+            'tax_number' => '55.555.555.5-555.000',
+            'address' => 'Yogyakarta',
             'tipe_paket' => 'enterprise',
-            'status_aktif' => true,
+            'is_active' => true,
         ]);
 
         $buyer = User::factory()->create([
             'role_id' => 2,
-            'perusahaan_id' => $company->id,
+            'tenant_id' => $company->id,
             'email' => 'staff.buyer@test.com',
         ]);
 
         $qc = User::factory()->create([
             'role_id' => 3,
-            'perusahaan_id' => $company->id,
+            'tenant_id' => $company->id,
             'email' => 'staff.qc@test.com',
         ]);
 

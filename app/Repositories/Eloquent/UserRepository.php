@@ -18,10 +18,10 @@ class UserRepository implements UserRepositoryInterface
      * @var list<string>
      */
     private const SORTABLE = [
-        'nama_lengkap',
+        'name',
         'email',
         'role_id',
-        'status_aktif',
+        'is_active',
         'created_at',
     ];
 
@@ -40,8 +40,8 @@ class UserRepository implements UserRepositoryInterface
     {
         return User::with([
             'role',
-            'perusahaanBuyer:id,uuid,nama_perusahaan',
-            'vendor:id,uuid,nama_perusahaan',
+            'perusahaanBuyer:id,uuid,company_name',
+            'vendor:id,uuid,company_name',
         ])->where('uuid', $uuid)->first();
     }
 
@@ -57,13 +57,13 @@ class UserRepository implements UserRepositoryInterface
         array $columns = [
             'id',
             'uuid',
-            'nama_lengkap',
+            'name',
             'email',
             'avatar',
             'role_id',
-            'perusahaan_id',
+            'tenant_id',
             'vendor_id',
-            'status_aktif',
+            'is_active',
             'created_at',
             'updated_at',
         ],
@@ -85,8 +85,8 @@ class UserRepository implements UserRepositoryInterface
             ->select($columns)
             ->with([
                 'role',
-                'perusahaanBuyer:id,uuid,nama_perusahaan',
-                'vendor:id,uuid,nama_perusahaan',
+                'perusahaanBuyer:id,uuid,company_name',
+                'vendor:id,uuid,company_name',
             ])
             ->when($forceEmpty, function ($query): void {
                 $query->whereRaw('1 = 0');
@@ -94,15 +94,15 @@ class UserRepository implements UserRepositoryInterface
                 if (! $isSuperadmin) {
                     if ($vendorId !== null) {
                         $query->where('vendor_id', $vendorId)
-                            ->whereNull('perusahaan_id')
+                            ->whereNull('tenant_id')
                             ->whereHas('role', function ($q): void {
-                                $q->where('nama_role', '!=', 'superadmin');
+                                $q->where('name', '!=', 'superadmin');
                             });
                     } elseif ($perusahaanId !== null) {
-                        $query->where('perusahaan_id', $perusahaanId)
+                        $query->where('tenant_id', $perusahaanId)
                             ->whereNull('vendor_id')
                             ->whereHas('role', function ($q): void {
-                                $q->where('nama_role', '!=', 'superadmin');
+                                $q->where('name', '!=', 'superadmin');
                             });
                     } else {
                         $query->whereRaw('1 = 0');
@@ -113,9 +113,9 @@ class UserRepository implements UserRepositoryInterface
 
                 // Superadmin scope with optional company filter
                 if ($unassignedOnly) {
-                    $query->whereNull('perusahaan_id')->whereNull('vendor_id');
+                    $query->whereNull('tenant_id')->whereNull('vendor_id');
                 } elseif ($perusahaanId !== null) {
-                    $query->where('perusahaan_id', $perusahaanId);
+                    $query->where('tenant_id', $perusahaanId);
                 } elseif ($vendorId !== null) {
                     $query->where('vendor_id', $vendorId);
                 }
@@ -123,19 +123,19 @@ class UserRepository implements UserRepositoryInterface
             ->when(! empty($filters['search']), function ($query) use ($filters, $like): void {
                 $term = '%'.trim((string) $filters['search']).'%';
                 $query->where(function ($q) use ($term, $like): void {
-                    $q->where('nama_lengkap', $like, $term)
+                    $q->where('name', $like, $term)
                         ->orWhere('email', $like, $term);
                 });
             })
             ->when(! empty($filters['role']) && $filters['role'] !== 'all', function ($query) use ($filters): void {
                 $query->whereHas('role', function ($q) use ($filters): void {
-                    $q->where('nama_role', $filters['role']);
+                    $q->where('name', $filters['role']);
                 });
             })
-            ->when(isset($filters['status_aktif']) && $filters['status_aktif'] !== '' && $filters['status_aktif'] !== 'all', function ($query) use ($filters): void {
-                $status = filter_var($filters['status_aktif'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            ->when(isset($filters['is_active']) && $filters['is_active'] !== '' && $filters['is_active'] !== 'all', function ($query) use ($filters): void {
+                $status = filter_var($filters['is_active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
                 if ($status !== null) {
-                    $query->where('status_aktif', $status);
+                    $query->where('is_active', $status);
                 }
             })
             ->orderBy($sort, $direction)
@@ -192,8 +192,8 @@ class UserRepository implements UserRepositoryInterface
             $data['role_id'] = 2;
         }
 
-        if (! isset($data['status_aktif'])) {
-            $data['status_aktif'] = true;
+        if (! isset($data['is_active'])) {
+            $data['is_active'] = true;
         }
 
         return User::create($data);

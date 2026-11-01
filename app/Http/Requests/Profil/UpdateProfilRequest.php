@@ -24,7 +24,7 @@ class UpdateProfilRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nama_lengkap' => ['required', 'string', 'max:150'],
+            'name' => ['required', 'string', 'max:150'],
             'avatar' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'hapus_avatar' => ['nullable', 'boolean'],
         ];
@@ -38,8 +38,8 @@ class UpdateProfilRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nama_lengkap.required' => 'Nama lengkap wajib diisi.',
-            'nama_lengkap.max' => 'Nama lengkap maksimal 150 karakter.',
+            'name.required' => 'Nama lengkap wajib diisi.',
+            'name.max' => 'Nama lengkap maksimal 150 karakter.',
             'avatar.image' => 'Foto profil harus berupa gambar.',
             'avatar.mimes' => 'Foto profil harus berformat PNG, JPG, JPEG, atau WEBP.',
             'avatar.max' => 'Ukuran foto profil maksimal 2 MB.',

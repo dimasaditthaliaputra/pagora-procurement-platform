@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Vendor;
 
 use App\Models\User;
+use App\Models\Vendor;
 use App\Services\VendorRegistrationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -19,10 +20,7 @@ class UndangVendorRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        /** @var User|null $user */
-        $user = $this->user();
-
-        return $user instanceof User && $user->canManageVendors();
+        return $this->user()?->can('invite', Vendor::class) ?? false;
     }
 
     /**
@@ -33,7 +31,7 @@ class UndangVendorRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nama_perusahaan' => [
+            'company_name' => [
                 'required',
                 'string',
                 'min:3',
@@ -51,7 +49,7 @@ class UndangVendorRequest extends FormRequest
                 'max:100',
                 Rule::in(VendorRegistrationService::KATEGORI_OPTIONS),
             ],
-            'pesan' => [
+            'message' => [
                 'nullable',
                 'string',
                 'max:1000',
@@ -67,9 +65,9 @@ class UndangVendorRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nama_perusahaan.required' => 'Nama perusahaan vendor wajib diisi.',
-            'nama_perusahaan.min' => 'Nama perusahaan minimal 3 karakter.',
-            'nama_perusahaan.max' => 'Nama perusahaan maksimal 200 karakter.',
+            'company_name.required' => 'Nama perusahaan vendor wajib diisi.',
+            'company_name.min' => 'Nama perusahaan minimal 3 karakter.',
+            'company_name.max' => 'Nama perusahaan maksimal 200 karakter.',
 
             'email.required' => 'Email kontak vendor wajib diisi.',
             'email.email' => 'Format email kontak tidak valid.',
@@ -78,7 +76,7 @@ class UndangVendorRequest extends FormRequest
             'kategori_komoditas.in' => 'Kategori komoditas yang dipilih tidak valid.',
             'kategori_komoditas.max' => 'Kategori komoditas maksimal 100 karakter.',
 
-            'pesan.max' => 'Pesan undangan maksimal 1000 karakter.',
+            'message.max' => 'Pesan undangan maksimal 1000 karakter.',
         ];
     }
 }

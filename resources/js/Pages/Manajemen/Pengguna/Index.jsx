@@ -32,9 +32,10 @@ export default function PenggunaIndex({
     is_superadmin = false,
     current_perusahaan = null,
     perusahaan_filter_options = [],
-    perusahaan_buyer_options = [],
+    tenant_options = [],
     vendor_options = [],
     default_password = 'password123',
+    can = {},
 }) {
     const { auth, user: sharedUser } = usePage().props;
     const currentUserUuid = auth?.user?.uuid ?? sharedUser?.uuid ?? null;
@@ -54,8 +55,8 @@ export default function PenggunaIndex({
     const [perusahaan, setPerusahaan] = useState(filters.perusahaan ?? 'all');
     const [role, setRole] = useState(filters.role ?? 'all');
     const [statusAktif, setStatusAktif] = useState(
-        filters.status_aktif !== undefined && filters.status_aktif !== null && filters.status_aktif !== ''
-            ? String(filters.status_aktif)
+        filters.is_active !== undefined && filters.is_active !== null && filters.is_active !== ''
+            ? String(filters.is_active)
             : 'all'
     );
     const [loading, setLoading] = useState(false);
@@ -78,8 +79,8 @@ export default function PenggunaIndex({
         setPerusahaan(filters.perusahaan ?? 'all');
         setRole(filters.role ?? 'all');
         setStatusAktif(
-            filters.status_aktif !== undefined && filters.status_aktif !== null && filters.status_aktif !== ''
-                ? String(filters.status_aktif)
+            filters.is_active !== undefined && filters.is_active !== null && filters.is_active !== ''
+                ? String(filters.is_active)
                 : 'all'
         );
         if (typeof filters.sort === 'string' && filters.sort) {
@@ -87,7 +88,7 @@ export default function PenggunaIndex({
         } else {
             setSorting([]);
         }
-    }, [filters.search, filters.perusahaan, filters.role, filters.status_aktif, filters.sort, filters.direction]);
+    }, [filters.search, filters.perusahaan, filters.role, filters.is_active, filters.sort, filters.direction]);
 
     const applyFilters = (newFilters = {}) => {
         const activeSort = typeof sorting[0]?.id === 'string' ? sorting[0].id : undefined;
@@ -95,7 +96,7 @@ export default function PenggunaIndex({
             search: search.trim() || undefined,
             perusahaan: is_superadmin && perusahaan !== 'all' ? perusahaan : undefined,
             role: role !== 'all' ? role : undefined,
-            status_aktif: statusAktif !== 'all' ? statusAktif : undefined,
+            is_active: statusAktif !== 'all' ? statusAktif : undefined,
             sort: activeSort,
             direction: activeSort && sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
             per_page: meta.per_page,
@@ -161,7 +162,7 @@ export default function PenggunaIndex({
     const handleStatusChange = (val) => {
         const nextVal = !val || val === 'all' ? 'all' : val;
         setStatusAktif(nextVal);
-        applyFilters({ status_aktif: nextVal !== 'all' ? nextVal : undefined, page: 1 });
+        applyFilters({ is_active: nextVal !== 'all' ? nextVal : undefined, page: 1 });
     };
 
     const handleResetFilters = () => {
@@ -204,24 +205,9 @@ export default function PenggunaIndex({
         setDeleteDialogOpen(true);
     };
 
-    const assignableRoleSet = useMemo(
-        () => new Set(role_options.map((opt) => opt.value)),
-        [role_options]
-    );
+    const canEditPegawai = (item) => Boolean(item?.can?.update);
 
-    const canEditPegawai = (item) => {
-        if (!item) return false;
-        if (is_superadmin) return true;
-        if (currentUserUuid && item.uuid === currentUserUuid) return true;
-        return assignableRoleSet.has(item.role?.name);
-    };
-
-    const canDeletePegawai = (item) => {
-        if (!item) return false;
-        if (currentUserUuid && item.uuid === currentUserUuid) return false;
-        if (is_superadmin) return true;
-        return assignableRoleSet.has(item.role?.name);
-    };
+    const canDeletePegawai = (item) => Boolean(item?.can?.delete);
 
     const perusahaanComboboxOptions = useMemo(() => {
         const options = [
@@ -263,7 +249,7 @@ export default function PenggunaIndex({
                 onEdit: handleOpenEdit,
                 onDelete: handleOpenDelete,
             }),
-        [is_superadmin, assignableRoleSet, currentUserUuid]
+        [is_superadmin]
     );
 
     const table = useReactTable({
@@ -320,7 +306,7 @@ export default function PenggunaIndex({
                                   : 'Kelola akun akses pengguna di lingkungan perusahaan Anda.'}
                         </p>
                     </div>
-                    {role_options.length > 0 && (
+                    {can.create && role_options.length > 0 && (
                         <div>
                             <Button
                                 onClick={handleOpenCreate}
@@ -432,7 +418,7 @@ export default function PenggunaIndex({
                 role_options={role_options}
                 is_superadmin={is_superadmin}
                 current_perusahaan={current_perusahaan}
-                perusahaan_buyer_options={perusahaan_buyer_options}
+                tenant_options={tenant_options}
                 vendor_options={vendor_options}
                 currentUserUuid={currentUserUuid}
                 default_password={default_password}

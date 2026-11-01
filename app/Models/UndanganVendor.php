@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\StatusUndanganVendor;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -14,13 +15,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'uuid',
-    'nama_perusahaan',
+    'company_name',
     'email',
     'kategori_komoditas',
-    'pesan',
+    'message',
     'token',
     'status',
     'invited_by',
+    'tenant_id',
     'expires_at',
     'registered_at',
 ])]
@@ -29,7 +31,7 @@ class UndanganVendor extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
 
-    protected $table = 'undangan_vendor';
+    protected $table = 'vendor_invitations';
 
     /**
      * The attributes that are mass assignable.
@@ -38,13 +40,14 @@ class UndanganVendor extends Model
      */
     protected $fillable = [
         'uuid',
-        'nama_perusahaan',
+        'company_name',
         'email',
         'kategori_komoditas',
-        'pesan',
+        'message',
         'token',
         'status',
         'invited_by',
+        'tenant_id',
         'expires_at',
         'registered_at',
     ];
@@ -84,6 +87,7 @@ class UndanganVendor extends Model
     protected function casts(): array
     {
         return [
+            'status' => StatusUndanganVendor::class,
             'expires_at' => 'datetime',
             'registered_at' => 'datetime',
         ];
@@ -110,6 +114,6 @@ class UndanganVendor extends Model
      */
     public function isValid(): bool
     {
-        return $this->status === 'pending' && ! $this->isExpired();
+        return $this->status === StatusUndanganVendor::Pending && ! $this->isExpired();
     }
 }

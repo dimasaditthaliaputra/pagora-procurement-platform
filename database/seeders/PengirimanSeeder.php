@@ -37,7 +37,7 @@ class PengirimanSeeder extends Seeder
                 continue;
             }
 
-            $isVendor2 = $po->vendor->email_kontak === 'info@sumber-pangan.test';
+            $isVendor2 = $po->vendor->contact_email === 'info@sumber-pangan.test';
 
             Pengiriman::create([
                 'purchase_order_id' => $po->id,

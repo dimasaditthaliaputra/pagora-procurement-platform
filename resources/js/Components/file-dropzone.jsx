@@ -1,55 +1,57 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, FileText, Image as ImageIcon, X, AlertCircle } from 'lucide-react';
+import {
+    AlertCircle,
+    CheckCircle2,
+    FileText,
+    Loader2,
+    Replace,
+    Trash2,
+    UploadCloud,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { describeRejection, formatBytes, getFileExtension, isImageSource } from '@/lib/file';
+import { useObjectUrl } from '@/hooks/use-object-url';
 import { Button } from '@/Components/ui/button';
+import { Progress } from '@/Components/ui/progress';
+
+const DEFAULT_ACCEPT = {
+    'application/pdf': ['.pdf'],
+    'image/jpeg': ['.jpg', '.jpeg'],
+    'image/png': ['.png'],
+};
 
 /**
- * Komponen Reusable FileDropzone berbasis react-dropzone
- * Sesuai aturan RULES.md Bagian 8.7
+ * Komponen Reusable FileDropzone berbasis react-dropzone (RULES.md Bagian 8.7).
+ *
+ * `value` bisa `File` (pilihan baru), `string` (URL file yang sudah tersimpan), atau `null`.
+ * Feedback upload datang dari luar; untuk form Inertia pakai `useUploadFeedback(form, field)`:
+ *
+ * @param {boolean}  uploading  File sedang dikirim; tampilkan loading dan kunci aksi ganti/hapus.
+ * @param {?number}  progress   Persentase 0-100; tanpa nilai tampil indeterminate.
+ * @param {'idle'|'uploading'|'success'|'error'} status  Status upload terakhir.
  */
 export function FileDropzone({
     value,
     onChange,
     onError,
     error,
-    accept = {
-        'application/pdf': ['.pdf'],
-        'image/jpeg': ['.jpg', '.jpeg'],
-        'image/png': ['.png'],
-    },
+    accept = DEFAULT_ACCEPT,
     maxSize = 2 * 1024 * 1024, // 2MB
-    maxFiles = 1,
     disabled = false,
+    uploading = false,
+    progress = null,
+    status = 'idle',
     label = 'Unggah Dokumen',
     description = 'Format PDF, JPG, JPEG, atau PNG (Maksimal 2 MB)',
     className,
 }) {
-    const [previewUrl, setPreviewUrl] = useState(null);
-
-    // Format ukuran file agar mudah dibaca
-    const formatBytes = (bytes) => {
-        if (!bytes || bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-    };
-
-    // Buat URL preview saat ada file gambar dan kelola revokeObjectURL
-    useEffect(() => {
-        if (value instanceof File && value.type.startsWith('image/')) {
-            const objectUrl = URL.createObjectURL(value);
-            setPreviewUrl(objectUrl);
-            return () => {
-                URL.revokeObjectURL(objectUrl);
-            };
-        } else if (typeof value === 'string' && value.length > 0) {
-            setPreviewUrl(value);
-        } else {
-            setPreviewUrl(null);
-        }
-    }, [value]);
+    const objectUrl = useObjectUrl(value instanceof File ? value : null);
+    const previewUrl = value instanceof File ? objectUrl : value;
+    const isImage = isImageSource(value);
+    const isNewFile = value instanceof File;
+    const locked = disabled || uploading;
+    const hasError = Boolean(error) || status === 'error';
 
     const onDropAccepted = useCallback(
         (acceptedFiles) => {
@@ -63,116 +65,155 @@ export function FileDropzone({
     const onDropRejected = useCallback(
         (fileRejections) => {
             if (fileRejections.length > 0) {
-                const rejection = fileRejections[0];
-                let errorMsg = 'File tidak dapat diterima.';
-                if (rejection.errors.some((e) => e.code === 'file-too-large')) {
-                    errorMsg = `Ukuran file terlalu besar. Maksimal ${formatBytes(maxSize)}.`;
-                } else if (rejection.errors.some((e) => e.code === 'file-invalid-type')) {
-                    errorMsg = 'Format file tidak didukung. Harap unggah PDF, JPG, atau PNG.';
-                }
-                onError?.(errorMsg);
+                onError?.(describeRejection(fileRejections[0], { accept, maxSize }));
             }
         },
-        [maxSize, onError]
+        [accept, maxSize, onError]
     );
 
-    const handleRemove = (e) => {
-        e.stopPropagation();
-        if (previewUrl && value instanceof File) {
-            URL.revokeObjectURL(previewUrl);
-        }
-        setPreviewUrl(null);
-        onChange?.(null);
-    };
-
-    const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
+    const { getRootProps, getInputProps, isDragActive, isDragReject, open } = useDropzone({
         accept,
         maxSize,
-        maxFiles,
+        maxFiles: 1,
         multiple: false,
-        disabled,
+        disabled: locked,
+        noClick: Boolean(value),
+        noDrag: Boolean(value),
+        noKeyboard: Boolean(value),
         onDropAccepted,
         onDropRejected,
     });
 
-    const isImage = value instanceof File
-        ? value.type.startsWith('image/')
-        : typeof value === 'string' && /\.(jpg|jpeg|png|webp)$/i.test(value);
+    const handleRemove = (e) => {
+        e.stopPropagation();
+        onChange?.(null);
+    };
+
+    const fileName = isNewFile ? value.name : 'Dokumen Terunggah';
+    const extension = isNewFile ? getFileExtension(value.name) : getFileExtension(String(value ?? ''));
+    const fileMeta = [extension, isNewFile ? formatBytes(value.size) : 'File tersimpan'].filter(Boolean).join(' • ');
 
     return (
-        <div className={cn('space-y-2', className)}>
-            {/* Area Dropzone / Preview */}
+        <div className={cn('w-full min-w-0 space-y-2', className)}>
+            <input {...getInputProps()} />
+
             {value ? (
                 <div
                     className={cn(
-                        'flex items-center justify-between p-3.5 rounded-xl border bg-card/70 transition-colors',
-                        error ? 'border-destructive bg-destructive/5' : 'border-border'
+                        'rounded-xl border bg-card/70 overflow-hidden transition-colors',
+                        hasError ? 'border-destructive bg-destructive/5' : 'border-border'
                     )}
                 >
-                    <div className="flex items-center gap-3 min-w-0">
-                        {isImage && previewUrl ? (
+                    {isImage && previewUrl && (
+                        <div className="relative flex items-center justify-center bg-muted/40 p-2">
                             <img
                                 src={previewUrl}
-                                alt="Preview"
-                                className="size-11 rounded-lg object-cover border border-border/70 shrink-0"
+                                alt={`Pratinjau ${fileName}`}
+                                className={cn(
+                                    'max-h-64 w-full rounded-lg object-contain transition-opacity',
+                                    uploading && 'opacity-60'
+                                )}
                             />
-                        ) : (
-                            <div className="size-11 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
-                                <FileText className="size-5" />
+                            {uploading && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <Loader2 className="size-7 animate-spin text-primary" />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex items-center justify-between gap-3 p-3.5">
+                        <div className="flex flex-1 items-center gap-3 min-w-0">
+                            {!isImage && (
+                                <div className="size-11 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
+                                    {uploading ? <Loader2 className="size-5 animate-spin" /> : <FileText className="size-5" />}
+                                </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-foreground truncate" title={fileName}>
+                                    {fileName}
+                                </p>
+                                <p className="text-xs text-muted-foreground">{fileMeta}</p>
+                            </div>
+                        </div>
+
+                        {!locked && (
+                            <div className="flex items-center gap-1 shrink-0">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={open}
+                                    className="text-muted-foreground hover:text-foreground"
+                                    title="Ganti file"
+                                >
+                                    <Replace className="size-4" />
+                                    <span className="sr-only">Ganti file</span>
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={handleRemove}
+                                    className="text-muted-foreground hover:text-destructive"
+                                    title="Hapus file"
+                                >
+                                    <Trash2 className="size-4" />
+                                    <span className="sr-only">Hapus file</span>
+                                </Button>
                             </div>
                         )}
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">
-                                {value instanceof File ? value.name : 'Dokumen Terunggah'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                {value instanceof File ? formatBytes(value.size) : 'File tersimpan'}
-                            </p>
-                        </div>
                     </div>
-                    {!disabled && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={handleRemove}
-                            className="text-muted-foreground hover:text-destructive shrink-0"
-                            title="Hapus file"
-                        >
-                            <X className="size-4" />
-                            <span className="sr-only">Hapus file</span>
-                        </Button>
+
+                    {(uploading || status === 'success') && (
+                        <div className="px-3.5 pb-3.5 space-y-1.5" role="status" aria-live="polite">
+                            {uploading ? (
+                                <>
+                                    <Progress value={typeof progress === 'number' ? progress : undefined} />
+                                    <p className="text-xs text-muted-foreground flex items-center justify-between gap-2">
+                                        <span>Sedang mengunggah file...</span>
+                                        {typeof progress === 'number' && (
+                                            <span className="font-medium tabular-nums">{progress}%</span>
+                                        )}
+                                    </p>
+                                </>
+                            ) : (
+                                <p className="text-xs font-medium text-emerald-600 flex items-center gap-1.5">
+                                    <CheckCircle2 className="size-3.5" />
+                                    File berhasil diunggah.
+                                </p>
+                            )}
+                        </div>
                     )}
                 </div>
             ) : (
                 <div
                     {...getRootProps()}
-                    aria-invalid={!!error}
+                    aria-invalid={hasError}
                     className={cn(
                         'flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl cursor-pointer text-center transition-all duration-150',
                         isDragActive && !isDragReject && 'border-primary bg-primary/5 scale-[0.99]',
                         isDragReject && 'border-destructive bg-destructive/5',
-                        error && 'border-destructive focus-visible:ring-destructive bg-destructive/5',
-                        !error && !isDragActive && 'border-border hover:border-primary/60 hover:bg-muted/30',
-                        disabled && 'opacity-60 cursor-not-allowed pointer-events-none'
+                        hasError && 'border-destructive focus-visible:ring-destructive bg-destructive/5',
+                        !hasError && !isDragActive && 'border-border hover:border-primary/60 hover:bg-muted/30',
+                        locked && 'opacity-60 cursor-not-allowed pointer-events-none'
                     )}
                 >
-                    <input {...getInputProps()} />
                     <div className="p-3 rounded-full bg-primary/10 text-primary mb-3">
                         <UploadCloud className="size-6" />
                     </div>
                     <p className="text-sm font-medium text-foreground">
-                        {isDragActive
-                            ? 'Lepaskan file dokumen di sini...'
-                            : 'Klik untuk memilih atau seret & lepas file di sini'}
+                        {isDragActive ? 'Lepaskan file di sini...' : label}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        Klik untuk memilih atau seret & lepas file di sini
                     </p>
                     <p className="text-xs text-muted-foreground mt-1 max-w-xs">{description}</p>
                 </div>
             )}
 
-            {/* Pesan Error */}
             {error && (
-                <p className="text-xs text-destructive flex items-center gap-1.5 mt-1">
+                <p className="text-xs text-destructive flex items-center gap-1.5 mt-1" role="alert">
                     <AlertCircle className="size-3.5 shrink-0" />
                     <span>{error}</span>
                 </p>

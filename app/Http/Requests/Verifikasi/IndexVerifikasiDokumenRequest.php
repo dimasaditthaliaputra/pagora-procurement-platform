@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Verifikasi;
 
+use App\Models\DokumenLegalitasVendor;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -18,10 +19,7 @@ class IndexVerifikasiDokumenRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        /** @var User|null $user */
-        $user = $this->user();
-
-        return $user instanceof User && $user->isSuperadmin();
+        return $this->user()?->can('viewAny', DokumenLegalitasVendor::class) ?? false;
     }
 
     /**
@@ -33,7 +31,7 @@ class IndexVerifikasiDokumenRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:100'],
-            'status_verifikasi' => [
+            'verification_status' => [
                 'nullable',
                 'string',
                 Rule::in(['all', 'pending', 'approved', 'rejected']),

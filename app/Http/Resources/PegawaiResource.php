@@ -20,45 +20,41 @@ class PegawaiResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $roleName = $this->role?->nama_role;
+        $roleName = $this->role?->name;
         $perusahaan = null;
 
         if ($this->perusahaanBuyer !== null) {
             $perusahaan = [
                 'uuid' => $this->perusahaanBuyer->uuid,
-                'nama' => $this->perusahaanBuyer->nama_perusahaan,
+                'nama' => $this->perusahaanBuyer->company_name,
                 'tipe' => 'buyer',
             ];
         } elseif ($this->vendor !== null) {
             $perusahaan = [
                 'uuid' => $this->vendor->uuid,
-                'nama' => $this->vendor->nama_perusahaan,
+                'nama' => $this->vendor->company_name,
                 'tipe' => 'vendor',
             ];
         }
 
         return [
             'uuid' => $this->uuid,
-            'nama_lengkap' => $this->nama_lengkap,
+            'name' => $this->name,
             'email' => $this->email,
             'avatar' => $this->avatar_url,
             'role' => [
                 'name' => $roleName,
-                'label' => match ($roleName) {
-                    'buyer' => 'Buyer',
-                    'qc_gudang' => 'QC Gudang',
-                    'superadmin' => 'Superadmin',
-                    'manajemen' => 'Manajemen',
-                    'owner' => 'Owner',
-                    'vendor' => 'Vendor',
-                    default => ucfirst((string) ($roleName ?? '-')),
-                },
-                'deskripsi' => $this->role?->deskripsi,
+                'label' => $this->roleName()?->label() ?? ucfirst((string) ($roleName ?? '-')),
+                'description' => $this->role?->description,
             ],
             'perusahaan' => $perusahaan,
-            'status_aktif' => (bool) $this->status_aktif,
+            'is_active' => (bool) $this->is_active,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
+            'can' => [
+                'update' => (bool) $request->user()?->can('update', $this->resource),
+                'delete' => (bool) $request->user()?->can('delete', $this->resource),
+            ],
         ];
     }
 }

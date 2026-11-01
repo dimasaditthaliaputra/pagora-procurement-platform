@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\StatusUndanganVendor;
 use App\Mail\UndanganVendorMail;
 use App\Models\UndanganVendor;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Repositories\Contracts\UndanganVendorRepositoryInterface;
 use App\Repositories\Contracts\VendorRepositoryInterface;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -54,29 +57,31 @@ class VendorService
      * Block a vendor and deactivate its associated user accounts.
      *
      * @throws ModelNotFoundException
+     * @throws AuthorizationException
      * @throws ValidationException
      */
     public function blokir(string $uuid, string $alasan, User $actor): Vendor
     {
         $vendor = $this->findByUuid($uuid);
+        Gate::forUser($actor)->authorize('block', $vendor);
 
-        if (! $vendor->status_aktif) {
+        if (! $vendor->is_active) {
             throw ValidationException::withMessages([
-                'alasan_pemblokiran' => 'Vendor ini sudah dalam status diblokir.',
+                'block_reason' => 'Vendor ini sudah dalam status diblokir.',
             ]);
         }
 
         return DB::transaction(function () use ($vendor, $alasan, $actor): Vendor {
             $this->vendorRepository->update($vendor, [
-                'status_aktif' => false,
-                'alasan_pemblokiran' => trim($alasan),
+                'is_active' => false,
+                'block_reason' => trim($alasan),
                 'blocked_by' => $actor->id,
-                'diblokir_pada' => now(),
+                'blocked_at' => now(),
             ]);
 
             // Deactivate all user logins belonging to this vendor
             $vendor->users()->update([
-                'status_aktif' => false,
+                'is_active' => false,
             ]);
 
             return $vendor->fresh(['blockedByUser']);
@@ -87,29 +92,31 @@ class VendorService
      * Unblock a vendor and reactivate its associated user accounts.
      *
      * @throws ModelNotFoundException
+     * @throws AuthorizationException
      * @throws ValidationException
      */
     public function bukaBlokir(string $uuid, User $actor): Vendor
     {
         $vendor = $this->findByUuid($uuid);
+        Gate::forUser($actor)->authorize('unblock', $vendor);
 
-        if ($vendor->status_aktif) {
+        if ($vendor->is_active) {
             throw ValidationException::withMessages([
-                'status_aktif' => 'Vendor ini sudah dalam status aktif.',
+                'is_active' => 'Vendor ini sudah dalam status aktif.',
             ]);
         }
 
         return DB::transaction(function () use ($vendor): Vendor {
             $this->vendorRepository->update($vendor, [
-                'status_aktif' => true,
-                'alasan_pemblokiran' => null,
+                'is_active' => true,
+                'block_reason' => null,
                 'blocked_by' => null,
-                'diblokir_pada' => null,
+                'blocked_at' => null,
             ]);
 
             // Reactivate user logins belonging to this vendor
             $vendor->users()->update([
-                'status_aktif' => true,
+                'is_active' => true,
             ]);
 
             return $vendor->fresh(['blockedByUser']);
@@ -128,7 +135,7 @@ class VendorService
         $email = strtolower(trim((string) $data['email']));
 
         // Check if vendor with this email is already registered
-        if (Vendor::where('email_kontak', $email)->exists()) {
+        if (Vendor::where('contact_email', $email)->exists()) {
             throw ValidationException::withMessages([
                 'email' => 'Email ini sudah terdaftar sebagai rekanan vendor di PAGORA.',
             ]);
@@ -147,11 +154,11 @@ class VendorService
         $undangan = DB::transaction(function () use ($data, $email, $actor, $token, $expiresAt): UndanganVendor {
             $existing = $this->undanganRepository->findByEmail($email);
 
-            if ($existing !== null && $existing->status === 'pending') {
+            if ($existing !== null && $existing->status === StatusUndanganVendor::Pending) {
                 $this->undanganRepository->update($existing, [
-                    'nama_perusahaan' => trim((string) $data['nama_perusahaan']),
+                    'company_name' => trim((string) $data['company_name']),
                     'kategori_komoditas' => ! empty($data['kategori_komoditas']) ? (string) $data['kategori_komoditas'] : null,
-                    'pesan' => ! empty($data['pesan']) ? trim((string) $data['pesan']) : null,
+                    'message' => ! empty($data['message']) ? trim((string) $data['message']) : null,
                     'token' => $token,
                     'invited_by' => $actor->id,
                     'expires_at' => $expiresAt,
@@ -161,23 +168,23 @@ class VendorService
             }
 
             return $this->undanganRepository->create([
-                'nama_perusahaan' => trim((string) $data['nama_perusahaan']),
+                'company_name' => trim((string) $data['company_name']),
                 'email' => $email,
                 'kategori_komoditas' => ! empty($data['kategori_komoditas']) ? (string) $data['kategori_komoditas'] : null,
-                'pesan' => ! empty($data['pesan']) ? trim((string) $data['pesan']) : null,
+                'message' => ! empty($data['message']) ? trim((string) $data['message']) : null,
                 'token' => $token,
-                'status' => 'pending',
+                'status' => StatusUndanganVendor::Pending,
                 'invited_by' => $actor->id,
                 'expires_at' => $expiresAt,
             ]);
         });
 
         // Send email via Dimas' module
-        $roleName = $actor->role?->nama_role;
+        $roleName = $actor->role?->name;
         $roleLabel = match ($roleName) {
             'superadmin' => 'Superadmin',
             'manajemen' => 'Manajemen Internal',
-            'buyer' => 'Tim Purchasing / Buyer',
+            'purchasing' => 'Purchasing / Finance',
             default => 'Manajemen PAGORA',
         };
 
@@ -186,7 +193,7 @@ class VendorService
         Mail::to($undangan->email)->send(
             new UndanganVendorMail(
                 invitation: $undangan,
-                inviterName: $actor->nama_lengkap,
+                inviterName: $actor->name,
                 inviterRole: $roleLabel,
                 registrationUrl: $registrationUrl,
             )

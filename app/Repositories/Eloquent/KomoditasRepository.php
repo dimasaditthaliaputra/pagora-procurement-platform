@@ -18,11 +18,10 @@ class KomoditasRepository implements KomoditasRepositoryInterface
      * @var list<string>
      */
     private const SORTABLE = [
-        'nama_komoditas',
+        'name',
         'sku',
-        'kategori',
-        'satuan',
-        'status',
+        'unit',
+        'is_active',
         'created_at',
     ];
 
@@ -34,24 +33,9 @@ class KomoditasRepository implements KomoditasRepositoryInterface
      * Paginate commodities with search, filters, and sorting.
      *
      * @param  array<string, mixed>  $filters
-     * @param  list<string>  $columns
      */
-    public function paginate(
-        array $filters,
-        int $perPage = 10,
-        array $columns = [
-            'id',
-            'uuid',
-            'nama_komoditas',
-            'sku',
-            'kategori',
-            'satuan',
-            'batas_susut',
-            'kode_referensi_api',
-            'status',
-            'created_at',
-        ]
-    ): LengthAwarePaginator {
+    public function paginate(array $filters, int $perPage = 10): LengthAwarePaginator
+    {
         $sort = in_array($filters['sort'] ?? null, self::SORTABLE, true)
             ? (string) $filters['sort']
             : 'created_at';
@@ -61,22 +45,22 @@ class KomoditasRepository implements KomoditasRepositoryInterface
         $like = $driver === 'pgsql' ? 'ilike' : 'like';
 
         return $this->model->newQuery()
-            ->select($columns)
+            ->with('category:id,uuid,name')
             ->when(! empty($filters['search']), function ($query) use ($filters, $like): void {
                 $term = '%'.trim((string) $filters['search']).'%';
                 $query->where(function ($q) use ($term, $like): void {
-                    $q->where('nama_komoditas', $like, $term)
+                    $q->where('name', $like, $term)
                         ->orWhere('sku', $like, $term)
-                        ->orWhere('kode_referensi_api', $like, $term);
+                        ->orWhere('api_reference_code', $like, $term);
                 });
             })
-            ->when(! empty($filters['kategori']) && $filters['kategori'] !== 'all', function ($query) use ($filters): void {
-                $query->where('kategori', $filters['kategori']);
+            ->when(! empty($filters['commodity_category_uuid']) && $filters['commodity_category_uuid'] !== 'all', function ($query) use ($filters): void {
+                $query->whereHas('category', fn ($q) => $q->where('uuid', $filters['commodity_category_uuid']));
             })
             ->when(isset($filters['status']) && $filters['status'] !== '' && $filters['status'] !== 'all', function ($query) use ($filters): void {
                 $status = filter_var($filters['status'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
                 if ($status !== null) {
-                    $query->where('status', $status);
+                    $query->where('is_active', $status);
                 }
             })
             ->orderBy($sort, $direction)
@@ -89,7 +73,7 @@ class KomoditasRepository implements KomoditasRepositoryInterface
      */
     public function findByUuid(string $uuid): ?Komoditas
     {
-        return $this->model->newQuery()->where('uuid', $uuid)->first();
+        return $this->model->newQuery()->with('category:id,uuid,name')->where('uuid', $uuid)->first();
     }
 
     /**
@@ -119,8 +103,8 @@ class KomoditasRepository implements KomoditasRepositoryInterface
             $data['uuid'] = (string) Str::uuid();
         }
 
-        if (! isset($data['status'])) {
-            $data['status'] = true;
+        if (! isset($data['is_active'])) {
+            $data['is_active'] = true;
         }
 
         return $this->model->newQuery()->create($data);

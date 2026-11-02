@@ -29,6 +29,7 @@ class RoleAksesService
         'komoditas' => 'Master Komoditas',
         'vendor' => 'Data Rekanan Vendor',
         'dokumen_legalitas' => 'Verifikasi Legalitas Vendor',
+        'tenant' => 'Verifikasi Legalitas Tenant',
         'pengguna' => 'Manajemen Pengguna',
         'pengaturan' => 'Pengaturan Aplikasi',
         'role' => 'Role & Hak Akses',

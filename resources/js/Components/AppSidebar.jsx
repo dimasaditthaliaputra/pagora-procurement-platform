@@ -61,7 +61,8 @@ const masterNavItems = [
     { title: 'Komoditas', icon: Boxes, href: '/master/komoditas', routeName: 'master.komoditas.index', badge: 'Utama', ability: 'komoditas.view_any' },
     { title: 'Harga Referensi & Pagu', icon: TrendingUp, href: '#' },
     { title: 'Data Rekanan Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index', exact: true, ability: 'vendor.view_any' },
-    { title: 'Verifikasi Legalitas', icon: ShieldCheck, href: '/master/vendor/verifikasi-dokumen', routeName: 'master.vendor.verifikasi-dokumen.index', ability: 'dokumen_legalitas.view_any' },
+    { title: 'Verifikasi Vendor', icon: ShieldCheck, href: '/master/vendor/verifikasi-dokumen', routeName: 'master.vendor.verifikasi-dokumen.index', ability: 'dokumen_legalitas.view_any' },
+    { title: 'Verifikasi Tenant', icon: Building2, href: '/master/tenant/verifikasi-dokumen', routeName: 'master.tenant.verifikasi-dokumen.index', ability: 'tenant.view_any' },
 ];
 
 const managementNavItems = [

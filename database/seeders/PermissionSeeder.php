@@ -38,6 +38,9 @@ class PermissionSeeder extends Seeder
         'dokumen_legalitas.view_any' => ['Lihat dokumen legalitas vendor', self::PLATFORM, ['superadmin']],
         'dokumen_legalitas.verify' => ['Verifikasi dokumen legalitas', self::PLATFORM, ['superadmin']],
 
+        'tenant.view_any' => ['Lihat data tenant & registrasi', self::PLATFORM, ['superadmin']],
+        'tenant.verify' => ['Verifikasi akun & legalitas tenant', self::PLATFORM, ['superadmin']],
+
         'pengguna.view_any' => ['Lihat akun pengguna', ['superadmin', 'owner', 'vendor'], ['superadmin', 'owner', 'vendor']],
         'pengguna.create' => ['Tambah akun pengguna', ['superadmin', 'owner', 'vendor'], ['superadmin', 'owner', 'vendor']],
         'pengguna.update' => ['Ubah akun pengguna', ['superadmin', 'owner', 'vendor'], ['superadmin', 'owner', 'vendor']],

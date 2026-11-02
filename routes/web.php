@@ -15,9 +15,11 @@ use App\Http\Controllers\RoleAksesController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorRegistrationController;
 use App\Http\Controllers\VerifikasiDokumenController;
+use App\Http\Controllers\VerifikasiTenantController;
 use App\Models\DokumenLegalitasVendor;
 use App\Models\Komoditas;
 use App\Models\Pengaturan;
+use App\Models\PerusahaanBuyer;
 use App\Models\PurchaseOrder;
 use App\Models\Role;
 use App\Models\User;
@@ -139,6 +141,23 @@ Route::middleware('auth')->group(function () {
         ->prefix('master/vendor/verifikasi-dokumen')
         ->name('master.vendor.verifikasi-dokumen.')
         ->controller(VerifikasiDokumenController::class)
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+
+            Route::post('/{uuid}/verifikasi', 'verify')
+                ->whereUuid('uuid')
+                ->name('verify');
+
+            Route::get('/{uuid}/file', 'download')
+                ->whereUuid('uuid')
+                ->name('download');
+        });
+
+    // Master Tenant Legal Document Verification Routes (Superadmin Only)
+    Route::middleware(['superadmin', 'can:viewAny,'.PerusahaanBuyer::class])
+        ->prefix('master/tenant/verifikasi-dokumen')
+        ->name('master.tenant.verifikasi-dokumen.')
+        ->controller(VerifikasiTenantController::class)
         ->group(function () {
             Route::get('/', 'index')->name('index');
 

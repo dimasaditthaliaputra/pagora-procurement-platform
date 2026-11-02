@@ -62,6 +62,7 @@ class RoleAccessTest extends TestCase
             'komoditas.view_any' => false,
             'vendor.view_any' => false,
             'dokumen_legalitas.view_any' => false,
+            'tenant.view_any' => false,
             'pengguna.view_any' => false,
             'pengaturan.view_any' => false,
             'role.view_any' => false,
@@ -73,6 +74,7 @@ class RoleAccessTest extends TestCase
                 'komoditas.view_any' => true,
                 'vendor.view_any' => true,
                 'dokumen_legalitas.view_any' => true,
+                'tenant.view_any' => true,
                 'pengguna.view_any' => true,
                 'pengaturan.view_any' => true,
                 'role.view_any' => true,
@@ -123,6 +125,7 @@ class RoleAccessTest extends TestCase
             'vendor opens create purchase order' => [RoleName::Vendor, '/purchase-order/create'],
             'vendor opens vendor list' => [RoleName::Vendor, '/master/vendor'],
             'owner opens verifikasi dokumen' => [RoleName::Owner, '/master/vendor/verifikasi-dokumen'],
+            'owner opens verifikasi tenant' => [RoleName::Owner, '/master/tenant/verifikasi-dokumen'],
             'manajemen opens pengaturan' => [RoleName::Manajemen, '/pengaturan/profil'],
         ];
     }
@@ -269,7 +272,7 @@ class RoleAccessTest extends TestCase
                 ->component('Manajemen/RoleAkses/Index')
                 ->has('roles.data', 6)
                 ->where('roles.data', fn ($roles) => collect($roles)->firstWhere('name', 'owner')['users_count'] === 1)
-                ->has('permission_groups', 7)
+                ->has('permission_groups', 8)
             );
     }
 

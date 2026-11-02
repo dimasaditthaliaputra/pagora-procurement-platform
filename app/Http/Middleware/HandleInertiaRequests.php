@@ -88,6 +88,7 @@ class HandleInertiaRequests extends Middleware
             'vendor.view_any' => $user->can('viewAny', Vendor::class),
             'dokumen_legalitas.view_any' => $user->can('viewAny', DokumenLegalitasVendor::class),
             'tenant.view_any' => $user->can('viewAny', PerusahaanBuyer::class),
+            'perusahaan.view' => ($user->isOwner() && $user->tenant_id !== null) || ($user->isVendor() && $user->vendor_id !== null),
             'pengguna.view_any' => $user->can('viewAny', User::class),
             'pengaturan.view_any' => $user->can('viewAny', Pengaturan::class),
             'role.view_any' => $user->can('viewAny', Role::class),

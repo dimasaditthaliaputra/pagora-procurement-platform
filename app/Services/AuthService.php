@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\RoleName;
+use App\Enums\VerificationStatus;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Models\Role;
 use App\Models\User;
+use App\Repositories\Contracts\PerusahaanBuyerRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
@@ -18,6 +24,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\LoginRateLimiter;
 use Laravel\Socialite\Facades\Socialite;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Throwable;
 
@@ -29,7 +36,8 @@ class AuthService
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
         private readonly LoginRateLimiter $limiter,
-        private readonly OtpService $otpService
+        private readonly OtpService $otpService,
+        private readonly PerusahaanBuyerRepositoryInterface $perusahaanBuyerRepository
     ) {}
 
     /**
@@ -318,23 +326,66 @@ class AuthService
     }
 
     /**
-     * Register a new user with email and password.
+     * Register a new tenant company and its administrator account.
      *
      * @return array{success: bool, code: int, message: string, user: User}
      */
     public function register(RegisterRequest $request): array
     {
-        $name = (string) $request->input('name');
-        $email = (string) $request->input('email');
+        $name = (string) ($request->input('name') ?? $request->input('nama_lengkap'));
+        $email = strtolower(trim((string) $request->input('email')));
         $password = (string) $request->input('password');
 
-        $user = $this->userRepository->create([
-            'name' => $name,
-            'email' => $email,
-            'password' => Hash::make($password),
-            'role_id' => 2,
-            'is_active' => true,
-        ]);
+        $namaPerusahaan = trim((string) ($request->input('nama_perusahaan') ?? $request->input('company_name')));
+        $nomorNpwp = $request->filled('nomor_npwp')
+            ? trim((string) $request->input('nomor_npwp'))
+            : ($request->filled('tax_number') ? trim((string) $request->input('tax_number')) : null);
+        $alamat = $request->filled('alamat')
+            ? trim((string) $request->input('alamat'))
+            : ($request->filled('address') ? trim((string) $request->input('address')) : null);
+
+        $file = $request->file('dokumen_npwp') ?? $request->file('legal_document') ?? $request->file('file_npwp');
+        $documentPath = null;
+
+        if ($file instanceof UploadedFile) {
+            $extension = strtolower($file->guessExtension() ?: 'bin');
+            $filename = Str::uuid()->toString().'.'.$extension;
+
+            $documentPath = $file->storeAs(
+                'perusahaan/legalitas',
+                $filename,
+                'local'
+            );
+
+            if ($documentPath === false) {
+                throw new RuntimeException('Dokumen legalitas gagal disimpan.');
+            }
+        }
+
+        $user = DB::transaction(function () use ($name, $email, $password, $namaPerusahaan, $nomorNpwp, $alamat, $documentPath): User {
+            $perusahaan = $this->perusahaanBuyerRepository->create([
+                'company_name' => $namaPerusahaan,
+                'tax_number' => $nomorNpwp,
+                'legal_document_path' => $documentPath,
+                'address' => $alamat,
+                'verification_status' => VerificationStatus::Pending,
+                'is_active' => true,
+            ]);
+
+            $ownerRole = Role::where('name', RoleName::Owner->value)->first()
+                ?? Role::where('name', 'owner')->first()
+                ?? Role::where('name', 'purchasing')->first();
+            $roleId = $ownerRole ? (int) $ownerRole->getKey() : 6;
+
+            return $this->userRepository->create([
+                'name' => $name,
+                'email' => $email,
+                'password' => Hash::make($password),
+                'role_id' => $roleId,
+                'tenant_id' => (int) $perusahaan->getKey(),
+                'is_active' => true,
+            ]);
+        });
 
         Auth::login($user);
         $request->session()->regenerate();
@@ -342,7 +393,7 @@ class AuthService
         return [
             'success' => true,
             'code' => 201,
-            'message' => 'Pendaftaran akun berhasil.',
+            'message' => 'Pendaftaran akun tenant berhasil.',
             'user' => $user,
         ];
     }

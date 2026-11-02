@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\PerusahaanBuyer;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Socialite\Contracts\User as SocialiteUserContract;
 use Laravel\Socialite\Facades\Socialite;
 use Mockery;
+use Mockery\MockInterface;
+use Symfony\Component\HttpFoundation\Cookie;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -67,6 +72,8 @@ class AuthenticationTest extends TestCase
         $cookie = $response->getCookie(Auth::guard()->getRecallerName(), false);
 
         $this->assertNotNull($cookie);
+        /** @var Cookie $cookie */
+        /** @var \Symfony\Component\HttpFoundation\Cookie $cookie */
         $this->assertEqualsWithDelta(now()->addDays(30)->getTimestamp(), $cookie->getExpiresTime(), 60);
     }
 
@@ -126,23 +133,48 @@ class AuthenticationTest extends TestCase
 
     public function test_register_creates_new_user_and_redirects_to_dashboard(): void
     {
+        Storage::fake('local');
+
+        $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
+
         $response = $this->post('/register', [
             'name' => 'Budi Santoso',
             'email' => 'budi@perusahaan.co.id',
             'password' => 'password123',
             'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Sumber Pangan Makmur',
+            'nomor_npwp' => '01.234.567.8-901.000',
+            'alamat' => 'Jl. Industri No. 10, Cikarang, Jawa Barat',
+            'dokumen_npwp' => $file,
         ]);
 
         $response->assertRedirect('/dashboard');
 
+        $this->assertDatabaseHas('tenants', [
+            'company_name' => 'PT Sumber Pangan Makmur',
+            'tax_number' => '01.234.567.8-901.000',
+            'address' => 'Jl. Industri No. 10, Cikarang, Jawa Barat',
+            'verification_status' => 'pending',
+            'is_active' => true,
+        ]);
+
+        $perusahaan = PerusahaanBuyer::where('company_name', 'PT Sumber Pangan Makmur')->first();
+        $this->assertNotNull($perusahaan);
+        assert($perusahaan instanceof PerusahaanBuyer);
+        $this->assertNotNull($perusahaan->legal_document_path);
+        Storage::disk('local')->assertExists($perusahaan->legal_document_path);
+
         $this->assertDatabaseHas('users', [
             'name' => 'Budi Santoso',
             'email' => 'budi@perusahaan.co.id',
+            'tenant_id' => $perusahaan->id,
             'is_active' => true,
         ]);
 
         $user = User::where('email', 'budi@perusahaan.co.id')->first();
         $this->assertNotNull($user);
+        assert($user instanceof User);
+        $this->assertSame($perusahaan->id, $user->tenant_id);
         $this->assertAuthenticatedAs($user);
     }
 
@@ -155,11 +187,94 @@ class AuthenticationTest extends TestCase
             'email' => 'existing@pagora.id',
             'password' => 'short',
             'password_confirmation' => 'mismatch',
+            'nama_perusahaan' => '',
+            'nomor_npwp' => '',
+            'alamat' => '',
         ]);
 
         $response->assertRedirect('/register');
-        $response->assertSessionHasErrors(['name', 'email', 'password']);
+        $response->assertSessionHasErrors([
+            'name',
+            'email',
+            'password',
+            'nama_perusahaan',
+            'nomor_npwp',
+            'alamat',
+            'dokumen_npwp',
+        ]);
         $this->assertGuest();
+    }
+
+    public function test_register_fails_with_invalid_npwp_format(): void
+    {
+        Storage::fake('local');
+        $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
+
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Budi Santoso',
+            'email' => 'budi2@perusahaan.co.id',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Sumber Pangan Makmur',
+            'nomor_npwp' => '12345-invalid',
+            'alamat' => 'Jl. Industri No. 10, Cikarang',
+            'dokumen_npwp' => $file,
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors(['nomor_npwp']);
+        $this->assertGuest();
+    }
+
+    public function test_register_fails_when_legal_document_exceeds_five_megabytes(): void
+    {
+        Storage::fake('local');
+        $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 6000, 'application/pdf');
+
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Budi Santoso',
+            'email' => 'budi3@perusahaan.co.id',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Sumber Pangan Makmur',
+            'nomor_npwp' => '01.234.567.8-901.000',
+            'alamat' => 'Jl. Industri No. 10, Cikarang',
+            'dokumen_npwp' => $file,
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors(['dokumen_npwp']);
+        $this->assertGuest();
+    }
+
+    public function test_register_succeeds_with_sixteen_digit_npwp(): void
+    {
+        Storage::fake('local');
+        $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
+
+        $response = $this->post('/register', [
+            'name' => 'Ahmad Dahlan',
+            'email' => 'ahmad@perusahaan16.co.id',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Inovasi Pangan Nusantara',
+            'nomor_npwp' => '0123456789010001',
+            'alamat' => 'Jl. Merdeka No. 45, Jakarta Pusat',
+            'dokumen_npwp' => $file,
+        ]);
+
+        $response->assertRedirect('/dashboard');
+
+        $this->assertDatabaseHas('tenants', [
+            'company_name' => 'PT Inovasi Pangan Nusantara',
+            'tax_number' => '0123456789010001',
+            'verification_status' => 'pending',
+            'is_active' => true,
+        ]);
+        $this->assertDatabaseHas('users', [
+            'email' => 'ahmad@perusahaan16.co.id',
+            'is_active' => true,
+        ]);
     }
 
     public function test_google_redirect(): void
@@ -178,11 +293,15 @@ class AuthenticationTest extends TestCase
             'is_active' => true,
         ]);
 
+        /** @var SocialiteUserContract&MockInterface $socialiteUser */
+        /** @var SocialiteUserContract&\Mockery\MockInterface $socialiteUser */
         $socialiteUser = Mockery::mock(SocialiteUserContract::class);
         $socialiteUser->shouldReceive('getId')->andReturn('google-unique-id-12345');
         $socialiteUser->shouldReceive('getEmail')->andReturn('partner@pagora.id');
         $socialiteUser->shouldReceive('getAvatar')->andReturn('https://lh3.googleusercontent.com/avatar.jpg');
 
+        /** @var object&MockInterface $driver */
+        /** @var object&\Mockery\MockInterface $driver */
         $driver = Mockery::mock('stdClass');
         $driver->shouldReceive('user')->andReturn($socialiteUser);
 
@@ -201,11 +320,15 @@ class AuthenticationTest extends TestCase
     {
         $initialUserCount = User::count();
 
+        /** @var SocialiteUserContract&MockInterface $socialiteUser */
+        /** @var SocialiteUserContract&\Mockery\MockInterface $socialiteUser */
         $socialiteUser = Mockery::mock(SocialiteUserContract::class);
         $socialiteUser->shouldReceive('getId')->andReturn('google-unregistered-99999');
         $socialiteUser->shouldReceive('getEmail')->andReturn('not_in_system@gmail.com');
         $socialiteUser->shouldReceive('getAvatar')->andReturn('https://lh3.googleusercontent.com/avatar.jpg');
 
+        /** @var object&MockInterface $driver */
+        /** @var object&\Mockery\MockInterface $driver */
         $driver = Mockery::mock('stdClass');
         $driver->shouldReceive('user')->andReturn($socialiteUser);
 

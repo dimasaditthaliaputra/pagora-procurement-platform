@@ -20,4 +20,11 @@ interface PerusahaanBuyerRepositoryInterface
      * @return Collection<int, PerusahaanBuyer>
      */
     public function getAllOrdered(): Collection;
+
+    /**
+     * Create a new buyer company record.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function create(array $data): PerusahaanBuyer;
 }

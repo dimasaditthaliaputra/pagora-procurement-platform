@@ -10,6 +10,9 @@ const PHONE_PATTERN = /^\+?[0-9\s().-]+$/;
 const PHONE_MIN_DIGITS = 8;
 const PHONE_MAX_DIGITS = 15;
 
+// Sama dengan App\Rules\Npwp (PATTERN).
+const NPWP_PATTERN = /^(\d{2}\.\d{3}\.\d{3}\.\d{1}-\d{3}\.\d{3}|\d{15}|\d{16})$/;
+
 // Sama dengan KomoditasService::SHRINKAGE_TOLERANCE_PATTERN.
 const SHRINKAGE_TOLERANCE_PATTERN = /^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/;
 
@@ -22,6 +25,10 @@ export function isPhoneNumber(value) {
     const digits = trimmed.replace(/\D/g, '').length;
 
     return PHONE_PATTERN.test(trimmed) && digits >= PHONE_MIN_DIGITS && digits <= PHONE_MAX_DIGITS;
+}
+
+export function isNpwp(value) {
+    return NPWP_PATTERN.test(String(value ?? '').trim());
 }
 
 /**

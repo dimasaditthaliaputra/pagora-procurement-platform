@@ -208,6 +208,8 @@ class AuthController extends Controller
                 $result['errors'] ?? null,
                 $request
             );
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors(), 'Terjadi kesalahan validasi data.', $request);
         } catch (Throwable $e) {
             return ResponseHelper::serverError('Terjadi kesalahan saat memproses pendaftaran.', $e, $request);
         }

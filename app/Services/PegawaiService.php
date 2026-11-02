@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\RoleName;
+use App\Models\PerusahaanBuyer;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Notifications\AkunPegawaiDibuatNotification;
 use App\Repositories\Contracts\PerusahaanBuyerRepositoryInterface;
 use App\Repositories\Contracts\RoleRepositoryInterface;
@@ -25,9 +27,17 @@ use Throwable;
 class PegawaiService
 {
     /**
-     * Default initial password assigned to newly created employee accounts.
+     * Default initial password fallback.
      */
     public const DEFAULT_PASSWORD = 'password123';
+
+    /**
+     * Generate a secure, unique, and human-friendly default temporary password.
+     */
+    public static function generateDefaultPassword(): string
+    {
+        return 'Pgr-'.Str::random(6).'-'.random_int(1000, 9999);
+    }
 
     /**
      * All available roles in the system (for superadmin).
@@ -244,8 +254,15 @@ class PegawaiService
 
         [$perusahaanId, $vendorId] = $this->resolveCompanyIdsForCreate($data, $roleName, $creator);
 
-        return DB::transaction(function () use ($data, $role, $roleName, $perusahaanId, $vendorId): User {
-            $defaultPassword = self::DEFAULT_PASSWORD;
+        $companyName = null;
+        if ($perusahaanId !== null) {
+            $companyName = PerusahaanBuyer::whereKey($perusahaanId)->value('company_name');
+        } elseif ($vendorId !== null) {
+            $companyName = Vendor::whereKey($vendorId)->value('company_name');
+        }
+
+        return DB::transaction(function () use ($data, $role, $roleName, $perusahaanId, $vendorId, $companyName): User {
+            $defaultPassword = self::generateDefaultPassword();
 
             $payload = [
                 'uuid' => (string) Str::uuid(),
@@ -265,7 +282,7 @@ class PegawaiService
             $roleLabel = self::ALL_ROLES[$roleName] ?? ucfirst($roleName);
 
             try {
-                $user->notify(new AkunPegawaiDibuatNotification($user, $defaultPassword, $roleLabel));
+                $user->notify(new AkunPegawaiDibuatNotification($user, $defaultPassword, $roleLabel, $companyName));
             } catch (Throwable $e) {
                 Log::warning('Gagal mengirimkan email notifikasi akun pegawai baru: '.$e->getMessage(), [
                     'user_uuid' => $user->uuid,

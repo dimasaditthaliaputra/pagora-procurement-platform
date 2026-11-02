@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\PerusahaanBuyer;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -73,7 +74,7 @@ class AuthenticationTest extends TestCase
 
         $this->assertNotNull($cookie);
         /** @var Cookie $cookie */
-        /** @var \Symfony\Component\HttpFoundation\Cookie $cookie */
+        /** @var Cookie $cookie */
         $this->assertEqualsWithDelta(now()->addDays(30)->getTimestamp(), $cookie->getExpiresTime(), 60);
     }
 
@@ -277,6 +278,82 @@ class AuthenticationTest extends TestCase
         ]);
     }
 
+    public function test_register_fails_when_npwp_already_registered_even_with_different_email(): void
+    {
+        Storage::fake('local');
+        $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
+
+        // Tenant 1 registered
+        PerusahaanBuyer::factory()->create([
+            'company_name' => 'PT Perusahaan Pertama',
+            'tax_number' => '01.234.567.8-901.000',
+        ]);
+
+        // Tenant 2 attempts to register with different email but identical NPWP
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Calon Owner Lain',
+            'email' => 'beda.email@perusahaan.co.id',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Perusahaan Kedua',
+            'nomor_npwp' => '01.234.567.8-901.000',
+            'alamat' => 'Jl. Lain No. 20, Jakarta',
+            'dokumen_npwp' => $file,
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors([
+            'nomor_npwp' => 'Nomor NPWP ini sudah terdaftar dalam sistem.',
+        ]);
+        $this->assertGuest();
+    }
+
+    public function test_register_fails_when_npwp_already_registered_in_unformatted_digits(): void
+    {
+        Storage::fake('local');
+        $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
+
+        // Tenant 1 registered with formatted NPWP
+        PerusahaanBuyer::factory()->create([
+            'company_name' => 'PT Perusahaan Terdaftar',
+            'tax_number' => '01.234.567.8-901.000',
+        ]);
+
+        // Tenant 2 attempts to register with raw unformatted 15 digits
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'User Kedua',
+            'email' => 'user2@perusahaan.co.id',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Perusahaan Duplikat',
+            'nomor_npwp' => '012345678901000',
+            'alamat' => 'Jl. Terusan No. 5, Surabaya',
+            'dokumen_npwp' => $file,
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors([
+            'nomor_npwp' => 'Nomor NPWP ini sudah terdaftar dalam sistem.',
+        ]);
+        $this->assertGuest();
+    }
+
+    public function test_database_unique_index_prevents_duplicate_npwp(): void
+    {
+        PerusahaanBuyer::factory()->create([
+            'company_name' => 'PT Pertama',
+            'tax_number' => '01.234.567.8-999.000',
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        // Direct DB insertion bypassing Form Request to test DB unique constraint
+        PerusahaanBuyer::factory()->create([
+            'company_name' => 'PT Kedua',
+            'tax_number' => '01.234.567.8-999.000',
+        ]);
+    }
+
     public function test_google_redirect(): void
     {
         $response = $this->get('/auth/google/redirect');
@@ -294,14 +371,14 @@ class AuthenticationTest extends TestCase
         ]);
 
         /** @var SocialiteUserContract&MockInterface $socialiteUser */
-        /** @var SocialiteUserContract&\Mockery\MockInterface $socialiteUser */
+        /** @var SocialiteUserContract&MockInterface $socialiteUser */
         $socialiteUser = Mockery::mock(SocialiteUserContract::class);
         $socialiteUser->shouldReceive('getId')->andReturn('google-unique-id-12345');
         $socialiteUser->shouldReceive('getEmail')->andReturn('partner@pagora.id');
         $socialiteUser->shouldReceive('getAvatar')->andReturn('https://lh3.googleusercontent.com/avatar.jpg');
 
         /** @var object&MockInterface $driver */
-        /** @var object&\Mockery\MockInterface $driver */
+        /** @var object&MockInterface $driver */
         $driver = Mockery::mock('stdClass');
         $driver->shouldReceive('user')->andReturn($socialiteUser);
 
@@ -321,14 +398,14 @@ class AuthenticationTest extends TestCase
         $initialUserCount = User::count();
 
         /** @var SocialiteUserContract&MockInterface $socialiteUser */
-        /** @var SocialiteUserContract&\Mockery\MockInterface $socialiteUser */
+        /** @var SocialiteUserContract&MockInterface $socialiteUser */
         $socialiteUser = Mockery::mock(SocialiteUserContract::class);
         $socialiteUser->shouldReceive('getId')->andReturn('google-unregistered-99999');
         $socialiteUser->shouldReceive('getEmail')->andReturn('not_in_system@gmail.com');
         $socialiteUser->shouldReceive('getAvatar')->andReturn('https://lh3.googleusercontent.com/avatar.jpg');
 
         /** @var object&MockInterface $driver */
-        /** @var object&\Mockery\MockInterface $driver */
+        /** @var object&MockInterface $driver */
         $driver = Mockery::mock('stdClass');
         $driver->shouldReceive('user')->andReturn($socialiteUser);
 

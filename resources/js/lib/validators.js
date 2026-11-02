@@ -32,6 +32,29 @@ export function isNpwp(value) {
 }
 
 /**
+ * Samakan format nomor NPWP ke format kanonikal:
+ * - 15 digit angka -> XX.XXX.XXX.X-XXX.XXX
+ * - 16 digit angka -> 16 digit angka murni
+ * Padanan App\Helpers\NpwpHelper.
+ */
+export function normalizeNpwp(value) {
+    const trimmed = String(value ?? '').trim();
+    if (!trimmed) return trimmed;
+
+    const digits = trimmed.replace(/\D/g, '');
+
+    if (digits.length === 15) {
+        return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}.${digits.slice(8, 9)}-${digits.slice(9, 12)}.${digits.slice(12, 15)}`;
+    }
+
+    if (digits.length === 16) {
+        return digits;
+    }
+
+    return trimmed;
+}
+
+/**
  * Samakan format nomor telepon ke E.164 (Indonesia +62 sebagai default); padanan App\Helpers\PhoneHelper.
  * Input yang tidak berbentuk nomor telepon dikembalikan apa adanya agar ditolak oleh validasi.
  */

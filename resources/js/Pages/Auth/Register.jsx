@@ -9,7 +9,7 @@ import { LoadingButton } from '@/Components/loading-button';
 import { FileDropzone } from '@/Components/file-dropzone';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
-import { isEmail, isNpwp } from '@/lib/validators';
+import { isEmail, isNpwp, normalizeNpwp } from '@/lib/validators';
 import { Building2, ArrowRight, ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export default function Register() {
@@ -92,16 +92,18 @@ export default function Register() {
             hasError = true;
         }
 
-        const trimmedNpwp = data.nomor_npwp.trim();
-        if (!trimmedNpwp) {
+        const normalizedNpwp = normalizeNpwp(data.nomor_npwp);
+        if (!normalizedNpwp) {
             setError('nomor_npwp', 'Nomor NPWP wajib diisi.');
             hasError = true;
-        } else if (!isNpwp(trimmedNpwp)) {
+        } else if (!isNpwp(normalizedNpwp)) {
             setError(
                 'nomor_npwp',
                 'Format nomor NPWP tidak valid. Gunakan format 15 digit (contoh: 01.234.567.8-901.000) atau 16 digit angka.'
             );
             hasError = true;
+        } else if (normalizedNpwp !== data.nomor_npwp) {
+            setData('nomor_npwp', normalizedNpwp);
         }
 
         const trimmedAlamat = data.alamat.trim();
@@ -427,6 +429,12 @@ export default function Register() {
                                             onChange={(e) => {
                                                 setData('nomor_npwp', e.target.value);
                                                 if (errors.nomor_npwp) clearErrors('nomor_npwp');
+                                            }}
+                                            onBlur={(e) => {
+                                                const formatted = normalizeNpwp(e.target.value);
+                                                if (formatted && formatted !== e.target.value) {
+                                                    setData('nomor_npwp', formatted);
+                                                }
                                             }}
                                             placeholder="Contoh: 01.234.567.8-901.000"
                                             aria-invalid={!!errors.nomor_npwp}

@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Repositories\Contracts\PerusahaanBuyerRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -362,30 +363,54 @@ class AuthService
             }
         }
 
-        $user = DB::transaction(function () use ($name, $email, $password, $namaPerusahaan, $nomorNpwp, $alamat, $documentPath): User {
-            $perusahaan = $this->perusahaanBuyerRepository->create([
-                'company_name' => $namaPerusahaan,
-                'tax_number' => $nomorNpwp,
-                'legal_document_path' => $documentPath,
-                'address' => $alamat,
-                'verification_status' => VerificationStatus::Pending,
-                'is_active' => true,
-            ]);
+        try {
+            $user = DB::transaction(function () use ($name, $email, $password, $namaPerusahaan, $nomorNpwp, $alamat, $documentPath): User {
+                $perusahaan = $this->perusahaanBuyerRepository->create([
+                    'company_name' => $namaPerusahaan,
+                    'tax_number' => $nomorNpwp,
+                    'legal_document_path' => $documentPath,
+                    'address' => $alamat,
+                    'verification_status' => VerificationStatus::Pending,
+                    'is_active' => true,
+                ]);
 
-            $ownerRole = Role::where('name', RoleName::Owner->value)->first()
-                ?? Role::where('name', 'owner')->first()
-                ?? Role::where('name', 'purchasing')->first();
-            $roleId = $ownerRole ? (int) $ownerRole->getKey() : 6;
+                $ownerRole = Role::where('name', RoleName::Owner->value)->first()
+                    ?? Role::where('name', 'owner')->first()
+                    ?? Role::where('name', 'purchasing')->first();
+                $roleId = $ownerRole ? (int) $ownerRole->getKey() : 6;
 
-            return $this->userRepository->create([
-                'name' => $name,
-                'email' => $email,
-                'password' => Hash::make($password),
-                'role_id' => $roleId,
-                'tenant_id' => (int) $perusahaan->getKey(),
-                'is_active' => true,
-            ]);
-        });
+                return $this->userRepository->create([
+                    'name' => $name,
+                    'email' => $email,
+                    'password' => Hash::make($password),
+                    'role_id' => $roleId,
+                    'tenant_id' => (int) $perusahaan->getKey(),
+                    'is_active' => true,
+                ]);
+            });
+        } catch (QueryException $e) {
+            $message = $e->getMessage();
+
+            if (
+                str_contains($message, 'ux_tenants_tax_number')
+                || (str_contains($message, 'tax_number') && (str_contains($message, 'UNIQUE') || str_contains($message, 'duplicate') || str_contains($message, 'Integrity constraint violation')))
+            ) {
+                throw ValidationException::withMessages([
+                    'nomor_npwp' => 'Nomor NPWP ini sudah terdaftar dalam sistem.',
+                ]);
+            }
+
+            if (
+                str_contains($message, 'ux_users_email')
+                || (str_contains($message, 'email') && (str_contains($message, 'UNIQUE') || str_contains($message, 'duplicate') || str_contains($message, 'Integrity constraint violation')))
+            ) {
+                throw ValidationException::withMessages([
+                    'email' => 'Alamat email ini sudah terdaftar dalam sistem.',
+                ]);
+            }
+
+            throw $e;
+        }
 
         Auth::login($user);
         $request->session()->regenerate();

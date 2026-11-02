@@ -170,7 +170,7 @@ Aturan (di Service/Form Request): role `vendor` ⇒ `vendor_id` terisi & `tenant
 | Kolom | Tipe | Saat ini | Catatan |
 |---|---|---|---|
 | company_name | string(200) NN | `nama_perusahaan` | |
-| tax_number | string(30) null | `nomor_npwp` | NPWP |
+| tax_number | string(30) U null | `nomor_npwp` | NPWP (indeks unik aktif: `ux_tenants_tax_number`) |
 | legal_document_path | string(500) null | `file_url` | |
 | address | text null | `alamat` | |
 | verification_status | string(30) NN default `pending`, idx | [baru] | `pending`, `approved`, `rejected` |

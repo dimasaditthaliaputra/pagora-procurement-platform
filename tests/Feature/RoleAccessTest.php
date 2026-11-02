@@ -63,6 +63,7 @@ class RoleAccessTest extends TestCase
             'vendor.view_any' => false,
             'dokumen_legalitas.view_any' => false,
             'tenant.view_any' => false,
+            'perusahaan.view' => false,
             'pengguna.view_any' => false,
             'pengaturan.view_any' => false,
             'role.view_any' => false,
@@ -83,6 +84,7 @@ class RoleAccessTest extends TestCase
                 ...$none,
                 'purchase_order.view_any' => true,
                 'vendor.view_any' => true,
+                'perusahaan.view' => true,
                 'pengguna.view_any' => true,
             ]],
             'manajemen' => [RoleName::Manajemen, [...$none, 'vendor.view_any' => true]],
@@ -91,6 +93,7 @@ class RoleAccessTest extends TestCase
             'vendor' => [RoleName::Vendor, [
                 ...$none,
                 'purchase_order.view_any' => true,
+                'perusahaan.view' => true,
                 'pengguna.view_any' => true,
             ]],
         ];
@@ -127,6 +130,8 @@ class RoleAccessTest extends TestCase
             'owner opens verifikasi dokumen' => [RoleName::Owner, '/master/vendor/verifikasi-dokumen'],
             'owner opens verifikasi tenant' => [RoleName::Owner, '/master/tenant/verifikasi-dokumen'],
             'manajemen opens pengaturan' => [RoleName::Manajemen, '/pengaturan/profil'],
+            'purchasing opens manajemen perusahaan' => [RoleName::Purchasing, '/manajemen/perusahaan'],
+            'superadmin opens manajemen perusahaan' => [RoleName::Superadmin, '/manajemen/perusahaan'],
         ];
     }
 

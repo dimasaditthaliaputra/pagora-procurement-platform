@@ -17,6 +17,16 @@ class VendorPolicy
         return $user->hasPermission('vendor.view_any');
     }
 
+    public function view(User $user, Vendor $vendor): bool
+    {
+        return $user->hasPermission('vendor.view_any') || ($user->isVendor() && $user->vendor_id === $vendor->id);
+    }
+
+    public function update(User $user, Vendor $vendor): bool
+    {
+        return $user->isSuperadmin() || ($user->isVendor() && $user->vendor_id === $vendor->id);
+    }
+
     public function invite(User $user): bool
     {
         return $user->hasPermission('vendor.invite');

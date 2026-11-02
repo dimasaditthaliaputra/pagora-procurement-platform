@@ -69,6 +69,7 @@ const managementNavItems = [
     { title: 'Inspeksi QC', icon: ClipboardCheck, href: '#' },
     { title: 'Laporan', icon: BarChart3, href: '#' },
     { title: 'Notifikasi', icon: Bell, href: '#' },
+    { title: 'Profil Perusahaan', icon: Building2, href: '/manajemen/perusahaan', routeName: 'manajemen.perusahaan.index', ability: 'perusahaan.view' },
     { title: 'Pengguna', icon: Users, href: '/manajemen/pengguna', routeName: 'manajemen.pengguna.index', ability: 'pengguna.view_any' },
     { title: 'Role & Hak Akses', icon: ShieldCheck, href: '/manajemen/role-akses', routeName: 'manajemen.role-akses.index', ability: 'role.view_any' },
     { title: 'Pengaturan', icon: Settings, href: '/pengaturan/profil', routeName: 'pengaturan', ability: 'pengaturan.view_any' },
@@ -313,6 +314,14 @@ export function AppSidebar({ className, ...props }) {
                                         Profil Saya
                                     </Link>
                                 </DropdownMenuItem>
+                                {permissions?.['perusahaan.view'] && (
+                                    <DropdownMenuItem asChild className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white">
+                                        <Link href="/manajemen/perusahaan">
+                                            <Building2 className="size-4 text-zinc-400" />
+                                            Profil Perusahaan
+                                        </Link>
+                                    </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator className="my-1 bg-zinc-800" />
                                 <DropdownMenuItem
                                     onClick={handleLogout}

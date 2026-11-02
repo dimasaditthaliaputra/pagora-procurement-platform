@@ -9,6 +9,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\KomoditasController;
 use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\PengaturanController;
+use App\Http\Controllers\PerusahaanController;
 use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\RoleAksesController;
@@ -98,6 +99,15 @@ Route::middleware('auth')->group(function () {
             Route::get('/{uuid}', 'show')->whereUuid('uuid')->can('viewAny', PurchaseOrder::class)->name('show');
             Route::get('/{uuid}/edit', 'edit')->whereUuid('uuid')->can('create', PurchaseOrder::class)->name('edit');
             Route::get('/{uuid}/negosiasi', 'negosiasi')->whereUuid('uuid')->can('viewAny', PurchaseOrder::class)->name('negosiasi');
+        });
+
+    // Manajemen Perusahaan (Tenant Owner & Vendor manage their company profile)
+    Route::controller(PerusahaanController::class)
+        ->prefix('manajemen/perusahaan')
+        ->name('manajemen.perusahaan.')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::put('/', 'update')->name('update');
         });
 
     // Manajemen Pengguna (Internal Perusahaan) Routes

@@ -19,7 +19,12 @@ class PerusahaanBuyerPolicy
 
     public function view(User $user, PerusahaanBuyer $tenant): bool
     {
-        return $user->hasPermission('tenant.view_any');
+        return $user->hasPermission('tenant.view_any') || ($user->isOwner() && $user->tenant_id === $tenant->id);
+    }
+
+    public function update(User $user, PerusahaanBuyer $tenant): bool
+    {
+        return $user->isSuperadmin() || ($user->isOwner() && $user->tenant_id === $tenant->id);
     }
 
     public function verify(User $user, PerusahaanBuyer $tenant): bool

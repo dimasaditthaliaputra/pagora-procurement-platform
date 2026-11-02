@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Contracts;
 
 use App\Models\PerusahaanBuyer;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
 interface PerusahaanBuyerRepositoryInterface
@@ -27,4 +28,25 @@ interface PerusahaanBuyerRepositoryInterface
      * @param  array<string, mixed>  $data
      */
     public function create(array $data): PerusahaanBuyer;
+
+    /**
+     * Update a buyer company record.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function update(PerusahaanBuyer $tenant, array $data): bool;
+
+    /**
+     * Paginate tenant companies with search and verification status filter.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginate(array $filters, int $perPage = 10): LengthAwarePaginator;
+
+    /**
+     * Get aggregate verification status counts.
+     *
+     * @return array{total: int, pending: int, approved: int, rejected: int}
+     */
+    public function getStatusCounts(): array;
 }

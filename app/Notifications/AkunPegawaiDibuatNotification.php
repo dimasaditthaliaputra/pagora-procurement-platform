@@ -16,7 +16,8 @@ class AkunPegawaiDibuatNotification extends Notification
     public function __construct(
         public readonly User $user,
         public readonly string $defaultPassword,
-        public readonly string $roleLabel
+        public readonly string $roleLabel,
+        public readonly ?string $companyName = null
     ) {}
 
     /**
@@ -34,17 +35,28 @@ class AkunPegawaiDibuatNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $companyName = $this->companyName ?: 'PAGORA';
+        $loginUrl = route('login');
+
         return (new MailMessage)
-            ->subject('Aktivasi Akun Pegawai Internal PAGORA')
-            ->greeting('Halo, '.$this->user->name.'!')
-            ->line('Akun Anda untuk sistem E-Procurement PAGORA telah berhasil dibuat oleh Manajemen.')
-            ->line('Berikut kredensial masuk akun Anda:')
-            ->line('• Email: '.$this->user->email)
-            ->line('• Role / Jabatan: '.$this->roleLabel)
-            ->line('• Password Sementara: '.$this->defaultPassword)
-            ->action('Masuk ke Sistem PAGORA', route('login'))
-            ->line('Akun Anda belum aktif. Saat masuk pertama kali, kami akan mengirimkan kode OTP ke email ini untuk mengaktifkan akun.')
-            ->line('Demi keamanan akun Anda, silakan segera ubah kata sandi default ini setelah masuk.')
-            ->salutation('Salam hormat, Tim Manajemen PAGORA');
+            ->subject('Undangan Bergabung & Kredensial Akun Internal - '.$companyName)
+            ->view('emails.akun-pegawai-dibuat', [
+                'user' => $this->user,
+                'companyName' => $companyName,
+                'roleLabel' => $this->roleLabel,
+                'defaultPassword' => $this->defaultPassword,
+                'loginUrl' => $loginUrl,
+            ])
+            ->greeting('Yth. Bapak/Ibu '.$this->user->name.',')
+            ->line('Anda telah didaftarkan sebagai pengguna internal pada portal E-Procurement PAGORA oleh manajemen '.$companyName.'.')
+            ->line('Rincian kredensial akun masuk Anda:')
+            ->line('• Perusahaan: '.$companyName)
+            ->line('• Peran / Jabatan Akses: '.$this->roleLabel)
+            ->line('• Alamat Email: '.$this->user->email)
+            ->line('• Kata Sandi Sementara: '.$this->defaultPassword)
+            ->action('Masuk ke Portal PAGORA', $loginUrl)
+            ->line('Akun Anda saat ini berstatus belum aktif. Saat Anda masuk untuk pertama kali, sistem akan mengirimkan kode verifikasi OTP ke email ini untuk memvalidasi identitas.')
+            ->line('Demi menjaga keamanan data perusahaan, silakan segera perbarui kata sandi sementara Anda setelah berhasil masuk.')
+            ->salutation('Hormat kami, Manajemen '.$companyName.' & Tim Layanan PAGORA');
     }
 }

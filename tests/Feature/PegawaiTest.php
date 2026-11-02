@@ -149,14 +149,16 @@ class PegawaiTest extends TestCase
 
         $createdUser = User::where('email', 'andi.wijaya@perusahaan.com')->first();
         $this->assertNotNull($createdUser);
-        $this->assertTrue(Hash::check(PegawaiService::DEFAULT_PASSWORD, $createdUser->password));
 
         Notification::assertSentTo(
             $createdUser,
             AkunPegawaiDibuatNotification::class,
-            function (AkunPegawaiDibuatNotification $notification) {
-                return $notification->defaultPassword === PegawaiService::DEFAULT_PASSWORD
-                    && str_contains($notification->roleLabel, 'Purchasing');
+            function (AkunPegawaiDibuatNotification $notification) use ($createdUser) {
+                $this->assertNotEmpty($notification->defaultPassword);
+                $this->assertGreaterThanOrEqual(8, strlen($notification->defaultPassword));
+                $this->assertTrue(Hash::check($notification->defaultPassword, $createdUser->password));
+
+                return str_contains($notification->roleLabel, 'Purchasing');
             }
         );
     }
@@ -772,5 +774,103 @@ class PegawaiTest extends TestCase
 
         $this->actingAs($buyer)->getJson('/manajemen/pengguna')->assertForbidden();
         $this->actingAs($qc)->getJson('/manajemen/pengguna')->assertForbidden();
+    }
+
+    public function test_unique_default_password_is_generated_for_each_new_employee(): void
+    {
+        Notification::fake();
+
+        $this->actingAs($this->admin)->post('/manajemen/pengguna', [
+            'name' => 'Pegawai Satu',
+            'email' => 'satu@perusahaan.com',
+            'role' => 'purchasing',
+        ])->assertRedirect();
+
+        $this->actingAs($this->admin)->post('/manajemen/pengguna', [
+            'name' => 'Pegawai Dua',
+            'email' => 'dua@perusahaan.com',
+            'role' => 'qc_gudang',
+        ])->assertRedirect();
+
+        $user1 = User::where('email', 'satu@perusahaan.com')->first();
+        $user2 = User::where('email', 'dua@perusahaan.com')->first();
+
+        $password1 = null;
+        $password2 = null;
+
+        Notification::assertSentTo($user1, AkunPegawaiDibuatNotification::class, function ($n) use (&$password1) {
+            $password1 = $n->defaultPassword;
+
+            return true;
+        });
+
+        Notification::assertSentTo($user2, AkunPegawaiDibuatNotification::class, function ($n) use (&$password2) {
+            $password2 = $n->defaultPassword;
+
+            return true;
+        });
+
+        $this->assertNotEmpty($password1);
+        $this->assertNotEmpty($password2);
+        $this->assertNotEquals($password1, $password2);
+        $this->assertTrue(Hash::check($password1, $user1->password));
+        $this->assertTrue(Hash::check($password2, $user2->password));
+    }
+
+    public function test_owner_can_invite_employee_and_notification_includes_company_name(): void
+    {
+        Notification::fake();
+
+        $company = PerusahaanBuyer::create([
+            'company_name' => 'PT Nusantara Sejahtera',
+            'tax_number' => '77.777.777.7-777.000',
+            'address' => 'Surabaya',
+            'tipe_paket' => 'enterprise',
+            'is_active' => true,
+        ]);
+
+        $owner = User::factory()->create([
+            'role_id' => 6, // owner
+            'tenant_id' => $company->id,
+            'name' => 'Bapak Direktur',
+            'email' => 'direktur@nusantara.test',
+        ]);
+
+        $response = $this->actingAs($owner)->post('/manajemen/pengguna', [
+            'name' => 'Staf Baru Purchasing',
+            'email' => 'staf.baru@nusantara.test',
+            'role' => 'purchasing',
+        ]);
+
+        $response->assertRedirect('/manajemen/pengguna');
+        $response->assertSessionHas('success');
+
+        $newUser = User::where('email', 'staf.baru@nusantara.test')->first();
+        $this->assertNotNull($newUser);
+        $this->assertEquals($company->id, $newUser->tenant_id);
+
+        Notification::assertSentTo(
+            $newUser,
+            AkunPegawaiDibuatNotification::class,
+            function (AkunPegawaiDibuatNotification $notification) {
+                return $notification->companyName === 'PT Nusantara Sejahtera'
+                    && str_contains($notification->roleLabel, 'Purchasing');
+            }
+        );
+
+        $notification = new AkunPegawaiDibuatNotification(
+            $newUser,
+            'Pgr-AbCdEf-1234',
+            'Purchasing / Finance',
+            $company->company_name
+        );
+        $mail = $notification->toMail($newUser);
+
+        $this->assertStringContainsString('Undangan Bergabung & Kredensial Akun Internal - PT Nusantara Sejahtera', $mail->subject);
+        $renderedHtml = $mail->render();
+        $this->assertStringContainsString('PT Nusantara Sejahtera', $renderedHtml);
+        $this->assertStringContainsString('Pgr-AbCdEf-1234', $renderedHtml);
+        $this->assertStringContainsString('Purchasing / Finance', $renderedHtml);
+        $this->assertStringContainsString('staf.baru@nusantara.test', $renderedHtml);
     }
 }

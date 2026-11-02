@@ -233,13 +233,9 @@ export function PegawaiFormModal({
                             <div className="flex items-start gap-3 p-3.5 rounded-lg border border-sky-500/20 bg-sky-500/10 text-sky-900 dark:text-sky-200">
                                 <Mail className="size-4 shrink-0 mt-0.5 text-sky-600 dark:text-sky-400" />
                                 <div className="text-xs space-y-1">
-                                    <p className="font-semibold">Otomatisasi Kredensial Awal</p>
+                                    <p className="font-semibold">Otomatisasi Kredensial & Undangan Akun</p>
                                     <p className="leading-relaxed text-muted-foreground dark:text-sky-300">
-                                        Akun akan dibuat menggunakan email pengguna dan password default{' '}
-                                        <code className="font-mono font-semibold px-1 py-0.5 rounded bg-background/80 text-foreground">
-                                            {default_password}
-                                        </code>
-                                        . Notifikasi aktivasi akun akan dikirim otomatis ke email pengguna.
+                                        Akun akan dibuat menggunakan email bisnis pengguna dengan kata sandi awal unik yang di-generate otomatis oleh sistem. Surat undangan resmi beserta rincian kredensial masuk akan dikirimkan langsung ke email pengguna.
                                     </p>
                                 </div>
                             </div>

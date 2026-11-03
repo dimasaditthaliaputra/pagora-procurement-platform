@@ -79,7 +79,7 @@ class UndangVendorTest extends TestCase
             'invited_by' => $this->superadmin->id,
         ]);
 
-        Mail::assertSent(UndanganVendorMail::class, function (UndanganVendorMail $mail) {
+        Mail::assertQueued(UndanganVendorMail::class, function (UndanganVendorMail $mail) {
             return $mail->hasTo('mitra@sawit.co.id')
                 && $mail->invitation->company_name === 'PT Mitra Sawit Sejahtera'
                 && str_contains($mail->registrationUrl, $mail->invitation->token);
@@ -106,7 +106,7 @@ class UndangVendorTest extends TestCase
             'invited_by' => $this->manajemen->id,
         ]);
 
-        Mail::assertSent(UndanganVendorMail::class);
+        Mail::assertQueued(UndanganVendorMail::class);
     }
 
     public function test_buyer_cannot_invite_a_vendor(): void
@@ -120,7 +120,7 @@ class UndangVendorTest extends TestCase
             ]);
 
         $response->assertStatus(403);
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_guest_cannot_invite_a_vendor(): void
@@ -133,7 +133,7 @@ class UndangVendorTest extends TestCase
         ]);
 
         $response->assertRedirect('/login');
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_validation_fails_when_fields_are_invalid(): void
@@ -147,7 +147,7 @@ class UndangVendorTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors(['company_name', 'email']);
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_cannot_invite_vendor_with_already_registered_vendor_email(): void
@@ -172,7 +172,7 @@ class UndangVendorTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors(['email']);
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_cannot_invite_vendor_with_already_registered_user_email(): void
@@ -186,7 +186,7 @@ class UndangVendorTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors(['email']);
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_reinviting_vendor_updates_existing_pending_invitation(): void
@@ -291,7 +291,7 @@ class UndangVendorTest extends TestCase
         $otpResponse->assertStatus(200);
 
         $code = null;
-        Mail::assertSent(OtpMail::class, function (OtpMail $mail) use ($email, &$code) {
+        Mail::assertQueued(OtpMail::class, function (OtpMail $mail) use ($email, &$code) {
             $code = $mail->code;
 
             return $mail->hasTo($email);

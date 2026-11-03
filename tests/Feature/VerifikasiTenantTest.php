@@ -139,7 +139,7 @@ class VerifikasiTenantTest extends TestCase
         $this->assertEquals($this->superadmin->id, $tenant->verified_by);
         $this->assertNotNull($tenant->verified_at);
 
-        Mail::assertSent(TenantApprovalMail::class, function (TenantApprovalMail $mail) {
+        Mail::assertQueued(TenantApprovalMail::class, function (TenantApprovalMail $mail) {
             return $mail->hasTo($this->owner->email);
         });
     }
@@ -166,7 +166,7 @@ class VerifikasiTenantTest extends TestCase
         $this->assertEquals($this->superadmin->id, $tenant->verified_by);
         $this->assertEquals($reason, $tenant->verification_note);
 
-        Mail::assertSent(TenantRejectionMail::class, function (TenantRejectionMail $mail) use ($reason) {
+        Mail::assertQueued(TenantRejectionMail::class, function (TenantRejectionMail $mail) use ($reason) {
             return $mail->hasTo($this->owner->email) && $mail->rejectionReason === $reason;
         });
     }
@@ -184,7 +184,7 @@ class VerifikasiTenantTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors('rejection_reason');
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_cannot_reverify_already_approved_or_rejected_tenant(): void
@@ -203,7 +203,7 @@ class VerifikasiTenantTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors(['verification_status']);
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_cannot_reverify_already_approved_tenant_json_returns_422(): void
@@ -222,7 +222,7 @@ class VerifikasiTenantTest extends TestCase
             ]);
 
         $response->assertStatus(422);
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_superadmin_can_download_legal_document(): void

@@ -44,7 +44,7 @@ class LoginOtpTest extends TestCase
     private function mailedCode(): string
     {
         $code = null;
-        Mail::assertSent(OtpMail::class, function (OtpMail $mail) use (&$code) {
+        Mail::assertQueued(OtpMail::class, function (OtpMail $mail) use (&$code) {
             $code = $mail->code;
 
             return $mail->hasTo('pegawai@pagora.id');
@@ -60,7 +60,7 @@ class LoginOtpTest extends TestCase
         $this->loginWithPassword()->assertRedirect('/login');
 
         $this->assertGuest();
-        Mail::assertSent(OtpMail::class, fn (OtpMail $mail) => $mail->hasTo('pegawai@pagora.id'));
+        Mail::assertQueued(OtpMail::class, fn (OtpMail $mail) => $mail->hasTo('pegawai@pagora.id'));
         $this->get('/login')->assertInertia(fn ($page) => $page
             ->where('otp.email', 'pe*****@pagora.id'));
     }
@@ -71,7 +71,7 @@ class LoginOtpTest extends TestCase
 
         $this->loginWithPassword('salah')->assertSessionHasErrors('password');
 
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_correct_otp_activates_account_and_logs_in(): void
@@ -129,7 +129,7 @@ class LoginOtpTest extends TestCase
 
         $this->from('/login')->post('/login/otp/resend')->assertSessionHasErrors('otp');
 
-        Mail::assertSentCount(1);
+        Mail::assertQueuedCount(1);
     }
 
     public function test_cancel_clears_pending_otp_step(): void
@@ -154,6 +154,6 @@ class LoginOtpTest extends TestCase
         $this->loginWithPassword()->assertSessionHasErrors('email');
 
         $this->assertGuest();
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 }

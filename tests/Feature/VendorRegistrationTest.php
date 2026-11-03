@@ -47,7 +47,7 @@ class VendorRegistrationTest extends TestCase
         $this->postJson('/register/vendor/otp', ['contact_email' => $email])->assertOk();
 
         $code = null;
-        Mail::assertSent(OtpMail::class, function (OtpMail $mail) use ($email, &$code) {
+        Mail::assertQueued(OtpMail::class, function (OtpMail $mail) use ($email, &$code) {
             $code = $mail->code;
 
             return $mail->hasTo($email);
@@ -63,7 +63,7 @@ class VendorRegistrationTest extends TestCase
         $this->postJson('/register/vendor/otp', ['contact_email' => 'baru@vendor.co.id'])
             ->assertOk();
 
-        Mail::assertSent(OtpMail::class, fn (OtpMail $mail) => $mail->hasTo('baru@vendor.co.id'));
+        Mail::assertQueued(OtpMail::class, fn (OtpMail $mail) => $mail->hasTo('baru@vendor.co.id'));
     }
 
     public function test_otp_cannot_be_requested_for_an_invalid_or_registered_email(): void
@@ -86,7 +86,7 @@ class VendorRegistrationTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors('contact_email');
 
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
     }
 
     public function test_otp_cannot_be_resent_during_cooldown(): void
@@ -98,7 +98,7 @@ class VendorRegistrationTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors('contact_email');
 
-        Mail::assertSentCount(1);
+        Mail::assertQueuedCount(1);
     }
 
     public function test_registration_is_rejected_with_wrong_otp(): void

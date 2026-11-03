@@ -132,7 +132,7 @@ class VerifikasiDokumenTest extends TestCase
             'verification_status' => 'approved',
         ]);
 
-        Mail::assertSent(
+        Mail::assertQueued(
             VendorApprovalMail::class,
             function (VendorApprovalMail $mail) use ($vendor): bool {
                 return $mail->hasTo($vendor->contact_email)
@@ -177,7 +177,7 @@ class VerifikasiDokumenTest extends TestCase
             'id' => $vendor->id,
             'verification_status' => 'rejected',
         ]);
-        Mail::assertNotSent(VendorApprovalMail::class);
+        Mail::assertNotQueued(VendorApprovalMail::class);
     }
 
     public function test_approval_email_is_sent_only_after_all_documents_are_approved(): void
@@ -202,13 +202,13 @@ class VerifikasiDokumenTest extends TestCase
             ->post("/master/vendor/verifikasi-dokumen/{$npwp->uuid}/verifikasi", ['aksi' => 'approve']);
 
         $this->assertDatabaseHas('vendors', ['id' => $vendor->id, 'verification_status' => 'pending']);
-        Mail::assertNotSent(VendorApprovalMail::class);
+        Mail::assertNotQueued(VendorApprovalMail::class);
 
         $this->actingAs($this->superadmin)
             ->post("/master/vendor/verifikasi-dokumen/{$siup->uuid}/verifikasi", ['aksi' => 'approve']);
 
         $this->assertDatabaseHas('vendors', ['id' => $vendor->id, 'verification_status' => 'approved']);
-        Mail::assertSent(VendorApprovalMail::class, 1);
+        Mail::assertQueued(VendorApprovalMail::class, 1);
     }
 
     public function test_vendor_is_rejected_without_email_when_any_document_is_rejected(): void
@@ -238,7 +238,7 @@ class VerifikasiDokumenTest extends TestCase
             ]);
 
         $this->assertDatabaseHas('vendors', ['id' => $vendor->id, 'verification_status' => 'rejected']);
-        Mail::assertNotSent(VendorApprovalMail::class);
+        Mail::assertNotQueued(VendorApprovalMail::class);
     }
 
     public function test_index_lists_one_record_per_vendor_with_all_of_its_documents(): void

@@ -46,6 +46,7 @@ import {
     Search,
     ChevronsUpDown,
     X,
+    Handshake,
 } from 'lucide-react';
 import Logo from '../../assets/logo/logo.webp';
 
@@ -73,6 +74,10 @@ const managementNavItems = [
     { title: 'Pengguna', icon: Users, href: '/manajemen/pengguna', routeName: 'manajemen.pengguna.index', ability: 'pengguna.view_any' },
     { title: 'Role & Hak Akses', icon: ShieldCheck, href: '/manajemen/role-akses', routeName: 'manajemen.role-akses.index', ability: 'role.view_any' },
     { title: 'Pengaturan', icon: Settings, href: '/pengaturan/profil', routeName: 'pengaturan', ability: 'pengaturan.view_any' },
+];
+
+const kerjaSamaNavItems = [
+    { title: 'Calon Mitra', icon: Handshake, href: '/kerja-sama/calon-mitra', routeName: 'kerja-sama.calon-mitra.index', ability: 'kerja-sama.calon-mitra.view' },
 ];
 
 function getInitials(name) {
@@ -103,8 +108,9 @@ export function AppSidebar({ className, ...props }) {
     const filteredMain = useMemo(() => filterItems(mainNavItems), [searchQuery, permissions]);
     const filteredMaster = useMemo(() => filterItems(masterNavItems), [searchQuery, permissions]);
     const filteredManagement = useMemo(() => filterItems(managementNavItems), [searchQuery, permissions]);
+    const filteredKerjaSama = useMemo(() => filterItems(kerjaSamaNavItems), [searchQuery, permissions]);
 
-    const hasResults = filteredMain.length > 0 || filteredMaster.length > 0 || filteredManagement.length > 0;
+    const hasResults = filteredMain.length > 0 || filteredMaster.length > 0 || filteredManagement.length > 0 || filteredKerjaSama.length > 0;
 
     return (
         <Sidebar
@@ -238,6 +244,29 @@ export function AppSidebar({ className, ...props }) {
                                 <SidebarGroupContent className="mt-1">
                                     <SidebarMenu className="gap-1">
                                         {filteredManagement.map((item) => (
+                                            <SidebarItem
+                                                key={item.title}
+                                                title={item.title}
+                                                icon={item.icon}
+                                                href={item.href}
+                                                routeName={item.routeName}
+                                                exact={item.exact}
+                                                badge={item.badge}
+                                            />
+                                        ))}
+                                    </SidebarMenu>
+                                </SidebarGroupContent>
+                            </SidebarGroup>
+                        )}
+
+                        {filteredKerjaSama.length > 0 && (
+                            <SidebarGroup className="mt-2">
+                                <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
+                                    Kerja Sama
+                                </SidebarGroupLabel>
+                                <SidebarGroupContent className="mt-1">
+                                    <SidebarMenu className="gap-1">
+                                        {filteredKerjaSama.map((item) => (
                                             <SidebarItem
                                                 key={item.title}
                                                 title={item.title}

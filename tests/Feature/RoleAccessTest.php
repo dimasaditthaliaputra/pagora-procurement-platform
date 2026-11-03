@@ -67,6 +67,7 @@ class RoleAccessTest extends TestCase
             'pengguna.view_any' => false,
             'pengaturan.view_any' => false,
             'role.view_any' => false,
+            'kerja-sama.calon-mitra.view' => false,
         ];
 
         return [
@@ -95,6 +96,7 @@ class RoleAccessTest extends TestCase
                 'purchase_order.view_any' => true,
                 'perusahaan.view' => true,
                 'pengguna.view_any' => true,
+                'kerja-sama.calon-mitra.view' => true,
             ]],
         ];
     }

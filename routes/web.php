@@ -104,6 +104,9 @@ Route::middleware('auth')->group(function () {
             Route::delete('/{uuid}', 'destroy')->whereUuid('uuid')->name('destroy');
             Route::post('/{uuid}/konfirmasi', 'konfirmasi')->whereUuid('uuid')->name('konfirmasi');
             Route::get('/{uuid}/negosiasi', 'negosiasi')->whereUuid('uuid')->can('viewAny', PurchaseOrder::class)->name('negosiasi');
+            Route::post('/{uuid}/tawar', 'tawar')->whereUuid('uuid')->name('tawar');
+            Route::post('/{uuid}/setujui', 'setujui')->whereUuid('uuid')->name('setujui');
+            Route::post('/{uuid}/batalkan', 'batalkan')->whereUuid('uuid')->name('batalkan');
         });
 
     // Manajemen Perusahaan (Tenant Owner & Vendor manage their company profile)
@@ -187,7 +190,6 @@ Route::middleware('auth')->group(function () {
 
     Route::redirect('/superadmin/verifikasi-dokumen', '/master/vendor/verifikasi-dokumen');
 
-   
     // Kerja Sama Vendor Routes
     Route::controller(KerjaSamaController::class)
         ->prefix('kerja-sama')
@@ -203,7 +205,6 @@ Route::middleware('auth')->group(function () {
                 ->whereUuid('uuid')
                 ->name('calon-mitra.ajukan');
         });
-
 
     // Pengaturan Aplikasi Routes (Superadmin Only)
     Route::middleware(['superadmin', 'can:viewAny,'.Pengaturan::class])

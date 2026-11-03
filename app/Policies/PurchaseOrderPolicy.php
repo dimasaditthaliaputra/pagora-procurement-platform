@@ -76,4 +76,52 @@ class PurchaseOrderPolicy
     {
         return $this->update($user, $purchaseOrder);
     }
+
+    /**
+     * Determine whether the user can open/view the negotiation room.
+     */
+    public function negosiasi(User $user, PurchaseOrder $purchaseOrder): bool
+    {
+        return $this->view($user, $purchaseOrder)
+            && $purchaseOrder->status !== StatusPurchaseOrder::Draft;
+    }
+
+    /**
+     * Determine whether the user can submit an offer in negotiation.
+     */
+    public function tawar(User $user, PurchaseOrder $purchaseOrder): bool
+    {
+        if ($purchaseOrder->status !== StatusPurchaseOrder::Negosiasi) {
+            return false;
+        }
+
+        if ($user->vendor_id !== null && (int) $user->vendor_id === (int) $purchaseOrder->vendor_id) {
+            return $user->hasPermission('purchase_order.view_any');
+        }
+
+        if ($user->tenant_id !== null && (int) $user->tenant_id === (int) $purchaseOrder->perusahaan_buyer_id) {
+            return $user->hasPermission('purchase_order.create');
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine whether the user can agree to the price and lock the purchase order.
+     */
+    public function setujui(User $user, PurchaseOrder $purchaseOrder): bool
+    {
+        return $this->tawar($user, $purchaseOrder);
+    }
+
+    /**
+     * Determine whether the user can cancel the purchase order during negotiation.
+     */
+    public function batalkan(User $user, PurchaseOrder $purchaseOrder): bool
+    {
+        return $user->tenant_id !== null
+            && (int) $user->tenant_id === (int) $purchaseOrder->perusahaan_buyer_id
+            && $user->hasPermission('purchase_order.create')
+            && $purchaseOrder->status->bisaDibatalkan();
+    }
 }

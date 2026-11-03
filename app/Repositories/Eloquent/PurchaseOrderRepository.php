@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Repositories\Eloquent;
 
+use App\Enums\StatusPurchaseOrder;
+use App\Models\ChatNegosiasi;
 use App\Models\PoItem;
 use App\Models\PurchaseOrder;
+use App\Models\User;
 use App\Repositories\Contracts\PurchaseOrderRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -138,17 +141,20 @@ class PurchaseOrderRepository implements PurchaseOrderRepositoryInterface
     }
 
     /**
-     * Find a purchase order by UUID, optionally scoped to a tenant.
+     * Find a purchase order by UUID, optionally scoped to a tenant or vendor.
      */
-    public function findByUuid(string $uuid, ?int $tenantId = null): ?PurchaseOrder
+    public function findByUuid(string $uuid, ?int $tenantId = null, ?int $vendorId = null): ?PurchaseOrder
     {
         return $this->model->newQuery()
             ->when($tenantId !== null, fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->when($vendorId !== null, fn ($q) => $q->where('vendor_id', $vendorId))
             ->where('uuid', $uuid)
             ->with([
                 'vendor:id,uuid,company_name,contact_email,phone,address',
+                'tenant:id,uuid,company_name,tax_number,address',
                 'pembuat:id,uuid,name,email',
                 'poItems.komoditas:id,uuid,name,unit',
+                'chatNegosiasi.pengirim.role',
             ])
             ->first();
     }
@@ -396,5 +402,107 @@ class PurchaseOrderRepository implements PurchaseOrderRepositoryInterface
                 'count' => $perluPerhatianCount,
             ],
         ];
+    }
+
+    /**
+     * Add a negotiation message (immutable).
+     */
+    public function addChatNegosiasi(PurchaseOrder $purchaseOrder, User $sender, ?float $nominalTawar, ?string $pesanTeks): ChatNegosiasi
+    {
+        return DB::transaction(function () use ($purchaseOrder, $sender, $nominalTawar, $pesanTeks) {
+            $chat = new ChatNegosiasi;
+            $chat->uuid = (string) Str::uuid();
+            $chat->pengirim_id = $sender->id;
+            $chat->purchase_order_id = $purchaseOrder->id;
+            $chat->nominal_tawar = $nominalTawar;
+            $chat->pesan_teks = $pesanTeks;
+            $chat->save();
+
+            return $chat;
+        });
+    }
+
+    /**
+     * Update offer price for the purchase order items during negotiation.
+     */
+    public function updateOfferPrice(PurchaseOrder $purchaseOrder, User $actor, float $offerPrice): void
+    {
+        DB::transaction(function () use ($purchaseOrder, $actor, $offerPrice) {
+            $isVendor = $actor->vendor_id !== null && (int) $actor->vendor_id === (int) $purchaseOrder->vendor_id;
+
+            $items = $purchaseOrder->poItems;
+            $totalQuantity = (float) $items->sum('jumlah_pesanan');
+
+            foreach ($items as $item) {
+                $qty = (float) $item->jumlah_pesanan;
+                if ($isVendor) {
+                    $unitOffer = $totalQuantity > 0 ? round(($offerPrice / $totalQuantity), 2) : $offerPrice;
+                    $item->harga_tawar_vendor = $unitOffer;
+                    $item->status_item = 'countered';
+                } else {
+                    $unitOffer = $totalQuantity > 0 ? round(($offerPrice / $totalQuantity), 2) : $offerPrice;
+                    $item->harga_satuan_po = $unitOffer;
+                    $item->subtotal = round($qty * $unitOffer, 2);
+                    $item->status_item = 'pending';
+                }
+                $item->save();
+            }
+        });
+    }
+
+    /**
+     * Agree to the price, update items, transition status to disepakati, and lock the purchase order.
+     */
+    public function setujuiHarga(PurchaseOrder $purchaseOrder, User $actor): void
+    {
+        DB::transaction(function () use ($purchaseOrder, $actor) {
+            $items = $purchaseOrder->poItems;
+            $totalAgreed = 0.0;
+
+            foreach ($items as $item) {
+                if ($item->harga_tawar_vendor !== null && (float) $item->harga_tawar_vendor > 0) {
+                    $item->harga_satuan_po = (float) $item->harga_tawar_vendor;
+                    $item->subtotal = round((float) $item->jumlah_pesanan * (float) $item->harga_satuan_po, 2);
+                }
+                $item->status_item = 'agreed';
+                $item->save();
+                $totalAgreed += (float) $item->subtotal;
+            }
+
+            $purchaseOrder->status = StatusPurchaseOrder::Disepakati;
+            $purchaseOrder->locked_at = now();
+            $purchaseOrder->save();
+
+            $isVendor = $actor->vendor_id !== null && (int) $actor->vendor_id === (int) $purchaseOrder->vendor_id;
+            $messageText = $isVendor ? 'Harga penawaran disetujui oleh vendor.' : 'Setuju dengan harga yang diajukan vendor.';
+
+            $chat = new ChatNegosiasi;
+            $chat->uuid = (string) Str::uuid();
+            $chat->pengirim_id = $actor->id;
+            $chat->purchase_order_id = $purchaseOrder->id;
+            $chat->pesan_teks = $messageText;
+            $chat->nominal_tawar = $totalAgreed > 0 ? $totalAgreed : null;
+            $chat->save();
+        });
+    }
+
+    /**
+     * Cancel the purchase order with a mandatory cancellation reason.
+     */
+    public function batalkan(PurchaseOrder $purchaseOrder, User $actor, string $alasan): void
+    {
+        DB::transaction(function () use ($purchaseOrder, $actor, $alasan) {
+            $purchaseOrder->status = StatusPurchaseOrder::Dibatalkan;
+            $purchaseOrder->alasan_pembatalan = $alasan;
+            $purchaseOrder->save();
+
+            $chat = new ChatNegosiasi;
+            $chat->uuid = (string) Str::uuid();
+            $chat->pengirim_id = $actor->id;
+            $chat->purchase_order_id = $purchaseOrder->id;
+            $chat->pesan_teks = 'Purchase Order dibatalkan. Alasan: '.$alasan;
+            $chat->nominal_tawar = null;
+            $chat->save();
+        });
     }
 }

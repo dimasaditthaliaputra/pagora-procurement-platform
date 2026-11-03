@@ -512,4 +512,191 @@ class PurchaseOrderPageTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->has('purchase_orders.data', 1));
     }
+
+    public function test_vendor_can_open_negotiation_room_and_harga_pagu_is_hidden(): void
+    {
+        $po = $this->createPurchaseOrder($this->tenantA, $this->vendor, $this->purchasingUser, StatusPurchaseOrder::Negosiasi);
+
+        $response = $this->actingAs($this->vendorUser)->get("/purchase-order/{$po->uuid}/negosiasi");
+
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('PurchaseOrder/Negosiasi')
+                ->where('purchase_order.data.uuid', $po->uuid)
+                ->where('purchase_order.data.current_role', 'vendor')
+                ->where('purchase_order.data.status', 'negosiasi')
+                ->where('purchase_order.data.harga_pagu_acuan', null)
+                ->where('purchase_order.data.items.0.harga_pagu', null)
+                ->where('purchase_order.data.can.tawar', true)
+                ->where('purchase_order.data.can.setujui', true)
+                ->where('purchase_order.data.can.batalkan', false)
+            );
+    }
+
+    public function test_vendor_cannot_open_negotiation_room_if_po_is_draft(): void
+    {
+        $po = $this->createPurchaseOrder($this->tenantA, $this->vendor, $this->purchasingUser, StatusPurchaseOrder::Draft);
+
+        $response = $this->actingAs($this->vendorUser)->get("/purchase-order/{$po->uuid}/negosiasi");
+
+        $response->assertForbidden();
+    }
+
+    public function test_vendor_can_accept_initial_price_and_locks_po(): void
+    {
+        $po = $this->createPurchaseOrder($this->tenantA, $this->vendor, $this->purchasingUser, StatusPurchaseOrder::Negosiasi);
+
+        $response = $this->actingAs($this->vendorUser)->post("/purchase-order/{$po->uuid}/setujui");
+
+        $response->assertRedirect();
+        $po->refresh();
+
+        $this->assertEquals(StatusPurchaseOrder::Disepakati, $po->status);
+        $this->assertNotNull($po->locked_at);
+
+        $this->assertDatabaseHas('chat_negosiasi', [
+            'purchase_order_id' => $po->id,
+            'pengirim_id' => $this->vendorUser->id,
+            'pesan_teks' => 'Harga penawaran disetujui oleh vendor.',
+        ]);
+    }
+
+    public function test_vendor_can_submit_counter_offer(): void
+    {
+        $po = $this->createPurchaseOrder($this->tenantA, $this->vendor, $this->purchasingUser, StatusPurchaseOrder::Negosiasi);
+
+        $response = $this->actingAs($this->vendorUser)->post("/purchase-order/{$po->uuid}/tawar", [
+            'nominal_tawar' => 1600000.00,
+            'pesan_teks' => 'Mohon penyesuaian harga karena kenaikan biaya logistik.',
+        ]);
+
+        $response->assertRedirect();
+        $po->refresh();
+
+        $this->assertEquals(StatusPurchaseOrder::Negosiasi, $po->status);
+        $item = $po->poItems()->first();
+        $this->assertEquals(16000.00, (float) $item->harga_tawar_vendor);
+        $this->assertEquals('countered', $item->status_item);
+
+        $this->assertDatabaseHas('chat_negosiasi', [
+            'purchase_order_id' => $po->id,
+            'pengirim_id' => $this->vendorUser->id,
+            'nominal_tawar' => 1600000.00,
+            'pesan_teks' => 'Mohon penyesuaian harga karena kenaikan biaya logistik.',
+        ]);
+    }
+
+    public function test_buyer_can_accept_vendor_counter_offer_and_updates_item_price(): void
+    {
+        $po = $this->createPurchaseOrder($this->tenantA, $this->vendor, $this->purchasingUser, StatusPurchaseOrder::Negosiasi);
+        $po->poItems()->first()->update([
+            'harga_tawar_vendor' => 16000.00,
+            'status_item' => 'countered',
+        ]);
+
+        $response = $this->actingAs($this->purchasingUser)->post("/purchase-order/{$po->uuid}/setujui");
+
+        $response->assertRedirect();
+        $po->refresh();
+
+        $this->assertEquals(StatusPurchaseOrder::Disepakati, $po->status);
+        $this->assertNotNull($po->locked_at);
+
+        $item = $po->poItems()->first();
+        $this->assertEquals(16000.00, (float) $item->harga_satuan_po);
+        $this->assertEquals(1600000.00, (float) $item->subtotal);
+        $this->assertEquals('agreed', $item->status_item);
+
+        $this->assertDatabaseHas('chat_negosiasi', [
+            'purchase_order_id' => $po->id,
+            'pengirim_id' => $this->purchasingUser->id,
+            'pesan_teks' => 'Setuju dengan harga yang diajukan vendor.',
+        ]);
+    }
+
+    public function test_buyer_can_cancel_po_during_negotiation(): void
+    {
+        $po = $this->createPurchaseOrder($this->tenantA, $this->vendor, $this->purchasingUser, StatusPurchaseOrder::Negosiasi);
+
+        $response = $this->actingAs($this->purchasingUser)->post("/purchase-order/{$po->uuid}/batalkan", [
+            'alasan' => 'Kesepakatan harga tidak tercapai.',
+        ]);
+
+        $response->assertRedirect();
+        $po->refresh();
+
+        $this->assertEquals(StatusPurchaseOrder::Dibatalkan, $po->status);
+        $this->assertEquals('Kesepakatan harga tidak tercapai.', $po->alasan_pembatalan);
+
+        $this->assertDatabaseHas('chat_negosiasi', [
+            'purchase_order_id' => $po->id,
+            'pengirim_id' => $this->purchasingUser->id,
+            'pesan_teks' => 'Purchase Order dibatalkan. Alasan: Kesepakatan harga tidak tercapai.',
+        ]);
+    }
+
+    public function test_cancel_po_requires_valid_reason(): void
+    {
+        $po = $this->createPurchaseOrder($this->tenantA, $this->vendor, $this->purchasingUser, StatusPurchaseOrder::Negosiasi);
+
+        // 1. Alasan kosong
+        $this->actingAs($this->purchasingUser)
+            ->post("/purchase-order/{$po->uuid}/batalkan", ['alasan' => ''])
+            ->assertSessionHasErrors('alasan');
+
+        // 2. Alasan terlalu pendek (< 5 karakter)
+        $this->actingAs($this->purchasingUser)
+            ->post("/purchase-order/{$po->uuid}/batalkan", ['alasan' => 'Btl'])
+            ->assertSessionHasErrors('alasan');
+
+        $po->refresh();
+        $this->assertEquals(StatusPurchaseOrder::Negosiasi, $po->status);
+    }
+
+    public function test_vendor_cannot_cancel_po(): void
+    {
+        $po = $this->createPurchaseOrder($this->tenantA, $this->vendor, $this->purchasingUser, StatusPurchaseOrder::Negosiasi);
+
+        $response = $this->actingAs($this->vendorUser)->post("/purchase-order/{$po->uuid}/batalkan", [
+            'alasan' => 'Vendor mencoba membatalkan pesanan ini.',
+        ]);
+
+        $response->assertForbidden();
+        $po->refresh();
+        $this->assertEquals(StatusPurchaseOrder::Negosiasi, $po->status);
+    }
+
+    public function test_unauthorized_vendor_cannot_access_or_negotiate_other_vendor_po(): void
+    {
+        $otherVendor = Vendor::create([
+            'company_name' => 'CV Pesaing Lain',
+            'slug' => 'cv-pesaing-lain-'.Str::lower(Str::random(6)),
+            'tax_number' => '02.234.567.8-888.000',
+            'contact_email' => 'kontak@pesaing.test',
+            'phone' => '081234567899',
+            'address' => 'Jl. Kaliurang KM 9',
+            'verification_status' => 'approved',
+            'is_active' => true,
+        ]);
+
+        $otherVendorUser = User::factory()->create([
+            'role_id' => Role::where('name', RoleName::Vendor->value)->value('id'),
+            'vendor_id' => $otherVendor->id,
+            'is_active' => true,
+        ]);
+
+        $po = $this->createPurchaseOrder($this->tenantA, $this->vendor, $this->purchasingUser, StatusPurchaseOrder::Negosiasi);
+
+        // Akses negosiasi PO vendor lain harus 404 (atau 403)
+        $this->actingAs($otherVendorUser)
+            ->get("/purchase-order/{$po->uuid}/negosiasi")
+            ->assertNotFound();
+
+        // Tawar PO vendor lain harus 404
+        $this->actingAs($otherVendorUser)
+            ->post("/purchase-order/{$po->uuid}/tawar", [
+                'nominal_tawar' => 2000000.00,
+            ])
+            ->assertNotFound();
+    }
 }

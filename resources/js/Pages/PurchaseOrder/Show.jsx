@@ -168,6 +168,21 @@ export default function PurchaseOrderShow({ purchase_order }) {
                     </Alert>
                 )}
 
+                {po.status === 'dibatalkan' && (
+                    <Alert variant="destructive">
+                        <XCircle className="size-4" />
+                        <AlertTitle>Purchase Order Dibatalkan</AlertTitle>
+                        <AlertDescription className="space-y-1 mt-1">
+                            <p>Purchase Order ini telah dibatalkan dan tidak dapat diproses lebih lanjut.</p>
+                            {po.alasan_pembatalan && (
+                                <p className="text-xs font-medium bg-destructive/15 rounded p-2 text-foreground border border-destructive/20">
+                                    <strong>Alasan Pembatalan:</strong> {po.alasan_pembatalan}
+                                </p>
+                            )}
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <Card className="shadow-sm lg:col-span-1">
                         <CardHeader className="py-3.5 px-5 border-b">

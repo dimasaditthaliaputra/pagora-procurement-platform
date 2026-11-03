@@ -261,7 +261,7 @@ Master komoditas & kategori bersifat **global** dan dikelola Superadmin; setiap 
   8. Ketika **semua item yang tersisa** telah disepakati, sistem menyimpan harga final per item (`unit_price`, `subtotal`) dan status → `agreed`.
   9. Sistem **mengunci** dokumen PO beserta harga dan menjadikan chat **hanya-baca**.
 - **Alternatif (Item gagal disepakati)** [Keputusan Q-24]: 7a. Purchasing tidak setuju dan tidak mengajukan ulang harga untuk suatu item → item tsb **dikeluarkan dari PO** (`negotiation_status = removed`); item lain tetap dinegosiasikan. Bila **tidak ada item tersisa**, PO tidak dapat diteruskan → status `cancelled`.
-- **Alternatif (Batalkan PO)**: 7b. Purchasing menekan "Batalkan Purchase Order" selama belum `agreed` → status `cancelled`.
+- **Alternatif (Batalkan PO)**: 7b. Purchasing menekan "Batalkan Purchase Order" selama belum `agreed` → mengisi alasan pembatalan (wajib) → status `cancelled`, alasan pembatalan disimpan pada PO dan dicatat di jejak chat audit.
 - **Alternatif (Ubah Draf)**: 4a. Tidak lanjut negosiasi → "Update Draf PO?" → "Ubah Draf" → ubah Vendor / item (komoditas, kuantitas, estimasi harga) → konfirmasi → simpan → kembali ke pop-up langkah 3.
 - **Alternatif (Hapus Draf)**: 4b. Pada "Update Draf PO?" pilih "Hapus Draf" → konfirmasi → **soft delete**.
 - **Error**: 2a. Form tidak lengkap (tidak ada item, komoditas tidak dipilih, kuantitas ≤ 0, estimasi harga kosong) → error validasi, tetap di form. 1a. Tidak ada vendor mitra aktif → pesan agar menjalin kerja sama terlebih dahulu.

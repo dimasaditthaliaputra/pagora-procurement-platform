@@ -8,6 +8,7 @@ use App\Enums\StatusPurchaseOrder;
 use App\Helpers\ResponseHelper;
 use App\Http\Requests\PurchaseOrder\IndexPurchaseOrderRequest;
 use App\Http\Requests\PurchaseOrder\StorePurchaseOrderRequest;
+use App\Http\Requests\PurchaseOrder\StoreTawaranRequest;
 use App\Http\Requests\PurchaseOrder\UpdatePurchaseOrderRequest;
 use App\Http\Resources\PurchaseOrderResource;
 use App\Models\PurchaseOrder;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -341,6 +343,8 @@ class PurchaseOrderController extends Controller
         try {
             $po = $this->service->findByUuidForUser($user, $uuid);
 
+            Gate::forUser($user)->authorize('negosiasi', $po);
+
             return Inertia::render('PurchaseOrder/Negosiasi', [
                 'purchase_order' => new PurchaseOrderResource($po),
                 'uuid' => $uuid,
@@ -357,6 +361,137 @@ class PurchaseOrderController extends Controller
             abort(403, $e->getMessage());
         } catch (Throwable $e) {
             return ResponseHelper::serverError('Gagal memuat ruang negosiasi purchase order.', $e, $request);
+        }
+    }
+
+    /**
+     * Submit an offer / counter-offer in the negotiation chat.
+     */
+    public function tawar(StoreTawaranRequest $request, string $uuid): JsonResponse|RedirectResponse
+    {
+        /** @var User|null $user */
+        $user = $request->user();
+
+        if (! $user instanceof User) {
+            return ResponseHelper::unauthorized('Sesi tidak valid.');
+        }
+
+        try {
+            $po = $this->service->kirimTawaran($user, $uuid, $request->validated());
+
+            if ($request->expectsJson()) {
+                return ResponseHelper::success('Penawaran harga berhasil dikirim.', new PurchaseOrderResource($po));
+            }
+
+            return back()->with('success', 'Penawaran harga berhasil dikirim.');
+        } catch (ModelNotFoundException) {
+            if ($request->expectsJson()) {
+                return ResponseHelper::notFound('Purchase Order tidak ditemukan.', null, $request);
+            }
+            abort(404, 'Purchase Order tidak ditemukan.');
+        } catch (ValidationException $e) {
+            if ($request->expectsJson()) {
+                return ResponseHelper::validationError($e->errors());
+            }
+
+            return back()->withErrors($e->errors());
+        } catch (AuthorizationException $e) {
+            if ($request->expectsJson()) {
+                return ResponseHelper::forbidden($e->getMessage(), null, $request);
+            }
+            abort(403, $e->getMessage());
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Gagal mengirim penawaran harga.', $e, $request);
+        }
+    }
+
+    /**
+     * Agree to the price and lock the purchase order.
+     */
+    public function setujui(Request $request, string $uuid): JsonResponse|RedirectResponse
+    {
+        /** @var User|null $user */
+        $user = $request->user();
+
+        if (! $user instanceof User) {
+            return ResponseHelper::unauthorized('Sesi tidak valid.');
+        }
+
+        try {
+            $po = $this->service->setujuiHarga($user, $uuid);
+
+            if ($request->expectsJson()) {
+                return ResponseHelper::success('Harga berhasil disepakati dan PO telah dikunci.', new PurchaseOrderResource($po));
+            }
+
+            return back()->with('success', 'Harga berhasil disepakati dan PO telah dikunci.');
+        } catch (ModelNotFoundException) {
+            if ($request->expectsJson()) {
+                return ResponseHelper::notFound('Purchase Order tidak ditemukan.', null, $request);
+            }
+            abort(404, 'Purchase Order tidak ditemukan.');
+        } catch (ValidationException $e) {
+            if ($request->expectsJson()) {
+                return ResponseHelper::validationError($e->errors());
+            }
+
+            return back()->withErrors($e->errors());
+        } catch (AuthorizationException $e) {
+            if ($request->expectsJson()) {
+                return ResponseHelper::forbidden($e->getMessage(), null, $request);
+            }
+            abort(403, $e->getMessage());
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Gagal menyetujui harga purchase order.', $e, $request);
+        }
+    }
+
+    /**
+     * Cancel the purchase order during negotiation.
+     */
+    public function batalkan(Request $request, string $uuid): JsonResponse|RedirectResponse
+    {
+        /** @var User|null $user */
+        $user = $request->user();
+
+        if (! $user instanceof User) {
+            return ResponseHelper::unauthorized('Sesi tidak valid.');
+        }
+
+        try {
+            $validated = $request->validate([
+                'alasan' => ['required', 'string', 'min:5', 'max:500'],
+            ], [
+                'alasan.required' => 'Alasan pembatalan Purchase Order wajib diisi.',
+                'alasan.min' => 'Alasan pembatalan minimal 5 karakter.',
+                'alasan.max' => 'Alasan pembatalan maksimal 500 karakter.',
+            ]);
+
+            $po = $this->service->batalkanPo($user, $uuid, $validated['alasan']);
+
+            if ($request->expectsJson()) {
+                return ResponseHelper::success('Purchase Order berhasil dibatalkan.', new PurchaseOrderResource($po));
+            }
+
+            return back()->with('success', 'Purchase Order berhasil dibatalkan.');
+        } catch (ModelNotFoundException) {
+            if ($request->expectsJson()) {
+                return ResponseHelper::notFound('Purchase Order tidak ditemukan.', null, $request);
+            }
+            abort(404, 'Purchase Order tidak ditemukan.');
+        } catch (ValidationException $e) {
+            if ($request->expectsJson()) {
+                return ResponseHelper::validationError($e->errors());
+            }
+
+            return back()->withErrors($e->errors());
+        } catch (AuthorizationException $e) {
+            if ($request->expectsJson()) {
+                return ResponseHelper::forbidden($e->getMessage(), null, $request);
+            }
+            abort(403, $e->getMessage());
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Gagal membatalkan purchase order.', $e, $request);
         }
     }
 }

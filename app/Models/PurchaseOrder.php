@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'status',
     'tanggal_po',
     'catatan',
+    'alasan_pembatalan',
     'locked_at',
 ])]
 #[Hidden(['id'])]
@@ -98,7 +99,7 @@ class PurchaseOrder extends Model
 
     public function chatNegosiasi(): HasMany
     {
-        return $this->hasMany(ChatNegosiasi::class, 'purchase_order_id');
+        return $this->hasMany(ChatNegosiasi::class, 'purchase_order_id')->orderBy('created_at')->orderBy('id');
     }
 
     public function pengiriman(): HasMany

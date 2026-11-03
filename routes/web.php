@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\KerjaSamaController;
 use App\Http\Controllers\KomoditasController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\PengaturanController;
 use App\Http\Controllers\PerusahaanController;
@@ -217,5 +218,15 @@ Route::middleware('auth')->group(function () {
             Route::post('/profil', 'updateProfil')->name('profil.update');
             Route::get('/integrasi', 'integrasi')->name('integrasi');
             Route::put('/integrasi', 'updateIntegrasi')->name('integrasi.update');
+        });
+
+    // Notifikasi Routes
+    Route::controller(NotificationController::class)
+        ->group(function () {
+            Route::get('/notifikasi', 'index')->name('notifications.index');
+            Route::get('/notifications', 'apiIndex')->name('notifications.api.index');
+            Route::get('/notifications/unread-count', 'unreadCount')->name('notifications.unread-count');
+            Route::post('/notifications/read-all', 'markAllAsRead')->name('notifications.read-all');
+            Route::post('/notifications/{uuid}/read', 'markAsRead')->whereUuid('uuid')->name('notifications.read');
         });
 });

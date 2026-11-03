@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { ThemeToggle } from '@/Components/ThemeToggle';
+import { NotificationBell } from '@/Components/NotificationBell';
 import {
     LayoutDashboard,
     ShoppingCart,
@@ -69,7 +70,7 @@ const masterNavItems = [
 const managementNavItems = [
     { title: 'Inspeksi QC', icon: ClipboardCheck, href: '#' },
     { title: 'Laporan', icon: BarChart3, href: '#' },
-    { title: 'Notifikasi', icon: Bell, href: '#' },
+    { title: 'Notifikasi', icon: Bell, href: '/notifikasi', routeName: 'notifications.index' },
     { title: 'Profil Perusahaan', icon: Building2, href: '/manajemen/perusahaan', routeName: 'manajemen.perusahaan.index', ability: 'perusahaan.view' },
     { title: 'Pengguna', icon: Users, href: '/manajemen/pengguna', routeName: 'manajemen.pengguna.index', ability: 'pengguna.view_any' },
     { title: 'Role & Hak Akses', icon: ShieldCheck, href: '/manajemen/role-akses', routeName: 'manajemen.role-akses.index', ability: 'role.view_any' },
@@ -143,18 +144,7 @@ export function AppSidebar({ className, ...props }) {
                     {/* Quick Action Icons: Theme Toggle & Notification */}
                     <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden shrink-0">
                         <ThemeToggle className="text-zinc-400 hover:text-white hover:bg-white/10" />
-
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 rounded-full text-zinc-400 hover:bg-white/10 hover:text-white relative shrink-0"
-                            title="Notifikasi"
-                            type="button"
-                        >
-                            <Bell className="size-4" />
-                            <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="sr-only">Notifikasi</span>
-                        </Button>
+                        <NotificationBell />
                     </div>
                 </div>
 

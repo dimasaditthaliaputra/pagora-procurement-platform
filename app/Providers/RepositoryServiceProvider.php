@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Repositories\Contracts\CommodityCategoryRepositoryInterface;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
 use App\Repositories\Contracts\KomoditasRepositoryInterface;
+use App\Repositories\Contracts\NotificationRepositoryInterface;
 use App\Repositories\Contracts\PengaturanRepositoryInterface;
 use App\Repositories\Contracts\PermissionRepositoryInterface;
 use App\Repositories\Contracts\PerusahaanBuyerRepositoryInterface;
@@ -18,6 +19,7 @@ use App\Repositories\Contracts\VendorRepositoryInterface;
 use App\Repositories\Eloquent\CommodityCategoryRepository;
 use App\Repositories\Eloquent\DokumenLegalitasVendorRepository;
 use App\Repositories\Eloquent\KomoditasRepository;
+use App\Repositories\Eloquent\NotificationRepository;
 use App\Repositories\Eloquent\PengaturanRepository;
 use App\Repositories\Eloquent\PermissionRepository;
 use App\Repositories\Eloquent\PerusahaanBuyerRepository;
@@ -88,6 +90,11 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             PurchaseOrderRepositoryInterface::class,
             PurchaseOrderRepository::class
+        );
+
+        $this->app->bind(
+            NotificationRepositoryInterface::class,
+            NotificationRepository::class
         );
     }
 

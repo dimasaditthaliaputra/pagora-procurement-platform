@@ -1,64 +1,80 @@
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="id">
-<body style="font-family: Arial, sans-serif; color: #1b2420; line-height: 1.6; margin: 0; padding: 0; background-color: #f4f4f5;">
-    <div style="max-width: 560px; margin: 32px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-        <div style="background-color: #059669; padding: 24px 32px;">
-            <h2 style="margin: 0; color: #ffffff; font-size: 20px;">✉️ Undangan Kemitraan Rekanan Vendor</h2>
-        </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Undangan Pendaftaran Vendor PAGORA</title>
+</head>
+<body style="font-family: Arial, Helvetica, sans-serif; color: #333333; font-size: 14px; line-height: 1.7; margin: 0; padding: 24px; background-color: #ffffff;">
 
-        <div style="padding: 32px;">
-            <p style="margin-top: 0;">Halo Tim <strong>{{ $companyName }}</strong>,</p>
+    <p>Yth. Bapak/Ibu Perwakilan {{ $invitation->nama_perusahaan }},</p>
 
-            <p>
-                Anda secara resmi diundang oleh <strong>{{ $inviterName }}</strong> ({{ $inviterRole }})
-                untuk bergabung sebagai rekanan vendor mitra pada platform E-Procurement <strong>PAGORA</strong>.
-            </p>
+    <p>Dengan hormat,</p>
 
-            @if (!empty($commodityCategory))
-                <div style="background-color: #f0fdf4; border-left: 4px solid #059669; padding: 12px 16px; margin: 20px 0; border-radius: 4px;">
-                    <p style="margin: 0; font-size: 14px; color: #166534;">
-                        <strong>Kategori Komoditas yang Diajukan:</strong><br>
-                        {{ $commodityCategory }}
-                    </p>
-                </div>
-            @endif
+    <p>
+        Melalui email ini, kami bermaksud mengundang perusahaan
+        <strong>{{ $invitation->nama_perusahaan }}</strong>
+        untuk bergabung sebagai calon vendor pada platform
+        E-Procurement <strong>PAGORA</strong>.
+    </p>
 
-            @if (!empty($notes))
-                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 14px 16px; margin: 20px 0; border-radius: 6px;">
-                    <p style="margin: 0; font-size: 13px; color: #475569;">
-                        <strong>Pesan / Catatan Undangan:</strong><br>
-                        <span style="font-style: italic;">"{{ $notes }}"</span>
-                    </p>
-                </div>
-            @endif
+    <p>
+        Kami berharap perusahaan Bapak/Ibu dapat berpartisipasi
+        dan menjalin kerja sama dalam memenuhi kebutuhan pengadaan
+        bahan baku melalui platform PAGORA.
+    </p>
 
-            <p>
-                Untuk memulai proses registrasi serta melengkapi data dan dokumen legalitas perusahaan Anda, silakan klik tombol di bawah ini:
-            </p>
+    @if ($invitation->kategori_komoditas)
+        <p>
+            <strong>Kategori Komoditas:</strong><br>
+            {{ $invitation->kategori_komoditas }}
+        </p>
+    @endif
 
-            <div style="text-align: center; margin: 32px 0;">
-                <a href="{{ $registrationUrl }}"
-                   style="display: inline-block; background-color: #059669; color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: 600; letter-spacing: 0.3px;">
-                    Daftar Sebagai Vendor
-                </a>
-            </div>
+    @if ($invitation->pesan)
+        <p>
+            <strong>Pesan Undangan:</strong><br>
+            {{ $invitation->pesan }}
+        </p>
+    @endif
 
-            <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
-                ⏰ <em>Catatan: Tautan undangan ini berlaku selama 7 hari kalender.</em>
-            </p>
+    <p>
+        Untuk melanjutkan proses pendaftaran dan melengkapi
+        informasi perusahaan, silakan klik tombol berikut:
+    </p>
 
-            <p style="font-size: 13px; color: #6b7280;">
-                Jika tombol di atas tidak berfungsi, salin dan buka tautan berikut di browser Anda:<br>
-                <a href="{{ $registrationUrl }}" style="color: #059669; word-break: break-all;">{{ $registrationUrl }}</a>
-            </p>
+    <p style="margin: 24px 0;">
+        <a href="{{ $registrationUrl }}"
+           style="display: inline-block; background-color: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 5px; font-weight: bold;">
+            Daftar sebagai Vendor
+        </a>
+    </p>
 
-            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+    <p>
+        Apabila tombol di atas tidak dapat digunakan, Bapak/Ibu
+        dapat membuka tautan pendaftaran berikut melalui browser:
+    </p>
 
-            <p style="margin-bottom: 0;">
-                Salam hangat,<br>
-                <strong>Tim PAGORA</strong>
-            </p>
-        </div>
-    </div>
+    <p>
+        <a href="{{ $registrationUrl }}" style="color: #059669; word-break: break-all;">
+            {{ $registrationUrl }}
+        </a>
+    </p>
+
+    <p>
+        Tautan undangan ini berlaku selama 7 hari sejak undangan dibuat.
+    </p>
+
+    <p>
+        Demikian undangan ini kami sampaikan. Atas perhatian dan
+        kesediaan Bapak/Ibu, kami mengucapkan terima kasih.
+    </p>
+
+    <p>
+        Hormat kami,<br>
+        <strong>Tim PAGORA</strong>
+    </p>
+
 </body>
 </html>

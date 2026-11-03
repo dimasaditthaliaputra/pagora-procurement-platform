@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Repositories\Contracts;
 
+use App\Models\ChatNegosiasi;
 use App\Models\PurchaseOrder;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface PurchaseOrderRepositoryInterface
@@ -24,9 +26,9 @@ interface PurchaseOrderRepositoryInterface
     public function paginateForVendor(int $vendorId, array $filters, int $perPage = 10): LengthAwarePaginator;
 
     /**
-     * Find a purchase order by UUID, optionally scoped to a tenant.
+     * Find a purchase order by UUID, optionally scoped to a tenant or vendor.
      */
-    public function findByUuid(string $uuid, ?int $tenantId = null): ?PurchaseOrder;
+    public function findByUuid(string $uuid, ?int $tenantId = null, ?int $vendorId = null): ?PurchaseOrder;
 
     /**
      * Generate the next unique PO number for the specified year.
@@ -72,4 +74,24 @@ interface PurchaseOrderRepositoryInterface
      * @return array<string, mixed>
      */
     public function getStatisticsForVendor(int $vendorId): array;
+
+    /**
+     * Add a negotiation message (immutable).
+     */
+    public function addChatNegosiasi(PurchaseOrder $purchaseOrder, User $sender, ?float $nominalTawar, ?string $pesanTeks): ChatNegosiasi;
+
+    /**
+     * Update offer price for the purchase order items during negotiation.
+     */
+    public function updateOfferPrice(PurchaseOrder $purchaseOrder, User $actor, float $offerPrice): void;
+
+    /**
+     * Agree to the price, update items, transition status to disepakati, and lock the purchase order.
+     */
+    public function setujuiHarga(PurchaseOrder $purchaseOrder, User $actor): void;
+
+    /**
+     * Cancel the purchase order with a mandatory cancellation reason.
+     */
+    public function batalkan(PurchaseOrder $purchaseOrder, User $actor, string $alasan): void;
 }

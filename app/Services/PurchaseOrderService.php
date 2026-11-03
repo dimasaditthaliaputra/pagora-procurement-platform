@@ -79,7 +79,8 @@ class PurchaseOrderService
     public function findByUuidForUser(User $actor, string $uuid): PurchaseOrder
     {
         $tenantId = $actor->tenant_id !== null ? (int) $actor->tenant_id : null;
-        $po = $this->purchaseOrderRepository->findByUuid($uuid, $tenantId);
+        $vendorId = $actor->vendor_id !== null ? (int) $actor->vendor_id : null;
+        $po = $this->purchaseOrderRepository->findByUuid($uuid, $tenantId, $vendorId);
 
         if (! $po) {
             throw (new ModelNotFoundException)->setModel(PurchaseOrder::class, [$uuid]);
@@ -321,6 +322,99 @@ class PurchaseOrderService
         $this->purchaseOrderRepository->update($po, [
             'status' => StatusPurchaseOrder::Negosiasi->value,
         ]);
+
+        $totalAwal = (float) $po->poItems->sum('subtotal');
+        $this->purchaseOrderRepository->addChatNegosiasi(
+            $po,
+            $actor,
+            $totalAwal,
+            'Pengajuan Purchase Order awal.'
+        );
+
+        return $this->findByUuidForUser($actor, $uuid);
+    }
+
+    /**
+     * Submit an offer (counter-offer) in the negotiation room.
+     *
+     * @param  array{nominal_tawar: numeric, pesan_teks?: string|null}  $data
+     *
+     * @throws AuthorizationException|ValidationException
+     */
+    public function kirimTawaran(User $actor, string $uuid, array $data): PurchaseOrder
+    {
+        $po = $this->findByUuidForUser($actor, $uuid);
+
+        Gate::forUser($actor)->authorize('tawar', $po);
+
+        if ($po->status !== StatusPurchaseOrder::Negosiasi) {
+            throw ValidationException::withMessages([
+                'status' => 'Penawaran harga hanya dapat dikirim saat Purchase Order berstatus negosiasi.',
+            ]);
+        }
+
+        $nominal = (float) $data['nominal_tawar'];
+        $isVendor = $actor->vendor_id !== null && (int) $actor->vendor_id === (int) $po->vendor_id;
+        $defaultPesan = $isVendor
+            ? 'Menolak tawaran sebelumnya dan mengajukan penawaran harga baru.'
+            : 'Mengajukan penawaran harga.';
+        $pesan = isset($data['pesan_teks']) && trim((string) $data['pesan_teks']) !== ''
+            ? trim((string) $data['pesan_teks'])
+            : $defaultPesan;
+
+        $this->purchaseOrderRepository->addChatNegosiasi($po, $actor, $nominal, $pesan);
+        $this->purchaseOrderRepository->updateOfferPrice($po, $actor, $nominal);
+
+        return $this->findByUuidForUser($actor, $uuid);
+    }
+
+    /**
+     * Agree to the offer, lock the purchase order, and transition status to disepakati.
+     *
+     * @throws AuthorizationException|ValidationException
+     */
+    public function setujuiHarga(User $actor, string $uuid): PurchaseOrder
+    {
+        $po = $this->findByUuidForUser($actor, $uuid);
+
+        Gate::forUser($actor)->authorize('setujui', $po);
+
+        if ($po->status !== StatusPurchaseOrder::Negosiasi) {
+            throw ValidationException::withMessages([
+                'status' => 'Persetujuan harga hanya dapat dilakukan saat Purchase Order berstatus negosiasi.',
+            ]);
+        }
+
+        $this->purchaseOrderRepository->setujuiHarga($po, $actor);
+
+        return $this->findByUuidForUser($actor, $uuid);
+    }
+
+    /**
+     * Cancel the purchase order during negotiation.
+     *
+     * @throws AuthorizationException|ValidationException
+     */
+    public function batalkanPo(User $actor, string $uuid, string $alasan): PurchaseOrder
+    {
+        $alasan = trim($alasan);
+        if ($alasan === '') {
+            throw ValidationException::withMessages([
+                'alasan' => 'Alasan pembatalan Purchase Order wajib diisi.',
+            ]);
+        }
+
+        $po = $this->findByUuidForUser($actor, $uuid);
+
+        Gate::forUser($actor)->authorize('batalkan', $po);
+
+        if (! $po->status->bisaDibatalkan()) {
+            throw ValidationException::withMessages([
+                'status' => 'Purchase Order tidak dapat dibatalkan pada status saat ini.',
+            ]);
+        }
+
+        $this->purchaseOrderRepository->batalkan($po, $actor, $alasan);
 
         return $this->findByUuidForUser($actor, $uuid);
     }

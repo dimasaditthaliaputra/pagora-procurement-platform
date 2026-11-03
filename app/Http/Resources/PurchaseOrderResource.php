@@ -36,6 +36,7 @@ class PurchaseOrderResource extends JsonResource
                 'satuan' => $komoditas?->unit ?? 'kg',
                 'jumlah_pesanan' => (float) $item->jumlah_pesanan,
                 'harga_satuan_po' => (float) $item->harga_satuan_po,
+                'harga_tawar_vendor' => $item->harga_tawar_vendor !== null ? (float) $item->harga_tawar_vendor : null,
                 'subtotal' => $subtotal,
                 'harga_pagu' => $isVendorUser ? null : $hargaPagu,
                 'status_item' => $item->status_item,
@@ -50,16 +51,46 @@ class PurchaseOrderResource extends JsonResource
             ? $this->status->label()
             : ucfirst($statusValue);
 
+        $chat = $this->relationLoaded('chatNegosiasi')
+            ? $this->chatNegosiasi->map(function ($chat) use ($user) {
+                $pengirim = $chat->pengirim;
+                $isVendor = $pengirim?->vendor_id !== null;
+
+                return [
+                    'uuid' => $chat->uuid,
+                    'pesan_teks' => $chat->pesan_teks,
+                    'nominal_tawar' => $chat->nominal_tawar !== null ? (float) $chat->nominal_tawar : null,
+                    'created_at' => $chat->created_at?->toISOString(),
+                    'pengirim' => [
+                        'uuid' => $pengirim?->uuid,
+                        'nama' => $pengirim?->name ?? 'Pengguna',
+                        'peran' => $isVendor ? 'vendor' : 'buyer',
+                        'role' => $pengirim?->role?->name ?? 'user',
+                        'role_label' => $pengirim?->roleName()?->label() ?? 'Pengguna',
+                        'is_me' => $user !== null && (int) $user->id === (int) $chat->pengirim_id,
+                    ],
+                ];
+            })->values()->all()
+            : [];
+
         return [
             'uuid' => $this->uuid,
             'nomor_po' => $this->nomor_po,
             'tanggal_po' => $this->tanggal_po?->format('Y-m-d') ?? (string) $this->tanggal_po,
             'catatan' => $this->catatan,
+            'alasan_pembatalan' => $this->alasan_pembatalan,
             'status' => $statusValue,
             'status_label' => $statusLabel,
             'is_editable' => $statusValue === 'draft',
+            'current_role' => $isVendorUser ? 'vendor' : 'buyer',
             'harga_pagu_acuan' => $isVendorUser ? null : (float) ($this->harga_pagu_acuan ?? $totalPagu),
             'dibuat_oleh' => $this->pembuat?->name ?? 'User',
+            'tenant' => [
+                'uuid' => $this->tenant?->uuid,
+                'nama_perusahaan' => $this->tenant?->company_name ?? 'Tenant',
+                'tax_number' => $this->tenant?->tax_number,
+                'address' => $this->tenant?->address,
+            ],
             'vendor' => [
                 'uuid' => $this->vendor?->uuid,
                 'nama_perusahaan' => $this->vendor?->company_name ?? 'Vendor',
@@ -68,6 +99,7 @@ class PurchaseOrderResource extends JsonResource
                 'address' => $this->vendor?->address,
             ],
             'items' => $items->values()->all(),
+            'chat' => $chat,
             'total_po' => (float) $totalPo,
             'total_pagu' => $totalPagu,
             'locked_at' => $this->locked_at?->toISOString(),
@@ -77,6 +109,10 @@ class PurchaseOrderResource extends JsonResource
                 'update' => (bool) $user?->can('update', $this->resource),
                 'delete' => (bool) $user?->can('delete', $this->resource),
                 'konfirmasi' => (bool) $user?->can('konfirmasi', $this->resource),
+                'negosiasi' => (bool) $user?->can('negosiasi', $this->resource),
+                'tawar' => (bool) $user?->can('tawar', $this->resource),
+                'setujui' => (bool) $user?->can('setujui', $this->resource),
+                'batalkan' => (bool) $user?->can('batalkan', $this->resource),
             ],
         ];
     }

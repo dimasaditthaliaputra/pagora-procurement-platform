@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     Ban,
@@ -39,18 +39,10 @@ import {
 import { StatusBadge } from '@/Pages/PurchaseOrder/components/StatusBadge';
 import { PoNotFound } from '@/Pages/PurchaseOrder/components/PoNotFound';
 import { tawaranTerakhir, totalPagu, totalPo } from '@/Pages/PurchaseOrder/constants';
-import {
-    CURRENT_BUYER,
-    addChat,
-    findPurchaseOrder,
-    simulateRequest,
-    updatePurchaseOrder,
-    vendorContact,
-} from '@/Pages/PurchaseOrder/mock-data';
 
-function buildRekomendasi(po) {
-    const pagu = totalPagu(po.items);
-    const awal = totalPo(po.items);
+function buildRekomendasi(items, paguValue) {
+    const pagu = paguValue || totalPagu(items);
+    const awal = totalPo(items);
     const round = (n) => Math.round(n / 1000) * 1000;
 
     return [
@@ -76,7 +68,7 @@ function Selisih({ nominal, pagu }) {
 }
 
 function ChatBubble({ message, mine, pagu }) {
-    const vendor = message.pengirim.peran === 'vendor';
+    const vendor = message.pengirim?.peran === 'vendor';
     const Icon = vendor ? Building2 : UserRound;
 
     return (
@@ -86,13 +78,13 @@ function ChatBubble({ message, mine, pagu }) {
             </div>
             <div className={cn('flex flex-col gap-1', mine && 'items-end')}>
                 <span className="text-xs text-muted-foreground">
-                    {message.pengirim.nama} · {formatTime(message.created_at)}
+                    {message.pengirim?.nama ?? 'Pengguna'} {message.pengirim?.role_label ? `(${message.pengirim.role_label})` : ''} · {formatTime(message.created_at)}
                 </span>
                 <div className={cn('rounded-2xl border px-4 py-3 space-y-1.5', mine ? 'bg-primary text-primary-foreground border-primary rounded-tr-sm' : 'bg-card rounded-tl-sm')}>
                     {message.nominal_tawar !== null && message.nominal_tawar !== undefined && (
                         <div>
                             <p className={cn('text-[11px] uppercase tracking-wide', mine ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-                                Harga diajukan
+                                {vendor ? 'Tawaran Harga Vendor' : 'Harga diajukan'}
                             </p>
                             <p className="text-lg font-bold tabular-nums">{formatRupiah(message.nominal_tawar)}</p>
                         </div>
@@ -123,22 +115,25 @@ function SystemNote({ icon: Icon, children, tone = 'default' }) {
     );
 }
 
-function TawaranForm({ title, description, submitLabel, rekomendasi, pagu, onSubmit, onCancel }) {
-    const [processing, setProcessing] = useState(false);
+function TawaranForm({ title, description, submitLabel, rekomendasi, pagu, onSubmit, onCancel, processing }) {
     const { data, setData, errors, setError, clearErrors, reset } = useForm({ nominal_tawar: '', pesan_teks: '' });
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
-        if (!(Number(data.nominal_tawar) > 0)) {
-            setError('nominal_tawar', 'Nominal harga wajib diisi dan lebih dari 0.');
+        const cleanNominal = String(data.nominal_tawar || '').replace(/[^0-9.]/g, '');
+        const nominalVal = Number(cleanNominal);
+
+        if (!(nominalVal > 0)) {
+            setError('nominal_tawar', 'Nominal harga penawaran wajib diisi dan lebih dari 0.');
             document.getElementById('nominal_tawar')?.focus();
             notify.validationFailed();
             return;
         }
-        setProcessing(true);
-        await onSubmit({ nominal_tawar: Number(data.nominal_tawar), pesan_teks: data.pesan_teks.trim() || null });
-        setProcessing(false);
-        reset();
+
+        onSubmit({
+            nominal_tawar: nominalVal,
+            pesan_teks: data.pesan_teks?.trim() || null,
+        }, reset);
     };
 
     return (
@@ -177,6 +172,7 @@ function TawaranForm({ title, description, submitLabel, rekomendasi, pagu, onSub
                         type="number"
                         inputMode="numeric"
                         min="0"
+                        placeholder="Contoh: 15000000"
                         value={data.nominal_tawar}
                         onChange={(e) => { setData('nominal_tawar', e.target.value); clearErrors('nominal_tawar'); }}
                         aria-invalid={Boolean(errors.nominal_tawar)}
@@ -190,11 +186,11 @@ function TawaranForm({ title, description, submitLabel, rekomendasi, pagu, onSub
                     )}
                 </div>
                 <div className="sm:col-span-2 grid gap-1.5">
-                    <Label htmlFor="pesan_teks" className="text-xs">Pesan</Label>
+                    <Label htmlFor="pesan_teks" className="text-xs">Pesan / Alasan</Label>
                     <Textarea
                         id="pesan_teks"
                         rows={2}
-                        placeholder="Alasan atau keterangan harga (opsional)"
+                        placeholder="Alasan atau keterangan penawaran harga (opsional)"
                         value={data.pesan_teks}
                         onChange={(e) => setData('pesan_teks', e.target.value)}
                         disabled={processing}
@@ -205,11 +201,11 @@ function TawaranForm({ title, description, submitLabel, rekomendasi, pagu, onSub
 
             <div className="flex justify-end gap-2">
                 {onCancel && (
-                    <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={processing} className="h-9">
+                    <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={processing} className="h-9 cursor-pointer">
                         Batal
                     </Button>
                 )}
-                <LoadingButton type="submit" size="sm" loading={processing} loadingText="Mengirim..." className="h-9 gap-1.5">
+                <LoadingButton type="submit" size="sm" loading={processing} loadingText="Mengirim..." className="h-9 gap-1.5 cursor-pointer">
                     <Send className="size-3.5" />
                     {submitLabel}
                 </LoadingButton>
@@ -218,14 +214,13 @@ function TawaranForm({ title, description, submitLabel, rekomendasi, pagu, onSub
     );
 }
 
-export default function PurchaseOrderNegosiasi({ uuid }) {
-    // TODO(backend): receive `purchase_order` + `chat` props; actions become router.post calls.
-    const [po, setPo] = useState(() => findPurchaseOrder(uuid));
-    // Prototype-only switch so one person can walk through both sides of the flow.
-    const [peran, setPeran] = useState('buyer');
+export default function PurchaseOrderNegosiasi({ purchase_order, uuid }) {
+    const po = purchase_order?.data || purchase_order;
     const [mode, setMode] = useState(null);
     const [aksi, setAksi] = useState(null);
     const [batalOpen, setBatalOpen] = useState(false);
+    const [alasanBatal, setAlasanBatal] = useState('');
+    const [alasanBatalError, setAlasanBatalError] = useState('');
     const endRef = useRef(null);
 
     useEffect(() => {
@@ -233,46 +228,125 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
     }, [po?.chat?.length, po?.status]);
 
     if (!po) return <PoNotFound />;
-    if (po.status === 'draft') return <PoNotFound message={`${po.nomor_po} masih draf. Konfirmasi PO terlebih dahulu untuk membuka negosiasi.`} />;
+    if (po.status === 'draft') {
+        return <PoNotFound message={`${po.nomor_po} masih draf. Konfirmasi PO terlebih dahulu untuk membuka ruang negosiasi.`} />;
+    }
 
-    const pagu = totalPagu(po.items);
-    const rekomendasi = buildRekomendasi(po);
-    const terakhir = tawaranTerakhir(po);
+    // Role detection
+    const peran = po.current_role || 'buyer';
+    const isVendor = peran === 'vendor';
+
+    // PRD BR-02 / Q-13: Vendor must never see Harga Pagu
+    const pagu = isVendor ? null : (po.harga_pagu_acuan ?? totalPagu(po.items));
+    const rekomendasi = isVendor ? null : buildRekomendasi(po.items, pagu);
+
+    // Initial offer fallback for POs submitted to vendor
+    const totalAwal = totalPo(po.items);
+    const terakhir = tawaranTerakhir(po) || (po.status === 'negosiasi' ? {
+        nominal_tawar: totalAwal,
+        pesan_teks: 'Pengajuan Purchase Order awal.',
+        created_at: po.tanggal_po || po.created_at,
+        pengirim: {
+            nama: po.dibuat_oleh || 'Purchasing',
+            peran: 'buyer',
+            role_label: 'Purchasing',
+        },
+    } : null);
+
     const aktif = po.status === 'negosiasi';
-    const giliranVendor = aktif && terakhir?.pengirim.peran === 'buyer';
-    const giliranBuyer = aktif && (!terakhir || terakhir.pengirim.peran === 'vendor');
-    const pengirim = peran === 'buyer' ? CURRENT_BUYER : vendorContact(po);
+    const giliranVendor = aktif && terakhir?.pengirim?.peran === 'buyer';
+    const giliranBuyer = aktif && (!terakhir || terakhir?.pengirim?.peran === 'vendor');
 
-    const run = async (key, fn) => {
-        setAksi(key);
-        await simulateRequest();
-        setPo(fn());
-        setAksi(null);
-        setMode(null);
+    const kirimTawaran = (payload, resetForm) => {
+        setAksi('tawar');
+        try {
+            router.post(
+                `/purchase-order/${po.uuid}/tawar`,
+                payload,
+                {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setMode(null);
+                        resetForm?.();
+                        notify.success('Penawaran harga berhasil diajukan.');
+                    },
+                    onError: (err) => {
+                        notify.error(Object.values(err)[0] || 'Gagal mengajukan harga penawaran.');
+                    },
+                    onFinish: () => {
+                        setAksi(null);
+                    },
+                }
+            );
+        } catch {
+            setAksi(null);
+            notify.error('Terjadi kesalahan saat mengajukan harga.');
+        }
     };
 
-    const kirimTawaran = async (payload) => {
-        await simulateRequest();
-        setPo(addChat(po.uuid, { pengirim, ...payload }));
-        setMode(null);
-        notify.success('Harga berhasil diajukan.');
+    const setujui = () => {
+        setAksi('setujui');
+        try {
+            router.post(
+                `/purchase-order/${po.uuid}/setujui`,
+                {},
+                {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setMode(null);
+                        notify.success('Harga disepakati. Dokumen PO dikunci.');
+                    },
+                    onError: (err) => {
+                        notify.error(Object.values(err)[0] || 'Gagal menyetujui harga.');
+                    },
+                    onFinish: () => {
+                        setAksi(null);
+                    },
+                }
+            );
+        } catch {
+            setAksi(null);
+            notify.error('Terjadi kesalahan saat menyetujui harga.');
+        }
     };
 
-    const setujui = () => run('setujui', () => {
-        addChat(po.uuid, {
-            pengirim,
-            pesan_teks: peran === 'buyer' ? 'Setuju dengan harga yang diajukan vendor.' : 'Harga disetujui.',
-            nominal_tawar: terakhir.nominal_tawar,
-        });
-        notify.success('Harga disepakati. Dokumen PO dikunci.');
-        return updatePurchaseOrder(po.uuid, { status: 'disepakati' });
-    });
+    const batalkan = () => {
+        const trimmed = alasanBatal.trim();
+        if (!trimmed || trimmed.length < 5) {
+            setAlasanBatalError('Alasan pembatalan wajib diisi (minimal 5 karakter).');
+            document.getElementById('alasan_pembatalan')?.focus();
+            notify.validationFailed();
+            return;
+        }
 
-    const batalkan = () => run('batal', () => {
-        setBatalOpen(false);
-        notify.success(`${po.nomor_po} dibatalkan.`);
-        return updatePurchaseOrder(po.uuid, { status: 'dibatalkan' });
-    });
+        setAksi('batal');
+        try {
+            router.post(
+                `/purchase-order/${po.uuid}/batalkan`,
+                { alasan: trimmed },
+                {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setBatalOpen(false);
+                        setAlasanBatal('');
+                        setAlasanBatalError('');
+                        notify.success(`${po.nomor_po} dibatalkan.`);
+                    },
+                    onError: (err) => {
+                        const msg = Object.values(err)[0] || 'Gagal membatalkan purchase order.';
+                        setAlasanBatalError(msg);
+                        notify.error(msg);
+                    },
+                    onFinish: () => {
+                        setAksi(null);
+                    },
+                }
+            );
+        } catch {
+            setAksi(null);
+            notify.error('Terjadi kesalahan saat membatalkan PO.');
+        }
+    };
 
     const breadcrumbs = [
         { label: 'Dashboard', href: '/dashboard' },
@@ -287,7 +361,7 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
                 <Alert>
                     <Lock className="size-4" />
                     <AlertTitle>Negosiasi selesai, harga terkunci</AlertTitle>
-                    <AlertDescription>Chat hanya dapat dilihat sebagai jejak audit dan tidak bisa dikirimi pesan baru.</AlertDescription>
+                    <AlertDescription>Dokumen PO dan harga telah disepakati. Ruang chat bersifat hanya-baca sebagai jejak audit permanen.</AlertDescription>
                 </Alert>
             );
         }
@@ -297,7 +371,14 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
                 <Alert variant="destructive">
                     <Ban className="size-4" />
                     <AlertTitle>Purchase order dibatalkan</AlertTitle>
-                    <AlertDescription>Riwayat negosiasi tetap disimpan sebagai jejak audit.</AlertDescription>
+                    <AlertDescription className="space-y-1.5 mt-1">
+                        <p>Riwayat negosiasi tetap disimpan sebagai jejak audit tidak dapat diubah.</p>
+                        {po.alasan_pembatalan && (
+                            <p className="text-xs bg-destructive/15 rounded p-2 text-foreground font-medium border border-destructive/20">
+                                <strong>Alasan Pembatalan:</strong> {po.alasan_pembatalan}
+                            </p>
+                        )}
+                    </AlertDescription>
                 </Alert>
             );
         }
@@ -307,12 +388,13 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
             return (
                 <TawaranForm
                     title={buyer ? (terakhir ? 'Ajukan Ulang Harga' : 'Ajukan Harga Purchase Order') : 'Tolak & Ajukan Harga Baru'}
-                    description={buyer ? 'Pilih rekomendasi atau isi nominal sendiri. Harga Pagu hanya acuan.' : 'Ajukan total harga yang bisa Anda penuhi.'}
+                    description={buyer ? 'Pilih rekomendasi atau isi nominal sendiri. Harga Pagu hanya acuan anggaran internal.' : 'Ajukan total harga penawaran yang dapat Anda penuhi untuk pesanan ini.'}
                     submitLabel="Kirim Penawaran"
                     rekomendasi={buyer ? rekomendasi : null}
                     pagu={pagu}
                     onSubmit={kirimTawaran}
-                    onCancel={terakhir ? () => setMode(null) : null}
+                    onCancel={() => setMode(null)}
+                    processing={aksi === 'tawar'}
                 />
             );
         }
@@ -320,45 +402,69 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
         const menunggu = (peran === 'buyer' && giliranVendor) || (peran === 'vendor' && giliranBuyer);
         if (menunggu) {
             return (
-                <div className="flex items-center gap-2 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                    <Clock className="size-4 shrink-0" />
-                    {peran === 'buyer'
-                        ? 'Menunggu tanggapan vendor atas harga yang Anda ajukan.'
-                        : terakhir ? 'Menunggu tanggapan purchasing atas harga yang Anda ajukan.' : 'Menunggu purchasing mengajukan harga.'}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                        <Clock className="size-4 shrink-0 text-amber-500" />
+                        <span>
+                            {peran === 'buyer'
+                                ? 'Menunggu tanggapan vendor atas penawaran harga yang Anda ajukan.'
+                                : 'Menunggu tanggapan purchasing atas penawaran harga yang Anda ajukan.'}
+                        </span>
+                    </div>
+                    {peran === 'buyer' && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={Boolean(aksi)}
+                            onClick={() => setBatalOpen(true)}
+                            className="h-8 text-destructive hover:text-destructive cursor-pointer self-start sm:self-auto"
+                        >
+                            <Ban className="mr-1.5 size-3.5" />
+                            Batalkan PO
+                        </Button>
+                    )}
                 </div>
             );
         }
 
-        if (peran === 'buyer' && !terakhir) {
-            return (
-                <TawaranForm
-                    title="Ajukan Harga Purchase Order"
-                    description="Pilih rekomendasi atau isi nominal sendiri. Harga Pagu hanya acuan, keputusan tetap di Anda."
-                    submitLabel="Kirim Penawaran"
-                    rekomendasi={rekomendasi}
-                    pagu={pagu}
-                    onSubmit={kirimTawaran}
-                />
-            );
-        }
+        const lawan = peran === 'buyer' ? 'Vendor' : 'Purchasing';
+        const nominalDiajukan = terakhir?.nominal_tawar ?? totalAwal;
 
-        const lawan = peran === 'buyer' ? 'vendor' : 'purchasing';
         return (
             <div className="space-y-3">
                 <p className="text-sm">
-                    {lawan === 'vendor' ? 'Vendor' : 'Purchasing'} mengajukan{' '}
-                    <strong className="tabular-nums">{formatRupiah(terakhir.nominal_tawar)}</strong>. Apakah Anda menyetujui harga ini?
+                    {lawan} mengajukan{' '}
+                    <strong className="tabular-nums font-semibold text-foreground">{formatRupiah(nominalDiajukan)}</strong>. Apakah Anda menyetujui harga ini?
                 </p>
-                <div className="flex flex-wrap gap-2">
-                    <LoadingButton size="sm" loading={aksi === 'setujui'} loadingText="Memproses..." disabled={Boolean(aksi)} onClick={setujui} className="h-9 gap-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                    <LoadingButton
+                        size="sm"
+                        loading={aksi === 'setujui'}
+                        loadingText="Memproses..."
+                        disabled={Boolean(aksi)}
+                        onClick={setujui}
+                        className="h-9 gap-1.5 cursor-pointer"
+                    >
                         <Handshake className="size-4" />
                         Setujui Harga
                     </LoadingButton>
-                    <Button size="sm" variant="outline" disabled={Boolean(aksi)} onClick={() => setMode('tawar')} className="h-9 cursor-pointer">
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={Boolean(aksi)}
+                        onClick={() => setMode('tawar')}
+                        className="h-9 cursor-pointer"
+                    >
                         {peran === 'buyer' ? 'Ajukan Ulang Harga' : 'Tolak & Ajukan Harga Baru'}
                     </Button>
                     {peran === 'buyer' && (
-                        <Button size="sm" variant="ghost" disabled={Boolean(aksi)} onClick={() => setBatalOpen(true)} className="h-9 text-destructive hover:text-destructive cursor-pointer">
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={Boolean(aksi)}
+                            onClick={() => setBatalOpen(true)}
+                            className="h-9 text-destructive hover:text-destructive cursor-pointer"
+                        >
                             <Ban className="mr-1.5 size-4" />
                             Batalkan PO
                         </Button>
@@ -381,22 +487,13 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
                             <StatusBadge po={po} showLock />
                         </h1>
                         <p className="text-xs text-muted-foreground mt-1">
-                            <span className="font-mono">{po.nomor_po}</span> · {po.vendor.nama_perusahaan}
+                            <span className="font-mono font-medium">{po.nomor_po}</span> · {isVendor ? (po.tenant?.nama_perusahaan ?? 'Tenant') : (po.vendor?.nama_perusahaan ?? 'Vendor')}
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center rounded-lg border p-0.5 text-xs" role="group" aria-label="Lihat sebagai (prototipe)">
-                            <span className="px-2 text-muted-foreground hidden sm:inline">Lihat sebagai</span>
-                            {[['buyer', 'Purchasing'], ['vendor', 'Vendor']].map(([value, label]) => (
-                                <button
-                                    key={value}
-                                    type="button"
-                                    onClick={() => { setPeran(value); setMode(null); }}
-                                    className={cn('rounded-md px-2.5 py-1 font-medium cursor-pointer', peran === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}
-                                >
-                                    {label}
-                                </button>
-                            ))}
+                        <div className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs text-muted-foreground bg-muted/40">
+                            <UserRound className="size-3.5 text-primary" />
+                            <span>Aktor: <strong className="text-foreground capitalize">{isVendor ? 'Vendor' : 'Purchasing'}</strong></span>
                         </div>
                         <Button variant="outline" size="sm" asChild className="h-8">
                             <Link href={`/purchase-order/${po.uuid}`}>
@@ -408,25 +505,25 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-                    <Card className="shadow-sm lg:col-span-2 flex flex-col overflow-hidden">
+                    <Card className="shadow-xs lg:col-span-2 flex flex-col overflow-hidden">
                         <CardContent className="p-0 flex flex-col">
                             <div className="h-[min(60vh,560px)] overflow-y-auto p-5 space-y-5 bg-muted/20">
                                 <SystemNote icon={Send}>
-                                    PO dikonfirmasi dan dikirim ke vendor · {formatDate(po.tanggal_po)}
+                                    PO diajukan ke vendor · {formatDate(po.tanggal_po)}
                                 </SystemNote>
 
-                                {po.chat.length === 0 && (
-                                    <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-muted-foreground">
-                                        <Sparkles className="size-6" />
-                                        Belum ada penawaran. Purchasing memulai dengan mengajukan harga.
+                                {(!po.chat || po.chat.length === 0) && (
+                                    <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-muted-foreground">
+                                        <Sparkles className="size-5 text-primary" />
+                                        <span>Pesanan awal diajukan dengan total <strong>{formatRupiah(totalAwal)}</strong>.</span>
                                     </div>
                                 )}
 
-                                {po.chat.map((message) => (
+                                {po.chat && po.chat.map((message) => (
                                     <ChatBubble
                                         key={message.uuid}
                                         message={message}
-                                        mine={message.pengirim.peran === peran}
+                                        mine={message.pengirim?.is_me ?? (message.pengirim?.peran === peran)}
                                         pagu={pagu}
                                     />
                                 ))}
@@ -437,7 +534,9 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
                                     </SystemNote>
                                 )}
                                 {po.status === 'dibatalkan' && (
-                                    <SystemNote icon={Ban} tone="danger">Purchase order dibatalkan</SystemNote>
+                                    <SystemNote icon={Ban} tone="danger">
+                                        Purchase order dibatalkan {po.alasan_pembatalan ? `· ${po.alasan_pembatalan}` : ''}
+                                    </SystemNote>
                                 )}
                                 <div ref={endRef} />
                             </div>
@@ -446,7 +545,7 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
                                 {!aktif && (
                                     <p className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
                                         <Eye className="size-3.5" />
-                                        Mode pratinjau
+                                        Mode pratinjau (arsip negosiasi)
                                     </p>
                                 )}
                                 {renderAksi()}
@@ -455,7 +554,7 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
                     </Card>
 
                     <div className="flex flex-col gap-4">
-                        <Card className="shadow-sm">
+                        <Card className="shadow-xs">
                             <CardHeader className="py-3.5 px-5 border-b">
                                 <CardTitle className="text-base font-semibold">Ringkasan Pesanan</CardTitle>
                             </CardHeader>
@@ -463,21 +562,35 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
                                 <ul className="space-y-2">
                                     {po.items.map((row) => (
                                         <li key={row.uuid} className="flex justify-between gap-3 text-sm">
-                                            <span>
-                                                {row.nama_komoditas}
+                                            <div>
+                                                <span>{row.nama_komoditas}</span>
                                                 <span className="block text-xs text-muted-foreground">
                                                     {formatNumber(row.jumlah_pesanan)} {row.satuan} × {formatRupiah(row.harga_satuan_po)}
                                                 </span>
-                                            </span>
-                                            <span className="tabular-nums font-medium">{formatRupiah(row.jumlah_pesanan * row.harga_satuan_po)}</span>
+                                                {row.harga_tawar_vendor !== null && row.harga_tawar_vendor !== undefined && (
+                                                    <span className="inline-block mt-0.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                                        Tawaran Vendor: {formatRupiah(row.harga_tawar_vendor)} / {row.satuan}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="tabular-nums font-medium block">{formatRupiah(row.jumlah_pesanan * row.harga_satuan_po)}</span>
+                                                {row.harga_tawar_vendor !== null && row.harga_tawar_vendor !== undefined && (
+                                                    <span className="text-xs text-amber-600 dark:text-amber-400 tabular-nums">
+                                                        ({formatRupiah(row.jumlah_pesanan * row.harga_tawar_vendor)})
+                                                    </span>
+                                                )}
+                                            </div>
                                         </li>
                                     ))}
                                 </ul>
                                 <div className="border-t pt-3 space-y-1.5 text-sm">
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Total Harga Pagu</span>
-                                        <span className="tabular-nums">{formatRupiah(pagu)}</span>
-                                    </div>
+                                    {!isVendor && pagu !== null && pagu !== undefined && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Total Harga Pagu</span>
+                                            <span className="tabular-nums">{formatRupiah(pagu)}</span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Pengajuan Awal</span>
                                         <span className="tabular-nums">{formatRupiah(totalPo(po.items))}</span>
@@ -492,15 +605,15 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
                             </CardContent>
                         </Card>
 
-                        {peran === 'buyer' && (
-                            <Card className="shadow-sm">
+                        {!isVendor && rekomendasi && (
+                            <Card className="shadow-xs">
                                 <CardHeader className="py-3.5 px-5 border-b">
                                     <CardTitle className="text-base font-semibold flex items-center gap-2">
                                         <Sparkles className="size-4 text-primary" />
                                         Rekomendasi Harga
                                     </CardTitle>
                                     <CardDescription className="text-xs">
-                                        Dihitung dari Harga Pagu (data BI + regresi linier). Hanya pendukung keputusan.
+                                        Dihitung dari estimasi Harga Pagu komoditas (data BI + regresi linier).
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-3">
@@ -522,18 +635,47 @@ export default function PurchaseOrderNegosiasi({ uuid }) {
                 </div>
             </div>
 
-            <AlertDialog open={batalOpen} onOpenChange={(open) => aksi !== 'batal' && setBatalOpen(open)}>
+            <AlertDialog open={batalOpen} onOpenChange={(open) => {
+                if (aksi !== 'batal') {
+                    setBatalOpen(open);
+                    if (!open) {
+                        setAlasanBatalError('');
+                    }
+                }
+            }}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Batalkan Purchase Order?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            <strong className="text-foreground">{po.nomor_po}</strong> akan berstatus Dibatalkan dan negosiasi ditutup.
-                            Riwayat chat tetap tersimpan. Tindakan ini tidak dapat diurungkan.
+                            <strong className="text-foreground">{po.nomor_po}</strong> akan berstatus Dibatalkan dan ruang negosiasi ditutup.
+                            Riwayat chat tetap tersimpan permanen sebagai jejak audit. Tindakan ini tidak dapat diurungkan.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+
+                    <div className="space-y-1.5 py-2">
+                        <Label htmlFor="alasan_pembatalan" className={cn('text-xs font-medium', alasanBatalError && 'text-destructive')}>
+                            Alasan Pembatalan <span className="text-destructive">*</span>
+                        </Label>
+                        <Textarea
+                            id="alasan_pembatalan"
+                            rows={3}
+                            placeholder="Tuliskan alasan pembatalan purchase order ini (misal: penyesuaian anggaran, perubahan kebutuhan produksi)..."
+                            value={alasanBatal}
+                            onChange={(e) => {
+                                setAlasanBatal(e.target.value);
+                                setAlasanBatalError('');
+                            }}
+                            disabled={aksi === 'batal'}
+                            className={cn('text-sm', alasanBatalError && 'border-destructive focus-visible:ring-destructive')}
+                        />
+                        {alasanBatalError && (
+                            <p className="text-xs text-destructive font-medium">{alasanBatalError}</p>
+                        )}
+                    </div>
+
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={aksi === 'batal'}>Kembali</AlertDialogCancel>
-                        <LoadingButton variant="destructive" loading={aksi === 'batal'} loadingText="Membatalkan..." onClick={batalkan}>
+                        <LoadingButton variant="destructive" loading={aksi === 'batal'} loadingText="Membatalkan..." onClick={batalkan} className="cursor-pointer">
                             Ya, Batalkan PO
                         </LoadingButton>
                     </AlertDialogFooter>

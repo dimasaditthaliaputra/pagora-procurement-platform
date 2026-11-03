@@ -330,6 +330,7 @@ Index: (`commodity_id`, `prediction_date`). Rumus Harga Pagu di satu Service; se
 | status | string(30) NN default `draft`, idx | | Enum §6 |
 | po_date | date NN | `tanggal_po` | |
 | notes | text null | `catatan` | |
+| cancellation_reason | text null | `alasan_pembatalan` | Alasan pembatalan PO (wajib saat dibatalkan) |
 | locked_at | timestamp null | [baru] | Diisi saat `agreed` |
 
 Soft delete hanya untuk PO `draft` (hapus draf, UC-12).

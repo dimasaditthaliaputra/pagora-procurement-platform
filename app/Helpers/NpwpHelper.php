@@ -51,4 +51,3 @@ class NpwpHelper
         return $value;
     }
 }
-

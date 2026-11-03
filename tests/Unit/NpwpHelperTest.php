@@ -45,4 +45,3 @@ class NpwpHelperTest extends TestCase
         }
     }
 }
-

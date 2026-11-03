@@ -90,15 +90,19 @@ Route::middleware('auth')->group(function () {
             Route::delete('/{uuid}', 'destroy')->whereUuid('uuid')->can('viewAny', Komoditas::class)->name('destroy');
         });
 
-    // Purchase Order & Negosiasi Routes (frontend prototype, mock data)
+    // Purchase Order & Negosiasi Routes
     Route::controller(PurchaseOrderController::class)
         ->prefix('purchase-order')
         ->name('purchase-order.')
         ->group(function () {
             Route::get('/', 'index')->can('viewAny', PurchaseOrder::class)->name('index');
             Route::get('/create', 'create')->can('create', PurchaseOrder::class)->name('create');
+            Route::post('/', 'store')->can('create', PurchaseOrder::class)->name('store');
             Route::get('/{uuid}', 'show')->whereUuid('uuid')->can('viewAny', PurchaseOrder::class)->name('show');
             Route::get('/{uuid}/edit', 'edit')->whereUuid('uuid')->can('create', PurchaseOrder::class)->name('edit');
+            Route::put('/{uuid}', 'update')->whereUuid('uuid')->name('update');
+            Route::delete('/{uuid}', 'destroy')->whereUuid('uuid')->name('destroy');
+            Route::post('/{uuid}/konfirmasi', 'konfirmasi')->whereUuid('uuid')->name('konfirmasi');
             Route::get('/{uuid}/negosiasi', 'negosiasi')->whereUuid('uuid')->can('viewAny', PurchaseOrder::class)->name('negosiasi');
         });
 

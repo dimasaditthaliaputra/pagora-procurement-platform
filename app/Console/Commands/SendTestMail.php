@@ -37,7 +37,7 @@ class SendTestMail extends Command
         $this->info('From  : '.config('mail.from.address'));
 
         try {
-            Mail::to($email)->send(new SmtpTestMail());
+            Mail::to($email)->send(new SmtpTestMail);
         } catch (Throwable $e) {
             $this->error('Gagal mengirim email: '.$e->getMessage());
 

@@ -5,14 +5,12 @@ import { Button } from '@/Components/ui/button';
 import { PurchaseOrderForm } from '@/Pages/PurchaseOrder/PurchaseOrderForm';
 import { PoNotFound } from '@/Pages/PurchaseOrder/components/PoNotFound';
 import { isEditable } from '@/Pages/PurchaseOrder/constants';
-import { findPurchaseOrder } from '@/Pages/PurchaseOrder/mock-data';
 
-export default function PurchaseOrderEdit({ uuid }) {
-    // TODO(backend): receive `purchase_order` prop from the controller instead.
-    const po = findPurchaseOrder(uuid);
+export default function PurchaseOrderEdit({ purchase_order, vendor_options = [], komoditas_options = [] }) {
+    const po = purchase_order?.data ?? purchase_order;
 
     if (!po) return <PoNotFound />;
-    if (!isEditable(po)) return <PoNotFound message={`${po.nomor_po} sudah dikonfirmasi sehingga tidak bisa diubah.`} />;
+    if (!isEditable(po)) return <PoNotFound message={`${po.nomor_po} sudah tidak berstatus draf sehingga tidak bisa diubah.`} />;
 
     const breadcrumbs = [
         { label: 'Dashboard', href: '/dashboard' },
@@ -33,7 +31,7 @@ export default function PurchaseOrderEdit({ uuid }) {
                             Ubah Draf {po.nomor_po}
                         </h1>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                            Ubah vendor, komoditas, atau kuantitas sebelum dikirim ke vendor.
+                            Ubah vendor, komoditas, atau kuantitas sebelum pesanan diajukan ke vendor.
                         </p>
                     </div>
                     <Button variant="outline" size="sm" asChild className="cursor-pointer shrink-0 h-8">
@@ -44,7 +42,11 @@ export default function PurchaseOrderEdit({ uuid }) {
                     </Button>
                 </div>
 
-                <PurchaseOrderForm initialData={po} />
+                <PurchaseOrderForm
+                    initialData={po}
+                    vendorOptions={vendor_options}
+                    komoditasOptions={komoditas_options}
+                />
             </div>
         </DashboardLayout>
     );

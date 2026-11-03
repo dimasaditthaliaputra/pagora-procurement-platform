@@ -64,6 +64,7 @@ export function Combobox({
                 className="w-[var(--radix-popover-trigger-width)] p-0"
                 align="start"
                 side="bottom"
+                avoidCollisions={false}
                 sideOffset={4}
             >
                 <Command>

@@ -244,8 +244,10 @@ class DatabaseMigrationTest extends TestCase
             'status',
             'tanggal_po',
             'catatan',
+            'locked_at',
             'created_at',
             'updated_at',
+            'deleted_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('po_item', [

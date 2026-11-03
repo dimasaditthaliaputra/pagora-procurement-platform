@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'uuid',
@@ -23,11 +24,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'status',
     'tanggal_po',
     'catatan',
+    'locked_at',
 ])]
 #[Hidden(['id'])]
 class PurchaseOrder extends Model
 {
-    use HasUuids;
+    use HasUuids, SoftDeletes;
 
     protected $table = 'purchase_order';
 
@@ -60,6 +62,7 @@ class PurchaseOrder extends Model
             'status' => StatusPurchaseOrder::class,
             'harga_pagu_acuan' => 'decimal:2',
             'tanggal_po' => 'date',
+            'locked_at' => 'datetime',
         ];
     }
 
@@ -79,6 +82,11 @@ class PurchaseOrder extends Model
     }
 
     public function perusahaanBuyer(): BelongsTo
+    {
+        return $this->belongsTo(PerusahaanBuyer::class, 'perusahaan_buyer_id');
+    }
+
+    public function tenant(): BelongsTo
     {
         return $this->belongsTo(PerusahaanBuyer::class, 'perusahaan_buyer_id');
     }

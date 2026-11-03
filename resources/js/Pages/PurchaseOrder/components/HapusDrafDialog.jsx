@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { router } from '@inertiajs/react';
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -10,23 +11,26 @@ import {
 } from '@/Components/ui/alert-dialog';
 import { LoadingButton } from '@/Components/loading-button';
 import { notify } from '@/lib/notify';
-import { deletePurchaseOrder, simulateRequest } from '@/Pages/PurchaseOrder/mock-data';
 
 export function HapusDrafDialog({ po, open, onOpenChange, onDeleted }) {
     const [processing, setProcessing] = useState(false);
 
     if (!po) return null;
 
-    const handleDelete = async () => {
-        setProcessing(true);
-        // TODO(backend): router.delete(route('purchase-order.destroy', po.uuid)) — soft delete
-        await simulateRequest();
-        deletePurchaseOrder(po.uuid);
-        setProcessing(false);
-        onOpenChange(false);
-        notify.success(`Draf ${po.nomor_po} berhasil dihapus.`);
-        onDeleted?.();
+    const handleDelete = () => {
+        router.delete(`/purchase-order/${po.uuid}`, {
+            preserveScroll: true,
+            onStart: () => setProcessing(true),
+            onFinish: () => setProcessing(false),
+            onSuccess: () => {
+                onOpenChange(false);
+                onDeleted?.();
+            },
+            onError: () => notify.validationFailed(),
+        });
     };
+
+    const vendorName = po.vendor?.nama_perusahaan ?? po.vendor?.company_name ?? 'Vendor';
 
     return (
         <AlertDialog open={open} onOpenChange={(value) => !processing && onOpenChange(value)}>
@@ -35,7 +39,7 @@ export function HapusDrafDialog({ po, open, onOpenChange, onDeleted }) {
                     <AlertDialogTitle>Hapus Draf Purchase Order</AlertDialogTitle>
                     <AlertDialogDescription>
                         Draf <strong className="text-foreground">{po.nomor_po}</strong> untuk{' '}
-                        <strong className="text-foreground">{po.vendor.nama_perusahaan}</strong> akan dihapus.
+                        <strong className="text-foreground">{vendorName}</strong> akan dihapus.
                         Draf yang dihapus tidak tampil lagi di daftar.
                     </AlertDialogDescription>
                 </AlertDialogHeader>

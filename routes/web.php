@@ -6,6 +6,7 @@ use App\Enums\RoleName;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\KerjaSamaController;
 use App\Http\Controllers\KomoditasController;
 use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\PengaturanController;
@@ -181,6 +182,24 @@ Route::middleware('auth')->group(function () {
         });
 
     Route::redirect('/superadmin/verifikasi-dokumen', '/master/vendor/verifikasi-dokumen');
+
+   
+    // Kerja Sama Vendor Routes
+    Route::controller(KerjaSamaController::class)
+        ->prefix('kerja-sama')
+        ->name('kerja-sama.')
+        ->group(function () {
+            Route::get('/calon-mitra', 'calonMitraIndex')->name('calon-mitra.index');
+
+            Route::get('/calon-mitra/{uuid}', 'calonMitraShow')
+                ->whereUuid('uuid')
+                ->name('calon-mitra.show');
+
+            Route::post('/calon-mitra/{uuid}/ajukan', 'ajukanKerjaSama')
+                ->whereUuid('uuid')
+                ->name('calon-mitra.ajukan');
+        });
+
 
     // Pengaturan Aplikasi Routes (Superadmin Only)
     Route::middleware(['superadmin', 'can:viewAny,'.Pengaturan::class])

@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Repositories\Contracts\KerjaSamaRepositoryInterface;
+use App\Repositories\Eloquent\KerjaSamaRepository;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +17,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(
+            KerjaSamaRepositoryInterface::class,
+            KerjaSamaRepository::class
+        );
     }
 
     /**

@@ -117,4 +117,39 @@ class PerusahaanBuyerRepository implements PerusahaanBuyerRepositoryInterface
             'rejected' => (int) ($raw?->rejected ?? 0),
         ];
     }
+
+    /**
+     * Paginate active, verified tenants that do NOT yet have any partnership with the given vendor.
+     *
+     * @param  array<string, mixed>  $filters  Keys: search, lokasi, sort, direction
+     */
+    public function paginateCalonMitra(int $vendorId, array $filters, int $perPage = 12): LengthAwarePaginator
+    {
+        $search = isset($filters['search']) ? trim((string) $filters['search']) : '';
+        $lokasi = isset($filters['lokasi']) ? trim((string) $filters['lokasi']) : '';
+
+        $allowedSorts = ['company_name', 'address', 'created_at'];
+        $sort = in_array($filters['sort'] ?? '', $allowedSorts, true) ? $filters['sort'] : 'company_name';
+        $direction = ($filters['direction'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
+
+        $driver = DB::getDriverName();
+        $op = $driver === 'pgsql' ? 'ilike' : 'like';
+
+        $query = $this->model->newQuery()
+            ->where('is_active', true)
+            ->where('verification_status', 'approved')
+            ->whereDoesntHave('kerjaSama', fn ($q) => $q->where('vendor_id', $vendorId))
+            ->when($search !== '', function ($q) use ($search, $op) {
+                $q->where(function ($sub) use ($search, $op) {
+                    $sub->where('company_name', $op, "%{$search}%")
+                        ->orWhere('address', $op, "%{$search}%");
+                });
+            })
+            ->when($lokasi !== '', function ($q) use ($lokasi, $op) {
+                $q->where('address', $op, "%{$lokasi}%");
+            })
+            ->orderBy($sort, $direction);
+
+        return $query->paginate($perPage)->withQueryString();
+    }
 }

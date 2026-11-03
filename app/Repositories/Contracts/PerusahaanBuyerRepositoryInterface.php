@@ -49,4 +49,11 @@ interface PerusahaanBuyerRepositoryInterface
      * @return array{total: int, pending: int, approved: int, rejected: int}
      */
     public function getStatusCounts(): array;
+
+    /**
+     * Paginate active, verified tenants that do NOT yet have any partnership with the given vendor.
+     *
+     * @param  array\u003cstring, mixed\u003e  $filters  Keys: search, lokasi, sort, direction
+     */
+    public function paginateCalonMitra(int $vendorId, array $filters, int $perPage = 12): LengthAwarePaginator;
 }

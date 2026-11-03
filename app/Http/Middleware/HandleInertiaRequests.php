@@ -10,6 +10,7 @@ use App\Models\PurchaseOrder;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Repositories\Contracts\NotificationRepositoryInterface;
 use App\Services\PengaturanService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -52,6 +53,7 @@ class HandleInertiaRequests extends Middleware
                 'can' => fn () => $this->navigationPermissions($request->user()),
             ],
             'user' => $request->user(),
+            'unread_notifications_count' => fn () => $request->user() ? app(NotificationRepositoryInterface::class)->countUnreadForUser($request->user()) : 0,
             'aplikasi' => fn () => app(PengaturanService::class)->profilPublik(),
             'status' => fn () => $request->session()->get('status'),
             'flash' => [

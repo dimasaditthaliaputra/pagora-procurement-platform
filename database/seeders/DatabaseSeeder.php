@@ -37,6 +37,7 @@ class DatabaseSeeder extends Seeder
             PenerimaanBarangSeeder::class,
             InvoiceSeeder::class,
             SengketaSeeder::class,
+            NotificationSeeder::class,
         ]);
     }
 }

@@ -102,9 +102,10 @@ Seluruh aktivitas selain registrasi, konfirmasi undangan, dan reset kata sandi w
 | UC-20 | Mengundang Vendor Baru **[baru]** | Manajemen, Owner | FR-34 |
 | UC-21 | Verifikasi Akun Tenant & Vendor **[baru]** | Superadmin | FR-36 |
 | UC-22 | Lupa Kata Sandi **[baru]** | Guest / User | FR-33 |
+| UC-23 | Log Notifikasi Pengguna & Menu Notifikasi **[baru]** | Semua Aktor | FR-43 |
 
 > UC-13 s.d. UC-19 tidak memiliki spesifikasi tertulis di SKPL; alurnya **diturunkan dari activity diagram [UML]** lalu disesuaikan dengan keputusan tim.
-> UC-20 s.d. UC-22 berasal dari keputusan tim dan **belum ada di SKPL/UML**.
+> UC-20 s.d. UC-23 berasal dari keputusan tim dan **belum ada di SKPL/UML**.
 > Pola **Search & Filter** yang berulang (klik search/filter → input kata kunci/filter → sistem menjalankan kueri → tampilkan hasil, atau tabel kosong dengan pesan "data tidak ditemukan") disebut **[SF]**.
 
 ### UC-01 Registrasi Akun Tenant
@@ -378,6 +379,18 @@ Invoice **hanya untuk item yang lolos QC** [Keputusan Q-10b].
 - **Alternatif/error**: 4a. Token kedaluwarsa / tidak valid → pesan error, minta tautan baru. 1a. Email tidak terdaftar → tampilkan pesan generik yang sama dengan sukses.
 - **Hasil**: kata sandi diperbarui.
 
+### UC-23 Log Notifikasi Pengguna & Menu Notifikasi [Baru]
+- **Aktor**: Semua Aktor (Superadmin, Owner, Manajemen, Purchasing, QC Gudang, Vendor).
+- **Prasyarat**: Pengguna telah terautentikasi (login).
+- **Alur utama**:
+  1. Pengguna melihat jumlah notifikasi belum dibaca pada indikator badge ikon lonceng di samping pengatur tema.
+  2. Pengguna mengklik ikon lonceng; sistem menampilkan menu popover log notifikasi terbaru pengguna.
+  3. Sistem membedakan secara visual notifikasi yang belum dibaca (warna latar belakang khusus, indikator dot hijau/aktif, teks judul tebal) dan yang sudah dibaca.
+  4. Pengguna dapat mengklik salah satu notifikasi: sistem menandai status notifikasi tersebut sebagai terbaca (`read_at` terisi) dan mengarahkan (*redirect*) pengguna ke tautan pesan terkait (`action_url`).
+  5. Pengguna dapat menekan tombol "Tandai Semua Terbaca" untuk mengubah status seluruh notifikasi miliknya menjadi terbaca seketika.
+  6. Pengguna dapat membuka halaman penuh log notifikasi via tautan "Lihat Semua Notifikasi" atau menu sidebar Notifikasi.
+- **Hasil**: status notifikasi diperbarui menjadi terbaca dan pengguna langsung menuju konteks aksi/pesan.
+
 ## 5. Alur Sistem Utama
 
 ### 5.1 Siklus Pengadaan End-to-End
@@ -491,6 +504,7 @@ Prioritas: **Must** = Tinggi di SKPL / wajib menurut keputusan tim, **Should** =
 | FR-40 | Penyelesaian sengketa: pengiriman ulang, retur, atau credit note, dengan **konfirmasi Vendor** bila butuh tindakan Vendor | Owner, Manajemen, Vendor | Must | UC-18 | Baru |
 | FR-41 | Kelola **credit note** sebagai dokumen tersendiri (nomor, tanggal, nominal, alasan, referensi invoice & sengketa); satu sengketa dapat menghasilkan > 1 credit note; mengurangi tagihan setelah dikonfirmasi Vendor | Owner, Manajemen, Vendor | Must | UC-18, UC-17 | Baru |
 | FR-42 | Kelola **retur** sebagai dokumen tersendiri (`purchase_returns` + item): nomor, tanggal, item & kuantitas diretur, alasan, referensi PO & sengketa; wajib **dikonfirmasi Vendor**; item diretur tidak ditagih | Owner, Manajemen, Vendor | Must | UC-18 | Baru |
+| FR-43 | Log notifikasi in-app untuk pengguna (PO, negosiasi, kerja sama, verifikasi, sistem); indikator belum dibaca pada ikon lonceng, menu popover log notifikasi, efek visual status baca/belum, aksi tandai terbaca satuan/massal, serta redirect ke pesan/tautan terkait | Semua Aktor | Must | UC-23 | Baru |
 
 ## 7. Kebutuhan Non-Fungsional
 
@@ -551,6 +565,7 @@ Semua tabel memakai `id` (PK) + `uuid` (UK) + `created_at`/`updated_at` kecuali 
 | `purchase_return_items` [Usulan] | `purchase_return_id`, `purchase_order_item_id`, `goods_receipt_item_id`, `quantity`, `notes` |
 | `disputes` | `purchase_order_id`, `invoice_id` (nullable), `purchase_order_item_id` (nullable), `trigger_type`, `opened_by`, `status` (§9.3), `resolution_type` (`reshipment`/`return`/`credit_note`), `resolution_notes`, `vendor_confirmed_by`, `vendor_confirmed_at`, `resolved_by`, `opened_at`, `resolved_at` |
 | `dispute_logs` | `dispute_id`, `user_id`, `message`, `attachment_path`, `created_at` (immutable) |
+| `notifications` [baru] | `uuid` (UK), `user_id`, `type`, `title`, `message`, `action_url`, `data`, `read_at` |
 
 ### 8.2 Relasi
 

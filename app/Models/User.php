@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -196,6 +197,16 @@ class User extends Authenticatable
     public function isVendor(): bool
     {
         return $this->hasRole(RoleName::Vendor);
+    }
+
+    /**
+     * In-app notifications received by the user.
+     *
+     * @return HasMany<Notification, $this>
+     */
+    public function inAppNotifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
     }
 
     /**

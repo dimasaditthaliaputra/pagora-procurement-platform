@@ -73,6 +73,7 @@
 | 29 | `settings` | `pengaturan` | (cek model eksisting) | Konfigurasi sistem key-value (di luar PRD, sudah dipakai) |
 | 30 | `permissions` | ✅ [baru] | `Permission` | Hak akses granular per modul (PRD Q-38) |
 | 31 | `permission_role` | ✅ [baru] | — (pivot) | Role ↔ permission (M:N) |
+| 32 | `notifications` | — [baru] | `Notification` | Log notifikasi in-app pengguna & riwayat lonceng (UC-23, FR-43) |
 
 Tabel bawaan Laravel/Fortify (`password_reset_tokens`, `sessions`, `cache`, `jobs`, `passkeys`) tidak diubah.
 Class model untuk tabel **[baru]** memakai Bahasa Inggris (keputusan §12 no. 6); class lama (`Komoditas`, `UndanganVendor`, dst.) tidak diganti namanya.
@@ -506,6 +507,26 @@ Setelah `resolved`, baris tidak boleh diubah (dijaga Service + trigger §7).
 
 Kredensial produksi tetap di `.env` (NFR-06); tabel ini hanya untuk konfigurasi yang boleh diubah dari UI.
 
+### 4.30 `notifications` [baru]
+Log notifikasi in-app untuk pengguna (staf tenant, vendor, superadmin).
+Dipicu oleh event sistem seperti pengajuan PO, penawaran harga baru, persetujuan/penolakan, pembatalan, dan verifikasi akun.
+
+| Kolom | Tipe | Catatan |
+|---|---|---|
+| id | bigIncrements PK | |
+| uuid | uuid U NN | Identifier publik untuk API / navigasi |
+| user_id | FK→users NN, cascadeOnDelete, idx | Penerima notifikasi |
+| type | string(50) NN | `purchase_order`, `negotiation`, `partnership`, `verification`, `system` |
+| title | string(255) NN | Judul notifikasi |
+| message | text NN | Ringkasan pesan notifikasi |
+| action_url | string(500) null | URL tujuan saat item ditekan (mis. `/purchase-order/UUID/negosiasi`) |
+| data | json null | Payload metadata fleksibel |
+| read_at | timestamp null, idx | Null = belum dibaca; waktu = sudah dibaca |
+| created_at | timestamp NN | Waktu notifikasi dibuat |
+| updated_at | timestamp NN | |
+
+**Index**: `uuid` (unique), `user_id`, `read_at`, `created_at`, composite `[user_id, read_at]`.
+
 ## 5. Strategi Migrasi ke Skema Target
 
 Karena migration lama sudah di `main`, refactor dilakukan **per modul** dengan migration baru. Setiap langkah harus membuat aplikasi tetap berjalan dan test lulus.
@@ -695,6 +716,7 @@ Cocok bila untuk setiap item: `invoice_items.quantity ≤ kuantitas diterima yan
 | 2026-11-02 | **RBAC hybrid** (PRD Q-38): tabel baru `permissions` + `permission_role`, migration `2026_11_02_200001_*`, `PermissionSeeder` (20 permission) | — |
 | 2026-11-02 | **Modul 4 selesai**: `kerja_sama` → `partnerships` (`tenant_id`, `vendor_id`, `status`, `rejection_reason`; kolom baru `requested_by` default `tenant`, `block_reason`, `blocked_by`, `blocked_at`); status `diajukan/aktif/ditolak/berakhir` → `pending/agreed/rejected/cancelled` + `blocked`. Blokir per Tenant (UC-19) belum dipindah dari `vendors.block_*` | — |
 | 2026-11-01 | **Modul 3 selesai**: `commodity_categories` [baru] (kategori dari `komoditas.kategori` dipindah ke FK `commodity_category_id`, kolom lama dihapus); `komoditas` → `commodities` (`name`, `unit`, `default_shrinkage_tolerance`, `api_reference_code`, `specification`, `is_active`); `tenant_commodities` [baru] (Tenant lama otomatis mengaktifkan semua komoditas aktif). `vendor_commodity_categories` ditunda | — |
+| 2026-11-03 | Tabel `notifications` [baru] untuk in-app notification bell menu & log notifikasi pengguna (UC-23, FR-43) | — |
 
 ## 12. Keputusan Teknis (2026-10-31)
 

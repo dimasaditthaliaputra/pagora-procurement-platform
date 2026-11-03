@@ -4,18 +4,21 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\RoleName;
 use App\Enums\StatusKerjaSama;
 use App\Enums\StatusPurchaseOrder;
 use App\Models\KerjaSama;
 use App\Models\Komoditas;
 use App\Models\PrediksiHarga;
 use App\Models\PurchaseOrder;
+use App\Models\Role;
 use App\Models\TenantCommodity;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Repositories\Contracts\PurchaseOrderRepositoryInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -25,7 +28,8 @@ use Illuminate\Validation\ValidationException;
 class PurchaseOrderService
 {
     public function __construct(
-        protected readonly PurchaseOrderRepositoryInterface $purchaseOrderRepository
+        protected readonly PurchaseOrderRepositoryInterface $purchaseOrderRepository,
+        protected readonly NotificationService $notificationService,
     ) {}
 
     /**
@@ -331,6 +335,16 @@ class PurchaseOrderService
             'Pengajuan Purchase Order awal.'
         );
 
+        $vendorUsers = $this->getVendorPoNotificationRecipients((int) $po->vendor_id);
+        $this->notificationService->sendToMany(
+            $vendorUsers,
+            'purchase_order',
+            'Pengajuan PO Baru: '.$po->nomor_po,
+            "Tenant mengajukan Purchase Order {$po->nomor_po} untuk dinegosiasikan.",
+            "/purchase-order/{$po->uuid}/negosiasi",
+            ['po_uuid' => $po->uuid, 'nomor_po' => $po->nomor_po]
+        );
+
         return $this->findByUuidForUser($actor, $uuid);
     }
 
@@ -365,6 +379,21 @@ class PurchaseOrderService
         $this->purchaseOrderRepository->addChatNegosiasi($po, $actor, $nominal, $pesan);
         $this->purchaseOrderRepository->updateOfferPrice($po, $actor, $nominal);
 
+        $recipients = $isVendor
+            ? $this->getTenantPoNotificationRecipients((int) $po->perusahaan_buyer_id)
+            : $this->getVendorPoNotificationRecipients((int) $po->vendor_id);
+
+        $senderRole = $isVendor ? 'Vendor' : 'Tenant';
+        $formattedNominal = 'Rp '.number_format($nominal, 0, ',', '.');
+        $this->notificationService->sendToMany(
+            $recipients,
+            'negotiation',
+            "Tawaran Harga Baru PO {$po->nomor_po}",
+            "{$senderRole} mengajukan penawaran harga {$formattedNominal} untuk PO {$po->nomor_po}.",
+            "/purchase-order/{$po->uuid}/negosiasi",
+            ['po_uuid' => $po->uuid, 'nomor_po' => $po->nomor_po, 'nominal' => $nominal]
+        );
+
         return $this->findByUuidForUser($actor, $uuid);
     }
 
@@ -386,6 +415,21 @@ class PurchaseOrderService
         }
 
         $this->purchaseOrderRepository->setujuiHarga($po, $actor);
+
+        $isVendor = $actor->vendor_id !== null && (int) $actor->vendor_id === (int) $po->vendor_id;
+        $recipients = $isVendor
+            ? $this->getTenantPoNotificationRecipients((int) $po->perusahaan_buyer_id)
+            : $this->getVendorPoNotificationRecipients((int) $po->vendor_id);
+
+        $approvedBy = $isVendor ? 'Vendor' : 'Tenant';
+        $this->notificationService->sendToMany(
+            $recipients,
+            'purchase_order',
+            "PO Disepakati: {$po->nomor_po}",
+            "Purchase Order {$po->nomor_po} telah disetujui dan disepakati oleh {$approvedBy}.",
+            "/purchase-order/{$po->uuid}",
+            ['po_uuid' => $po->uuid, 'nomor_po' => $po->nomor_po]
+        );
 
         return $this->findByUuidForUser($actor, $uuid);
     }
@@ -416,7 +460,41 @@ class PurchaseOrderService
 
         $this->purchaseOrderRepository->batalkan($po, $actor, $alasan);
 
+        $vendorUsers = $this->getVendorPoNotificationRecipients((int) $po->vendor_id);
+        $this->notificationService->sendToMany(
+            $vendorUsers,
+            'purchase_order',
+            "PO Dibatalkan: {$po->nomor_po}",
+            "Purchase Order {$po->nomor_po} dibatalkan oleh pembeli. Alasan: {$alasan}",
+            "/purchase-order/{$po->uuid}",
+            ['po_uuid' => $po->uuid, 'nomor_po' => $po->nomor_po, 'alasan' => $alasan]
+        );
+
         return $this->findByUuidForUser($actor, $uuid);
+    }
+
+    /**
+     * Get tenant users entitled to receive PO negotiation notifications (Purchasing & Owner).
+     *
+     * @return Collection<int, User>
+     */
+    protected function getTenantPoNotificationRecipients(int $tenantId): Collection
+    {
+        $allowedRoleIds = Role::whereIn('name', [RoleName::Purchasing->value, RoleName::Owner->value])->pluck('id');
+
+        return User::where('tenant_id', $tenantId)->whereIn('role_id', $allowedRoleIds)->get();
+    }
+
+    /**
+     * Get vendor users entitled to receive PO notifications.
+     *
+     * @return Collection<int, User>
+     */
+    protected function getVendorPoNotificationRecipients(int $vendorId): Collection
+    {
+        $vendorRoleId = Role::where('name', RoleName::Vendor->value)->value('id');
+
+        return User::where('vendor_id', $vendorId)->where('role_id', $vendorRoleId)->get();
     }
 
     /**

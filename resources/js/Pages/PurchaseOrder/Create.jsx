@@ -4,7 +4,7 @@ import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Button } from '@/Components/ui/button';
 import { PurchaseOrderForm } from '@/Pages/PurchaseOrder/PurchaseOrderForm';
 
-export default function PurchaseOrderCreate() {
+export default function PurchaseOrderCreate({ vendor_options = [], komoditas_options = [] }) {
     const breadcrumbs = [
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Purchase Order', href: '/purchase-order' },
@@ -23,7 +23,7 @@ export default function PurchaseOrderCreate() {
                             Buat Purchase Order
                         </h1>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                            PO tersimpan sebagai draf. Anda bisa langsung mengonfirmasi untuk memulai negosiasi.
+                            PO tersimpan sebagai draf. Anda dapat langsung mengonfirmasi untuk mengajukan pesanan ke vendor.
                         </p>
                     </div>
                     <Button variant="outline" size="sm" asChild className="cursor-pointer shrink-0 h-8">
@@ -34,7 +34,10 @@ export default function PurchaseOrderCreate() {
                     </Button>
                 </div>
 
-                <PurchaseOrderForm />
+                <PurchaseOrderForm
+                    vendorOptions={vendor_options}
+                    komoditasOptions={komoditas_options}
+                />
             </div>
         </DashboardLayout>
     );

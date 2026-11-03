@@ -21,7 +21,6 @@ import { PoNotFound } from '@/Pages/PurchaseOrder/components/PoNotFound';
 import { KonfirmasiNegosiasiDialog } from '@/Pages/PurchaseOrder/components/KonfirmasiNegosiasiDialog';
 import { HapusDrafDialog } from '@/Pages/PurchaseOrder/components/HapusDrafDialog';
 import { hasNegotiation, isEditable, isLocked, tawaranTerakhir, totalPagu, totalPo } from '@/Pages/PurchaseOrder/constants';
-import { findPurchaseOrder } from '@/Pages/PurchaseOrder/mock-data';
 
 const ALUR = ['draft', 'negosiasi', 'disepakati', 'dalam_pengiriman', 'diterima_gudang', 'ditagih', 'lunas'];
 const ALUR_LABEL = {
@@ -54,7 +53,7 @@ function AlurStatus({ status }) {
                             )}
                         >
                             {done && <Check className="size-3" />}
-                            {ALUR_LABEL[step]}
+                            {ALUR_LABEL[step] ?? step}
                         </span>
                         {index < ALUR.length - 1 && <span className="h-px w-4 bg-border" />}
                     </li>
@@ -79,9 +78,8 @@ function Info({ label, children }) {
     );
 }
 
-export default function PurchaseOrderShow({ uuid }) {
-    // TODO(backend): receive `purchase_order` prop from the controller instead.
-    const po = findPurchaseOrder(uuid);
+export default function PurchaseOrderShow({ purchase_order }) {
+    const po = purchase_order?.data ?? purchase_order;
     const [konfirmasiOpen, setKonfirmasiOpen] = useState(false);
     const [hapusOpen, setHapusOpen] = useState(false);
 
@@ -92,6 +90,8 @@ export default function PurchaseOrderShow({ uuid }) {
     const total = totalPo(po.items);
     const pagu = totalPagu(po.items);
     const sepakat = locked ? tawaranTerakhir(po) : null;
+
+    const vendorName = po.vendor?.nama_perusahaan ?? po.vendor?.company_name ?? 'Vendor';
 
     const breadcrumbs = [
         { label: 'Dashboard', href: '/dashboard' },
@@ -112,7 +112,7 @@ export default function PurchaseOrderShow({ uuid }) {
                             <StatusBadge po={po} showLock />
                         </h1>
                         <p className="text-xs text-muted-foreground mt-1">
-                            {po.vendor.nama_perusahaan} · {formatDate(po.tanggal_po)}
+                            {vendorName} · {formatDate(po.tanggal_po)}
                         </p>
                     </div>
 
@@ -174,7 +174,7 @@ export default function PurchaseOrderShow({ uuid }) {
                             <CardTitle className="text-base font-semibold">Informasi Pesanan</CardTitle>
                         </CardHeader>
                         <CardContent className="p-5 grid gap-4">
-                            <Info label="Vendor">{po.vendor.nama_perusahaan}</Info>
+                            <Info label="Vendor">{vendorName}</Info>
                             <Info label="Tanggal PO">{formatDate(po.tanggal_po)}</Info>
                             <Info label="Dibuat oleh">{po.dibuat_oleh}</Info>
                             <Info label="Catatan">
@@ -193,43 +193,51 @@ export default function PurchaseOrderShow({ uuid }) {
                                     <TableRow>
                                         <TableHead className="pl-5">Komoditas</TableHead>
                                         <TableHead className="text-right">Kuantitas</TableHead>
-                                        <TableHead className="text-right">Harga Pagu</TableHead>
+                                        {pagu > 0 && <TableHead className="text-right">Harga Pagu</TableHead>}
                                         <TableHead className="text-right">Harga Satuan</TableHead>
                                         <TableHead className="text-right pr-5">Subtotal</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {po.items.map((row) => (
-                                        <TableRow key={row.uuid}>
-                                            <TableCell className="pl-5 font-medium">{row.nama_komoditas}</TableCell>
-                                            <TableCell className="text-right tabular-nums">{formatNumber(row.jumlah_pesanan)} {row.satuan}</TableCell>
-                                            <TableCell className="text-right tabular-nums text-muted-foreground">{formatRupiah(row.harga_pagu)}</TableCell>
-                                            <TableCell className={cn('text-right tabular-nums', row.harga_satuan_po > row.harga_pagu && 'text-amber-600 dark:text-amber-400')}>
-                                                {formatRupiah(row.harga_satuan_po)}
+                                    {po.items.map((item) => (
+                                        <TableRow key={item.uuid}>
+                                            <TableCell className="pl-5 font-medium">{item.nama_komoditas}</TableCell>
+                                            <TableCell className="text-right tabular-nums">
+                                                {formatNumber(item.jumlah_pesanan)} {item.satuan}
                                             </TableCell>
-                                            <TableCell className="text-right tabular-nums font-semibold pr-5">
-                                                {formatRupiah(row.jumlah_pesanan * row.harga_satuan_po)}
+                                            {pagu > 0 && (
+                                                <TableCell className="text-right tabular-nums text-muted-foreground">
+                                                    {item.harga_pagu ? formatRupiah(item.harga_pagu) : '-'}
+                                                </TableCell>
+                                            )}
+                                            <TableCell className="text-right tabular-nums">
+                                                {formatRupiah(item.harga_satuan_po)}
+                                            </TableCell>
+                                            <TableCell className="text-right pr-5 font-semibold tabular-nums">
+                                                {formatRupiah(item.subtotal)}
                                             </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
                                 <TableFooter>
-                                    <TableRow>
-                                        <TableCell colSpan={4} className="pl-5 text-right text-muted-foreground font-normal">Total Harga Pagu</TableCell>
-                                        <TableCell className="text-right tabular-nums pr-5 font-normal">{formatRupiah(pagu)}</TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell colSpan={4} className="pl-5 text-right">Total Pengajuan Awal</TableCell>
-                                        <TableCell className="text-right tabular-nums pr-5">{formatRupiah(total)}</TableCell>
-                                    </TableRow>
-                                    {sepakat && (
+                                    {pagu > 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="pl-5 text-right text-primary">Total Disepakati</TableCell>
-                                            <TableCell className="text-right tabular-nums pr-5 text-primary text-base font-bold">
-                                                {formatRupiah(sepakat.nominal_tawar)}
+                                            <TableCell colSpan={2} className="pl-5 text-muted-foreground">
+                                                Total Harga Pagu Acuan
+                                            </TableCell>
+                                            <TableCell colSpan={3} className="text-right pr-5 tabular-nums text-muted-foreground">
+                                                {formatRupiah(pagu)}
                                             </TableCell>
                                         </TableRow>
                                     )}
+                                    <TableRow className="font-semibold text-base">
+                                        <TableCell colSpan={2} className="pl-5">
+                                            {locked ? 'Total Disepakati' : 'Total Estimasi PO'}
+                                        </TableCell>
+                                        <TableCell colSpan={pagu > 0 ? 3 : 2} className="text-right pr-5 tabular-nums">
+                                            {formatRupiah(sepakat ? sepakat.nominal_tawar : total)}
+                                        </TableCell>
+                                    </TableRow>
                                 </TableFooter>
                             </Table>
                         </CardContent>
@@ -237,7 +245,11 @@ export default function PurchaseOrderShow({ uuid }) {
                 </div>
             </div>
 
-            <KonfirmasiNegosiasiDialog po={po} open={konfirmasiOpen} onOpenChange={setKonfirmasiOpen} />
+            <KonfirmasiNegosiasiDialog
+                po={po}
+                open={konfirmasiOpen}
+                onOpenChange={setKonfirmasiOpen}
+            />
             <HapusDrafDialog
                 po={po}
                 open={hapusOpen}

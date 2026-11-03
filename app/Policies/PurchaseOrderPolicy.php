@@ -4,23 +4,76 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\StatusPurchaseOrder;
+use App\Models\PurchaseOrder;
 use App\Models\User;
 
 /**
- * Purchase order (UC-12, UC-13).
- *
- * The PO module is still a frontend prototype; add `view`/`update` (Tenant/Vendor
- * ownership + status checks) once the purchase_orders table is migrated.
+ * Purchase order policy (UC-12, UC-13, RULES §4.5).
  */
 class PurchaseOrderPolicy
 {
+    /**
+     * Determine whether the user can view any purchase orders.
+     */
     public function viewAny(User $user): bool
     {
         return $user->hasPermission('purchase_order.view_any');
     }
 
+    /**
+     * Determine whether the user can view the specific purchase order.
+     */
+    public function view(User $user, PurchaseOrder $purchaseOrder): bool
+    {
+        if ($user->isSuperadmin()) {
+            return false;
+        }
+
+        if ($user->tenant_id !== null && (int) $user->tenant_id === (int) $purchaseOrder->perusahaan_buyer_id) {
+            return $user->hasPermission('purchase_order.view_any');
+        }
+
+        if ($user->vendor_id !== null && (int) $user->vendor_id === (int) $purchaseOrder->vendor_id) {
+            return $purchaseOrder->status !== StatusPurchaseOrder::Draft
+                && $user->hasPermission('purchase_order.view_any');
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine whether the user can create purchase orders.
+     */
     public function create(User $user): bool
     {
-        return $user->hasPermission('purchase_order.create');
+        return $user->tenant_id !== null && $user->hasPermission('purchase_order.create');
+    }
+
+    /**
+     * Determine whether the user can update the purchase order (draft only).
+     */
+    public function update(User $user, PurchaseOrder $purchaseOrder): bool
+    {
+        return $user->tenant_id !== null
+            && (int) $user->tenant_id === (int) $purchaseOrder->perusahaan_buyer_id
+            && $user->hasPermission('purchase_order.create')
+            && $purchaseOrder->status === StatusPurchaseOrder::Draft;
+    }
+
+    /**
+     * Determine whether the user can delete the purchase order (draft only, soft delete).
+     */
+    public function delete(User $user, PurchaseOrder $purchaseOrder): bool
+    {
+        return $this->update($user, $purchaseOrder);
+    }
+
+    /**
+     * Determine whether the user can confirm/submit the purchase order to negotiation.
+     */
+    public function konfirmasi(User $user, PurchaseOrder $purchaseOrder): bool
+    {
+        return $this->update($user, $purchaseOrder);
     }
 }

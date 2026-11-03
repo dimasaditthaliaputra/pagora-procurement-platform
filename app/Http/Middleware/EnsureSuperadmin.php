@@ -23,7 +23,7 @@ class EnsureSuperadmin
             abort(401, 'Silakan login terlebih dahulu.');
         }
 
-        if (!$user->isSuperadmin()) {
+        if (! $user->isSuperadmin()) {
             abort(403, 'Akses hanya untuk superadmin.');
         }
 

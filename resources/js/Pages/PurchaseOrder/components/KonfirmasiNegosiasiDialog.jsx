@@ -14,27 +14,30 @@ import { LoadingButton } from '@/Components/loading-button';
 import { notify } from '@/lib/notify';
 import { formatRupiah } from '@/lib/format';
 import { totalPo } from '@/Pages/PurchaseOrder/constants';
-import { simulateRequest, updatePurchaseOrder } from '@/Pages/PurchaseOrder/mock-data';
 
 /**
  * Pop-up after a draft is saved (or opened from the list): "Negosiasi?".
- * Confirming moves the PO to `negosiasi` and opens the Smart Negotiation Chat.
+ * Confirming moves the PO to `negosiasi` and submits it to the vendor.
  */
 export function KonfirmasiNegosiasiDialog({ po, open, onOpenChange, onDecline }) {
     const [processing, setProcessing] = useState(false);
 
     if (!po) return null;
 
-    const handleConfirm = async () => {
-        setProcessing(true);
-        // TODO(backend): router.post(route('purchase-order.konfirmasi', po.uuid))
-        await simulateRequest();
-        updatePurchaseOrder(po.uuid, { status: 'negosiasi' });
-        setProcessing(false);
-        onOpenChange(false);
-        notify.success(`${po.nomor_po} dikirim ke vendor. Ruang negosiasi dibuka.`);
-        router.visit(`/purchase-order/${po.uuid}/negosiasi`);
+    const handleConfirm = () => {
+        router.post(`/purchase-order/${po.uuid}/konfirmasi`, {}, {
+            preserveScroll: true,
+            onStart: () => setProcessing(true),
+            onFinish: () => setProcessing(false),
+            onSuccess: () => {
+                onOpenChange(false);
+            },
+            onError: () => notify.validationFailed(),
+        });
     };
+
+    const vendorName = po.vendor?.nama_perusahaan ?? po.vendor?.company_name ?? 'Vendor';
+    const totalAmount = formatRupiah(totalPo(po.items));
 
     return (
         <AlertDialog open={open} onOpenChange={(value) => !processing && onOpenChange(value)}>
@@ -42,18 +45,18 @@ export function KonfirmasiNegosiasiDialog({ po, open, onOpenChange, onDecline })
                 <AlertDialogHeader>
                     <AlertDialogTitle className="flex items-center gap-2">
                         <MessagesSquare className="size-5 text-primary" />
-                        Lanjutkan ke Negosiasi?
+                        Lanjutkan Pengajuan &amp; Negosiasi PO?
                     </AlertDialogTitle>
                     <AlertDialogDescription asChild>
                         <div className="space-y-3 text-sm">
                             <p>
-                                <strong className="text-foreground">{po.nomor_po}</strong> akan dikirim ke{' '}
-                                <strong className="text-foreground">{po.vendor.nama_perusahaan}</strong> senilai{' '}
-                                <strong className="text-foreground">{formatRupiah(totalPo(po.items))}</strong>.
+                                <strong className="text-foreground">{po.nomor_po}</strong> akan diajukan ke{' '}
+                                <strong className="text-foreground">{vendorName}</strong> senilai{' '}
+                                <strong className="text-foreground">{totalAmount}</strong>.
                             </p>
                             <p>
-                                Setelah dikonfirmasi, draf tidak bisa diubah lagi dan ruang Smart Negotiation Chat
-                                dibuka. Pilih <em>Simpan sebagai Draf</em> jika masih ingin merevisi.
+                                Setelah dikonfirmasi, draf akan diajukan ke vendor dan status berubah menjadi Negosiasi.
+                                Pilih <em>Simpan sebagai Draf</em> jika masih ingin merevisi sebelum diajukan.
                             </p>
                         </div>
                     </AlertDialogDescription>
@@ -63,7 +66,7 @@ export function KonfirmasiNegosiasiDialog({ po, open, onOpenChange, onDecline })
                         Simpan sebagai Draf
                     </AlertDialogCancel>
                     <LoadingButton loading={processing} loadingText="Mengonfirmasi..." onClick={handleConfirm}>
-                        Ya, Konfirmasi PO
+                        Ya, Ajukan PO
                     </LoadingButton>
                 </AlertDialogFooter>
             </AlertDialogContent>

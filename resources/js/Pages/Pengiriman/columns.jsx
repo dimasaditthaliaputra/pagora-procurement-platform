@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { Calendar, Eye, MoreHorizontal, RefreshCw, Truck } from 'lucide-react';
+import { Calendar, ClipboardCheck, Eye, MoreHorizontal, RefreshCw, Truck } from 'lucide-react';
 import { DataTableColumnHeader } from '@/Components/data-table/data-table-column-header';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -145,6 +145,14 @@ export function getColumns({ onSortChange, isVendor = false }) {
                                     Lihat Detail Pengiriman
                                 </Link>
                             </DropdownMenuItem>
+                            {shipment.can?.inspect && shipment.purchase_order?.uuid && (
+                                <DropdownMenuItem asChild>
+                                    <Link href={`/inspeksi-qc/create?po=${shipment.purchase_order.uuid}`}>
+                                        <ClipboardCheck className="mr-2 size-4" />
+                                        Lakukan Inspeksi Barang
+                                    </Link>
+                                </DropdownMenuItem>
+                            )}
                             {shipment.can?.view_purchase_order && shipment.purchase_order?.uuid && (
                                 <DropdownMenuItem asChild>
                                     <Link href={`/purchase-order/${shipment.purchase_order.uuid}`}>

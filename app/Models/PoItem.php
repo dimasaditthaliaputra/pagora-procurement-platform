@@ -73,6 +73,11 @@ class PoItem extends Model
 
     public function penerimaanBarangItems(): HasMany
     {
-        return $this->hasMany(PenerimaanBarangItem::class, 'po_item_id');
+        return $this->hasMany(PenerimaanBarangItem::class, 'purchase_order_item_id');
+    }
+
+    public function sengketa(): HasMany
+    {
+        return $this->hasMany(Sengketa::class, 'purchase_order_item_id');
     }
 }

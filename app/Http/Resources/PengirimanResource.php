@@ -104,6 +104,9 @@ class PengirimanResource extends JsonResource
             'can' => [
                 'view' => (bool) $user?->can('view', $this->resource),
                 'view_purchase_order' => $po !== null && (bool) $user?->can('view', $po),
+                'inspect' => $po !== null
+                    && $statusEnum === StatusPengiriman::InTransit
+                    && (bool) $user?->can('inspeksi', $po),
             ],
         ];
     }

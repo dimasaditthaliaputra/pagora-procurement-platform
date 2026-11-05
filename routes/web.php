@@ -10,6 +10,7 @@ use App\Http\Controllers\KerjaSamaController;
 use App\Http\Controllers\KomoditasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PegawaiController;
+use App\Http\Controllers\PenerimaanBarangController;
 use App\Http\Controllers\PengaturanController;
 use App\Http\Controllers\PengirimanController;
 use App\Http\Controllers\PerusahaanController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\VerifikasiDokumenController;
 use App\Http\Controllers\VerifikasiTenantController;
 use App\Models\DokumenLegalitasVendor;
 use App\Models\Komoditas;
+use App\Models\PenerimaanBarang;
 use App\Models\Pengaturan;
 use App\Models\Pengiriman;
 use App\Models\PerusahaanBuyer;
@@ -121,6 +123,22 @@ Route::middleware('auth')->group(function () {
             Route::get('/create', 'create')->can('create', Pengiriman::class)->name('create');
             Route::post('/', 'store')->can('create', Pengiriman::class)->name('store');
             Route::get('/{uuid}', 'show')->whereUuid('uuid')->can('viewAny', Pengiriman::class)->name('show');
+        });
+
+    // Inspeksi Barang QC Gudang (Goods Receipt — UC-15)
+    Route::controller(PenerimaanBarangController::class)
+        ->prefix('inspeksi-qc')
+        ->name('inspeksi-qc.')
+        ->group(function () {
+            Route::get('/', 'index')->can('viewAny', PenerimaanBarang::class)->name('index');
+            Route::get('/create', 'create')->can('create', PenerimaanBarang::class)->name('create');
+            Route::post('/', 'store')->can('create', PenerimaanBarang::class)->name('store');
+            Route::get('/item/{itemUuid}/foto/{index}', 'photo')
+                ->whereUuid('itemUuid')
+                ->whereNumber('index')
+                ->can('viewAny', PenerimaanBarang::class)
+                ->name('photo');
+            Route::get('/{uuid}', 'show')->whereUuid('uuid')->can('viewAny', PenerimaanBarang::class)->name('show');
         });
 
     // Manajemen Perusahaan (Tenant Owner & Vendor manage their company profile)

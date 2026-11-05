@@ -136,4 +136,17 @@ class PurchaseOrderPolicy
             && $user->hasPermission('pengiriman.create')
             && $purchaseOrder->status->bisaDikirim();
     }
+
+    /**
+     * Determine whether the Tenant QC Gudang or Owner can inspect received goods for this PO (UC-15, BR-09).
+     */
+    public function inspeksi(User $user, PurchaseOrder $purchaseOrder): bool
+    {
+        return ! $user->isSuperadmin()
+            && $user->tenant_id !== null
+            && (int) $user->tenant_id === (int) $purchaseOrder->perusahaan_buyer_id
+            && ($user->isQcGudang() || $user->isOwner())
+            && $user->hasPermission('penerimaan_barang.create')
+            && $purchaseOrder->status->bisaDiinspeksi();
+    }
 }

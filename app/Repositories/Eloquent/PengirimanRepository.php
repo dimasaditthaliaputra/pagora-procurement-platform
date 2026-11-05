@@ -148,6 +148,7 @@ class PengirimanRepository implements PengirimanRepositoryInterface
                 'tenant:id,uuid,company_name,address',
                 'vendor:id,uuid,company_name',
                 'poItems.komoditas:id,uuid,name,unit',
+                'sengketa',
                 'invoices.sengketa',
             ])
             ->first();

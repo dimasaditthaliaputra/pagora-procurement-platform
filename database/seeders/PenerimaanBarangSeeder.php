@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\StatusItemPenerimaan;
+use App\Enums\StatusPengiriman;
 use App\Enums\StatusPurchaseOrder;
 use App\Models\PenerimaanBarang;
 use App\Models\PenerimaanBarangItem;
+use App\Models\Pengiriman;
 use App\Models\PurchaseOrder;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -25,6 +28,7 @@ class PenerimaanBarangSeeder extends Seeder
         $qc = User::where('email', 'qc@pagora.test')->firstOrFail();
 
         $poList = PurchaseOrder::whereIn('status', [
+            StatusPurchaseOrder::PartiallyReceived->value,
             StatusPurchaseOrder::DiterimaGudang->value,
             StatusPurchaseOrder::Ditagih->value,
             StatusPurchaseOrder::Lunas->value,
@@ -36,24 +40,41 @@ class PenerimaanBarangSeeder extends Seeder
                 continue;
             }
 
-            $isSengketa = $po->status === StatusPurchaseOrder::Sengketa;
+            $shipment = $po->pengiriman->first();
+            if ($shipment === null) {
+                $shipment = Pengiriman::create([
+                    'purchase_order_id' => $po->id,
+                    'route' => 'Darat',
+                    'carrier_name' => 'Armada Vendor',
+                    'vehicle_plate_number' => 'N 8001 PG',
+                    'estimated_arrival_date' => now()->subDay()->toDateString(),
+                    'status' => StatusPengiriman::Arrived->value,
+                    'reported_by' => $qc->id,
+                ]);
+            }
+
+            $isSengketa = in_array($po->status, [
+                StatusPurchaseOrder::Sengketa,
+                StatusPurchaseOrder::PartiallyReceived,
+            ], true);
 
             $penerimaan = PenerimaanBarang::create([
                 'purchase_order_id' => $po->id,
-                'check_by' => $qc->id,
-                'no_polisi_dicocokkan' => $po->pengiriman->first()?->vehicle_plate_number,
-                'tanggal_pemeriksaan' => now()->subDay(),
-                'catatan' => $isSengketa ? 'Sebagian barang kondisi rusak.' : null,
+                'shipment_id' => $shipment->id,
+                'inspected_by' => $qc->id,
+                'matched_plate_number' => $shipment->vehicle_plate_number,
+                'inspected_at' => now()->subDay(),
+                'notes' => $isSengketa ? 'Sebagian barang kondisi rusak pada saat pemeriksaan di dermaga gudang.' : null,
             ]);
 
             foreach ($po->poItems as $poItem) {
                 PenerimaanBarangItem::create([
-                    'penerimaan_barang_id' => $penerimaan->id,
-                    'po_item_id' => $poItem->id,
-                    'jumlah_diterima' => $isSengketa ? $poItem->jumlah_pesanan * 0.8 : $poItem->jumlah_pesanan,
-                    'status' => $isSengketa ? 'ditolak_sebagian' : 'diterima',
-                    'catatan' => $isSengketa ? 'Kondisi barang tidak sesuai spesifikasi — kemasan rusak.' : null,
-                    'foto_bukti_penolakan' => $isSengketa ? 'penerimaan/bukti/sengketa-foto-1.jpg' : null,
+                    'goods_receipt_id' => $penerimaan->id,
+                    'purchase_order_item_id' => $poItem->id,
+                    'received_quantity' => $isSengketa ? $poItem->jumlah_pesanan * 0.8 : $poItem->jumlah_pesanan,
+                    'status' => $isSengketa ? StatusItemPenerimaan::Rejected->value : StatusItemPenerimaan::Accepted->value,
+                    'notes' => $isSengketa ? 'Kondisi barang tidak sesuai spesifikasi — kemasan rusak.' : null,
+                    'rejection_photos' => $isSengketa ? ['goods-receipts/rejections/sengketa-foto-1.jpg'] : null,
                 ]);
             }
         }

@@ -57,4 +57,12 @@ enum StatusPurchaseOrder: string
             self::PartiallyReceived,
         ], true);
     }
+
+    /**
+     * Apakah PO dapat diinspeksi fisiknya oleh QC Gudang / Owner (BR-09, UC-15).
+     */
+    public function bisaDiinspeksi(): bool
+    {
+        return $this === self::DalamPengiriman;
+    }
 }

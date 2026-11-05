@@ -57,6 +57,7 @@ const mainNavItems = [
     { title: 'Katalog Produk', icon: Package, href: '#' },
     { title: 'Purchase Order', icon: FileText, href: '/purchase-order', routeName: 'purchase-order', ability: 'purchase_order.view_any' },
     { title: 'Pengiriman', icon: Truck, href: '/pengiriman', routeName: 'pengiriman', ability: 'pengiriman.view_any' },
+    { title: 'Inspeksi QC', icon: ClipboardCheck, href: '/inspeksi-qc', routeName: 'inspeksi-qc', ability: 'penerimaan_barang.view_any' },
 ];
 
 const masterNavItems = [
@@ -68,7 +69,6 @@ const masterNavItems = [
 ];
 
 const managementNavItems = [
-    { title: 'Inspeksi QC', icon: ClipboardCheck, href: '#' },
     { title: 'Laporan', icon: BarChart3, href: '#' },
     { title: 'Notifikasi', icon: Bell, href: '/notifikasi', routeName: 'notifications.index' },
     { title: 'Profil Perusahaan', icon: Building2, href: '/manajemen/perusahaan', routeName: 'manajemen.perusahaan.index', ability: 'perusahaan.view' },

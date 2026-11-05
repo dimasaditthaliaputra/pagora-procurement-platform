@@ -255,7 +255,19 @@ class PengirimanService
      */
     private function resolveOpenDisputeId(PurchaseOrder $po): ?int
     {
-        if ($po->status !== StatusPurchaseOrder::PartiallyReceived || ! $po->relationLoaded('invoices')) {
+        if ($po->status !== StatusPurchaseOrder::PartiallyReceived) {
+            return null;
+        }
+
+        if ($po->relationLoaded('sengketa')) {
+            foreach ($po->sengketa as $dispute) {
+                if ($dispute->tanggal_selesai === null && $dispute->status !== StatusSengketa::Selesai) {
+                    return (int) $dispute->id;
+                }
+            }
+        }
+
+        if (! $po->relationLoaded('invoices')) {
             return null;
         }
 

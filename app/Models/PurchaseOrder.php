@@ -137,7 +137,17 @@ class PurchaseOrder extends Model
 
     public function penerimaanBarang(): HasMany
     {
-        return $this->hasMany(PenerimaanBarang::class, 'purchase_order_id');
+        return $this->hasMany(PenerimaanBarang::class, 'purchase_order_id')->orderByDesc('inspected_at')->orderByDesc('id');
+    }
+
+    public function goodsReceipts(): HasMany
+    {
+        return $this->penerimaanBarang();
+    }
+
+    public function sengketa(): HasMany
+    {
+        return $this->hasMany(Sengketa::class, 'purchase_order_id')->orderByDesc('tanggal_dibuka')->orderByDesc('id');
     }
 
     public function invoices(): HasMany

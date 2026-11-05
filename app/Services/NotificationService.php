@@ -108,6 +108,11 @@ class NotificationService
             return in_array($roleName, [RoleName::Owner, RoleName::Purchasing, RoleName::QcGudang, RoleName::Vendor], true);
         }
 
+        // Inspeksi QC Gudang: Tenant internal roles and Vendor
+        if (str_starts_with($path, '/inspeksi-qc')) {
+            return in_array($roleName, [RoleName::Owner, RoleName::Manajemen, RoleName::Purchasing, RoleName::QcGudang, RoleName::Vendor], true);
+        }
+
         // Kerja Sama / Kemitraan: Only Owner, Manajemen, and Vendor
         if (str_starts_with($path, '/kerja-sama') || str_starts_with($path, '/master/vendor')) {
             return in_array($roleName, [RoleName::Owner, RoleName::Manajemen, RoleName::Vendor, RoleName::Superadmin], true);

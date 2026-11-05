@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use App\Models\KerjaSama;
+use App\Models\PenerimaanBarang;
 use App\Models\Pengiriman;
 use App\Policies\KerjaSamaPolicy;
+use App\Policies\PenerimaanBarangPolicy;
 use App\Policies\PengirimanPolicy;
 use App\Repositories\Contracts\KerjaSamaRepositoryInterface;
 use App\Repositories\Eloquent\KerjaSamaRepository;
@@ -37,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
         DB::prohibitDestructiveCommands($this->app->isProduction());
         Gate::policy(KerjaSama::class, KerjaSamaPolicy::class);
         Gate::policy(Pengiriman::class, PengirimanPolicy::class);
+        Gate::policy(PenerimaanBarang::class, PenerimaanBarangPolicy::class);
 
         $this->configureDevelopmentDiagnostics();
         $this->configureSlowQueryLogging();

@@ -14,13 +14,23 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'uuid',
+    'purchase_order_id',
+    'purchase_order_item_id',
     'invoice_id',
+    'trigger_type',
+    'reason',
     'dibuka_oleh',
     'status',
     'tanggal_dibuka',
     'tanggal_selesai',
 ])]
-#[Hidden(['id'])]
+#[Hidden([
+    'id',
+    'purchase_order_id',
+    'purchase_order_item_id',
+    'invoice_id',
+    'dibuka_oleh',
+])]
 class Sengketa extends Model
 {
     use HasUuids;
@@ -62,6 +72,16 @@ class Sengketa extends Model
         ];
     }
 
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
+    }
+
+    public function poItem(): BelongsTo
+    {
+        return $this->belongsTo(PoItem::class, 'purchase_order_item_id');
+    }
+
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class, 'invoice_id');
@@ -74,6 +94,6 @@ class Sengketa extends Model
 
     public function logs(): HasMany
     {
-        return $this->hasMany(LogSengketa::class, 'sengketa_id');
+        return $this->hasMany(LogSengketa::class, 'sengketa_id')->orderBy('created_at')->orderBy('id');
     }
 }

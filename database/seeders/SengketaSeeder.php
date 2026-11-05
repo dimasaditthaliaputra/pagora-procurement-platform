@@ -34,7 +34,11 @@ class SengketaSeeder extends Seeder
         }
 
         $sengketa = Sengketa::create([
+            'purchase_order_id' => $po->id,
+            'purchase_order_item_id' => null,
             'invoice_id' => $invoice->id,
+            'trigger_type' => 'amount_mismatch',
+            'reason' => 'Nominal invoice tidak sesuai dengan barang yang diterima di gudang.',
             'dibuka_oleh' => $userBuyer->id,
             'status' => StatusSengketa::DalamMediasi->value,
             'tanggal_dibuka' => now()->subDays(2),
@@ -42,14 +46,15 @@ class SengketaSeeder extends Seeder
         ]);
 
         $logs = [
-            [$userBuyer, 'Buyer membuka sengketa: nominal invoice tidak sesuai dengan barang yang diterima di gudang.'],
-            [$userManajemen, 'Sengketa diambil alih oleh manajemen. Status diubah ke Dalam Mediasi.'],
+            [$userBuyer, 'status_change', 'Buyer membuka sengketa: nominal invoice tidak sesuai dengan barang yang diterima di gudang.'],
+            [$userManajemen, 'note', 'Sengketa diambil alih oleh manajemen. Status diubah ke Dalam Mediasi.'],
         ];
 
-        foreach ($logs as [$user, $pesan]) {
+        foreach ($logs as [$user, $type, $pesan]) {
             LogSengketa::create([
                 'sengketa_id' => $sengketa->id,
                 'user_id' => $user->id,
+                'type' => $type,
                 'isi_pesan' => $pesan,
                 'file_bukti' => null,
             ]);

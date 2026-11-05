@@ -14,10 +14,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'uuid',
     'sengketa_id',
     'user_id',
+    'type',
     'isi_pesan',
     'file_bukti',
 ])]
-#[Hidden(['id'])]
+#[Hidden([
+    'id',
+    'sengketa_id',
+    'user_id',
+])]
 class LogSengketa extends Model
 {
     use HasUuids;

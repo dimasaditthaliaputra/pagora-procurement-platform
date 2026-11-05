@@ -4,6 +4,7 @@ import {
     Building2,
     Calendar,
     Check,
+    ClipboardCheck,
     FileText,
     Lock,
     MapPin,
@@ -122,6 +123,14 @@ export default function PengirimanShow({ shipment: rawShipment }) {
                                 Kembali
                             </Link>
                         </Button>
+                        {shipment?.can?.inspect && po?.uuid && (
+                            <Button size="sm" asChild className="h-8 gap-1.5 shadow-sm">
+                                <Link href={`/inspeksi-qc/create?po=${po.uuid}`}>
+                                    <ClipboardCheck className="size-3.5" />
+                                    Lakukan Inspeksi Barang
+                                </Link>
+                            </Button>
+                        )}
                         {shipment?.can?.view_purchase_order && po?.uuid && (
                             <Button variant="outline" size="sm" asChild className="h-8">
                                 <Link href={`/purchase-order/${po.uuid}`}>

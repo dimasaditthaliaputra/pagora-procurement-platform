@@ -33,8 +33,8 @@ class DatabaseMigrationTest extends TestCase
             'po_item',
             'chat_negosiasi',
             'shipments',
-            'penerimaan_barang',
-            'penerimaan_barang_item',
+            'goods_receipts',
+            'goods_receipt_items',
             'invoice',
             'sengketa',
             'log_sengketa',
@@ -290,28 +290,32 @@ class DatabaseMigrationTest extends TestCase
         ]));
         $this->assertFalse(Schema::hasTable('pengiriman'));
 
-        $this->assertTrue(Schema::hasColumns('penerimaan_barang', [
+        $this->assertTrue(Schema::hasColumns('goods_receipts', [
             'id',
             'uuid',
             'purchase_order_id',
-            'check_by',
-            'no_polisi_dicocokkan',
-            'tanggal_pemeriksaan',
-            'catatan',
+            'shipment_id',
+            'inspected_by',
+            'matched_plate_number',
+            'inspected_at',
+            'notes',
             'created_at',
         ]));
+        $this->assertFalse(Schema::hasTable('penerimaan_barang'));
 
-        $this->assertTrue(Schema::hasColumns('penerimaan_barang_item', [
+        $this->assertTrue(Schema::hasColumns('goods_receipt_items', [
             'id',
             'uuid',
-            'penerimaan_barang_id',
-            'po_item_id',
-            'jumlah_diterima',
+            'goods_receipt_id',
+            'purchase_order_item_id',
+            'received_quantity',
             'status',
-            'catatan',
-            'foto_bukti_penolakan',
+            'notes',
+            'rejection_photos',
             'created_at',
         ]));
+        $this->assertFalse(Schema::hasTable('penerimaan_barang_item'));
+        $this->assertFalse(Schema::hasColumn('goods_receipt_items', 'foto_bukti_penolakan'));
 
         $this->assertTrue(Schema::hasColumns('invoice', [
             'id',
@@ -330,7 +334,11 @@ class DatabaseMigrationTest extends TestCase
         $this->assertTrue(Schema::hasColumns('sengketa', [
             'id',
             'uuid',
+            'purchase_order_id',
+            'purchase_order_item_id',
             'invoice_id',
+            'trigger_type',
+            'reason',
             'dibuka_oleh',
             'status',
             'tanggal_dibuka',
@@ -343,6 +351,7 @@ class DatabaseMigrationTest extends TestCase
             'uuid',
             'sengketa_id',
             'user_id',
+            'type',
             'isi_pesan',
             'file_bukti',
             'created_at',

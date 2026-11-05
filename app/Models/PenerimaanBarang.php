@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,19 +15,25 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'uuid',
     'purchase_order_id',
-    'check_by',
-    'no_polisi_dicocokkan',
-    'tanggal_pemeriksaan',
-    'catatan',
+    'shipment_id',
+    'inspected_by',
+    'matched_plate_number',
+    'inspected_at',
+    'notes',
 ])]
-#[Hidden(['id'])]
+#[Hidden([
+    'id',
+    'purchase_order_id',
+    'shipment_id',
+    'inspected_by',
+])]
 class PenerimaanBarang extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUuids;
 
     public const UPDATED_AT = null;
 
-    protected $table = 'penerimaan_barang';
+    protected $table = 'goods_receipts';
 
     /**
      * Columns that store UUIDs.
@@ -54,7 +61,7 @@ class PenerimaanBarang extends Model
     protected function casts(): array
     {
         return [
-            'tanggal_pemeriksaan' => 'datetime',
+            'inspected_at' => 'datetime',
             'created_at' => 'datetime',
         ];
     }
@@ -64,13 +71,23 @@ class PenerimaanBarang extends Model
         return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
     }
 
+    public function shipment(): BelongsTo
+    {
+        return $this->belongsTo(Pengiriman::class, 'shipment_id');
+    }
+
+    public function inspector(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'inspected_by');
+    }
+
     public function pemeriksa(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'check_by');
+        return $this->inspector();
     }
 
     public function items(): HasMany
     {
-        return $this->hasMany(PenerimaanBarangItem::class, 'penerimaan_barang_id');
+        return $this->hasMany(PenerimaanBarangItem::class, 'goods_receipt_id')->orderBy('id');
     }
 }

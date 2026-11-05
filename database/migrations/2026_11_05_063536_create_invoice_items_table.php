@@ -1,0 +1,35 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('invoice_items', function (Blueprint $table) {
+            $table->id();
+            $table->uuid('uuid')->unique();
+
+            $table->foreignId('invoice_id')
+                ->constrained('invoice')
+                ->restrictOnDelete();
+
+            $table->foreignId('purchase_order_item_id')
+                ->constrained('po_item')
+                ->restrictOnDelete();
+
+            $table->decimal('quantity', 15, 3);
+            $table->decimal('unit_price', 15, 2);
+            $table->decimal('subtotal', 17, 2);
+
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('invoice_items');
+    }
+};

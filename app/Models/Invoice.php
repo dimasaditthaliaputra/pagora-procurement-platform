@@ -14,11 +14,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'uuid',
     'purchase_order_id',
+    'vendor_id',
     'nomor_invoice_vendor',
     'jumlah_tagihan',
     'file_invoice',
     'tanggal_invoice',
     'status_matching',
+    'matching_result',
     'diverifikasi_oleh',
     'diverifikasi_pada',
 ])]
@@ -59,6 +61,7 @@ class Invoice extends Model
         return [
             'jumlah_tagihan' => 'decimal:2',
             'tanggal_invoice' => 'date',
+            'matching_result' => 'array',
             'diverifikasi_pada' => 'datetime',
             'created_at' => 'datetime',
         ];
@@ -69,9 +72,19 @@ class Invoice extends Model
         return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
     }
 
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class, 'vendor_id');
+    }
+
     public function verifikator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'diverifikasi_oleh');
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(InvoiceItem::class, 'invoice_id');
     }
 
     public function sengketa(): HasMany

@@ -80,4 +80,9 @@ class PoItem extends Model
     {
         return $this->hasMany(Sengketa::class, 'purchase_order_item_id');
     }
+
+    public function invoiceItems(): HasMany
+    {
+        return $this->hasMany(InvoiceItem::class, 'purchase_order_item_id');
+    }
 }

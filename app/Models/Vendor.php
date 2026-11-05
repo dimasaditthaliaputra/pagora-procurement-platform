@@ -126,4 +126,12 @@ class Vendor extends Model
     {
         return $this->hasMany(User::class, 'vendor_id');
     }
+
+    /**
+     * Invoices issued by this vendor.
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class, 'vendor_id');
+    }
 }

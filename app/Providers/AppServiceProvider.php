@@ -1,14 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
+use App\Models\Invoice;
 use App\Models\KerjaSama;
 use App\Models\PenerimaanBarang;
 use App\Models\Pengiriman;
+use App\Policies\InvoicePolicy;
 use App\Policies\KerjaSamaPolicy;
 use App\Policies\PenerimaanBarangPolicy;
 use App\Policies\PengirimanPolicy;
+use App\Repositories\Contracts\InvoiceRepositoryInterface;
 use App\Repositories\Contracts\KerjaSamaRepositoryInterface;
+use App\Repositories\Eloquent\InvoiceRepository;
 use App\Repositories\Eloquent\KerjaSamaRepository;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\QueryExecuted;
@@ -19,35 +25,32 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         $this->app->bind(
             KerjaSamaRepositoryInterface::class,
             KerjaSamaRepository::class
         );
+
+        $this->app->bind(
+            InvoiceRepositoryInterface::class,
+            InvoiceRepository::class
+        );
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        // Block migrate:fresh, db:wipe, migrate:reset, etc. on production.
         DB::prohibitDestructiveCommands($this->app->isProduction());
+
         Gate::policy(KerjaSama::class, KerjaSamaPolicy::class);
         Gate::policy(Pengiriman::class, PengirimanPolicy::class);
         Gate::policy(PenerimaanBarang::class, PenerimaanBarangPolicy::class);
+        Gate::policy(Invoice::class, InvoicePolicy::class);
 
         $this->configureDevelopmentDiagnostics();
         $this->configureSlowQueryLogging();
     }
 
-    /**
-     * Local only: log (not throw) N+1 lazy loading so existing pages keep working while it is fixed.
-     */
     private function configureDevelopmentDiagnostics(): void
     {
         if (! $this->app->isLocal()) {
@@ -55,6 +58,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Model::preventLazyLoading();
+
         Model::handleLazyLoadingViolationUsing(function (Model $model, string $relation): void {
             Log::channel('single')->debug('Lazy loading terdeteksi (potensi N+1).', [
                 'model' => $model::class,
@@ -63,9 +67,6 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
-    /**
-     * Log queries slower than `database.slow_query_ms` (all environments; set to 0 to disable).
-     */
     private function configureSlowQueryLogging(): void
     {
         $thresholdMs = (int) config('database.slow_query_ms', 0);
@@ -82,7 +83,6 @@ class AppServiceProvider extends ServiceProvider
             Log::warning('Query lambat terdeteksi.', [
                 'connection' => $query->connectionName,
                 'time_ms' => $query->time,
-                // Bindings are omitted: they may contain personal data or credentials.
                 'sql' => $query->sql,
             ]);
         });

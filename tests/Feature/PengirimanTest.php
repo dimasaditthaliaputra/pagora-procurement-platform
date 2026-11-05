@@ -272,6 +272,7 @@ class PengirimanTest extends TestCase
         $invoice = Invoice::create([
             'uuid' => (string) Str::uuid(),
             'purchase_order_id' => $po->id,
+            'vendor_id' => $this->vendorA->id,
             'nomor_invoice_vendor' => 'INV-2026-001',
             'jumlah_tagihan' => 2900000,
             'tanggal_invoice' => now()->toDateString(),

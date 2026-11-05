@@ -31,6 +31,9 @@ class PermissionSeeder extends Seeder
         'penerimaan_barang.view_any' => ['Lihat hasil inspeksi QC penerimaan barang', [...self::TENANT, 'vendor'], ['owner', 'manajemen', 'purchasing', 'qc_gudang', 'vendor']],
         'penerimaan_barang.create' => ['Lakukan inspeksi QC penerimaan barang', ['owner', 'qc_gudang'], ['owner', 'qc_gudang']],
 
+        'sengketa.view_any' => ['Lihat & unduh log sengketa pengadaan', self::TENANT, ['owner', 'manajemen', 'purchasing']],
+        'sengketa.review' => ['Tinjau & mediasi kendala sengketa pengadaan', ['owner', 'manajemen'], ['owner', 'manajemen']],
+
         'komoditas.view_any' => ['Lihat master komoditas', [...self::PLATFORM, ...self::TENANT], ['superadmin']],
         'komoditas.create' => ['Tambah komoditas', self::PLATFORM, ['superadmin']],
         'komoditas.update' => ['Ubah komoditas', self::PLATFORM, ['superadmin']],

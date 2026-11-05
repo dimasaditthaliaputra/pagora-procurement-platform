@@ -15,6 +15,7 @@ use App\Repositories\Contracts\PermissionRepositoryInterface;
 use App\Repositories\Contracts\PerusahaanBuyerRepositoryInterface;
 use App\Repositories\Contracts\PurchaseOrderRepositoryInterface;
 use App\Repositories\Contracts\RoleRepositoryInterface;
+use App\Repositories\Contracts\SengketaRepositoryInterface;
 use App\Repositories\Contracts\UndanganVendorRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Contracts\VendorRepositoryInterface;
@@ -29,6 +30,7 @@ use App\Repositories\Eloquent\PermissionRepository;
 use App\Repositories\Eloquent\PerusahaanBuyerRepository;
 use App\Repositories\Eloquent\PurchaseOrderRepository;
 use App\Repositories\Eloquent\RoleRepository;
+use App\Repositories\Eloquent\SengketaRepository;
 use App\Repositories\Eloquent\UndanganVendorRepository;
 use App\Repositories\Eloquent\UserRepository;
 use App\Repositories\Eloquent\VendorRepository;
@@ -104,6 +106,11 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             PenerimaanBarangRepositoryInterface::class,
             PenerimaanBarangRepository::class
+        );
+
+        $this->app->bind(
+            SengketaRepositoryInterface::class,
+            SengketaRepository::class
         );
 
         $this->app->bind(

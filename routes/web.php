@@ -17,6 +17,7 @@ use App\Http\Controllers\PerusahaanController;
 use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\RoleAksesController;
+use App\Http\Controllers\SengketaController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorRegistrationController;
 use App\Http\Controllers\VerifikasiDokumenController;
@@ -29,6 +30,7 @@ use App\Models\Pengiriman;
 use App\Models\PerusahaanBuyer;
 use App\Models\PurchaseOrder;
 use App\Models\Role;
+use App\Models\Sengketa;
 use App\Models\User;
 use App\Models\Vendor;
 use Illuminate\Support\Facades\Route;
@@ -157,6 +159,28 @@ Route::middleware('auth')->group(function () {
                 ->can('viewAny', PenerimaanBarang::class)
                 ->name('photo');
             Route::get('/{uuid}', 'show')->whereUuid('uuid')->can('viewAny', PenerimaanBarang::class)->name('show');
+        });
+
+    // Log Sengketa — Meninjau Kendala Pengadaan (UC-18, FR-31)
+    Route::controller(SengketaController::class)
+        ->prefix('log-sengketa')
+        ->name('log-sengketa.')
+        ->group(function () {
+            Route::get('/', 'index')->can('viewAny', Sengketa::class)->name('index');
+            Route::get('/{uuid}', 'show')->whereUuid('uuid')->can('viewAny', Sengketa::class)->name('show');
+            Route::get('/{uuid}/unduh', 'export')->whereUuid('uuid')->can('viewAny', Sengketa::class)->name('export');
+            Route::post('/{uuid}/tinjauan', 'storeReview')->whereUuid('uuid')->name('review.store');
+            Route::get('/{uuid}/foto-qc/{itemUuid}/{index}', 'qcPhoto')
+                ->whereUuid('uuid')
+                ->whereUuid('itemUuid')
+                ->whereNumber('index')
+                ->can('viewAny', Sengketa::class)
+                ->name('qc-photo');
+            Route::get('/{uuid}/lampiran/{logUuid}', 'attachment')
+                ->whereUuid('uuid')
+                ->whereUuid('logUuid')
+                ->can('viewAny', Sengketa::class)
+                ->name('attachment');
         });
 
     // Manajemen Perusahaan (Tenant Owner & Vendor manage their company profile)

@@ -6,9 +6,11 @@ namespace App\Models;
 
 use App\Enums\PemicuSengketa;
 use App\Enums\StatusSengketa;
+use Database\Factories\SengketaFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -34,7 +36,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class Sengketa extends Model
 {
-    use HasUuids;
+    /** @use HasFactory<SengketaFactory> */
+    use HasFactory, HasUuids;
 
     public const UPDATED_AT = null;
 

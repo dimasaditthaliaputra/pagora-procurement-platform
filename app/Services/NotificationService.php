@@ -113,6 +113,11 @@ class NotificationService
             return in_array($roleName, [RoleName::Owner, RoleName::Manajemen, RoleName::Purchasing, RoleName::QcGudang, RoleName::Vendor], true);
         }
 
+        // Log Sengketa & Kendala Pengadaan: Owner, Manajemen, and Purchasing
+        if (str_starts_with($path, '/log-sengketa')) {
+            return in_array($roleName, [RoleName::Owner, RoleName::Manajemen, RoleName::Purchasing], true);
+        }
+
         // Kerja Sama / Kemitraan: Only Owner, Manajemen, and Vendor
         if (str_starts_with($path, '/kerja-sama') || str_starts_with($path, '/master/vendor')) {
             return in_array($roleName, [RoleName::Owner, RoleName::Manajemen, RoleName::Vendor, RoleName::Superadmin], true);

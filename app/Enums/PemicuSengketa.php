@@ -64,6 +64,36 @@ enum PemicuSengketa: string
     }
 
     /**
+     * All enum values as strings for validation rules.
+     *
+     * @return list<string>
+     */
+    public static function values(): array
+    {
+        return array_map(
+            static fn (self $case): string => $case->value,
+            self::cases()
+        );
+    }
+
+    /**
+     * All dispute trigger options formatted for frontend Select / filter controls.
+     *
+     * @return list<array{value: string, label: string, description: string}>
+     */
+    public static function allOptions(): array
+    {
+        return array_map(
+            static fn (self $case): array => [
+                'value' => $case->value,
+                'label' => $case->label(),
+                'description' => $case->description(),
+            ],
+            self::cases()
+        );
+    }
+
+    /**
      * Formatted options for frontend Select / radio controls.
      *
      * @return list<array{value: string, label: string, description: string}>

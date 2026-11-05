@@ -59,6 +59,7 @@ class RoleAccessTest extends TestCase
     {
         $none = [
             'purchase_order.view_any' => false,
+            'pengiriman.view_any' => false,
             'komoditas.view_any' => false,
             'vendor.view_any' => false,
             'dokumen_legalitas.view_any' => false,
@@ -84,16 +85,25 @@ class RoleAccessTest extends TestCase
             'owner' => [RoleName::Owner, [
                 ...$none,
                 'purchase_order.view_any' => true,
+                'pengiriman.view_any' => true,
                 'vendor.view_any' => true,
                 'perusahaan.view' => true,
                 'pengguna.view_any' => true,
             ]],
             'manajemen' => [RoleName::Manajemen, [...$none, 'vendor.view_any' => true]],
-            'purchasing' => [RoleName::Purchasing, [...$none, 'purchase_order.view_any' => true]],
-            'qc_gudang' => [RoleName::QcGudang, $none],
+            'purchasing' => [RoleName::Purchasing, [
+                ...$none,
+                'purchase_order.view_any' => true,
+                'pengiriman.view_any' => true,
+            ]],
+            'qc_gudang' => [RoleName::QcGudang, [
+                ...$none,
+                'pengiriman.view_any' => true,
+            ]],
             'vendor' => [RoleName::Vendor, [
                 ...$none,
                 'purchase_order.view_any' => true,
+                'pengiriman.view_any' => true,
                 'perusahaan.view' => true,
                 'pengguna.view_any' => true,
                 'kerja-sama.calon-mitra.view' => true,
@@ -134,6 +144,11 @@ class RoleAccessTest extends TestCase
             'manajemen opens pengaturan' => [RoleName::Manajemen, '/pengaturan/profil'],
             'purchasing opens manajemen perusahaan' => [RoleName::Purchasing, '/manajemen/perusahaan'],
             'superadmin opens manajemen perusahaan' => [RoleName::Superadmin, '/manajemen/perusahaan'],
+            'superadmin opens pengiriman' => [RoleName::Superadmin, '/pengiriman'],
+            'manajemen opens pengiriman' => [RoleName::Manajemen, '/pengiriman'],
+            'purchasing opens create pengiriman' => [RoleName::Purchasing, '/pengiriman/create'],
+            'owner opens create pengiriman' => [RoleName::Owner, '/pengiriman/create'],
+            'qc opens create pengiriman' => [RoleName::QcGudang, '/pengiriman/create'],
         ];
     }
 
@@ -279,7 +294,7 @@ class RoleAccessTest extends TestCase
                 ->component('Manajemen/RoleAkses/Index')
                 ->has('roles.data', 6)
                 ->where('roles.data', fn ($roles) => collect($roles)->firstWhere('name', 'owner')['users_count'] === 1)
-                ->has('permission_groups', 8)
+                ->has('permission_groups', 9)
             );
     }
 

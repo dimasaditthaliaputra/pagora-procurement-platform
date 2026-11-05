@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { Eye, Edit, MessagesSquare, MoreHorizontal, Send, Trash2 } from 'lucide-react';
+import { Eye, Edit, MessagesSquare, MoreHorizontal, Send, Trash2, Truck } from 'lucide-react';
 import { DataTableColumnHeader } from '@/Components/data-table/data-table-column-header';
 import { Button } from '@/Components/ui/button';
 import {
@@ -104,6 +104,14 @@ function ActionCell({ po, onKonfirmasi, onHapus }) {
                         <Link href={`/purchase-order/${po.uuid}/negosiasi`}>
                             <MessagesSquare className="mr-2 size-4" />
                             {po.status === 'negosiasi' ? 'Buka Negosiasi' : 'Riwayat Negosiasi'}
+                        </Link>
+                    </DropdownMenuItem>
+                )}
+                {po.can?.kirim && (
+                    <DropdownMenuItem asChild>
+                        <Link href={`/pengiriman/create?po=${po.uuid}`}>
+                            <Truck className="mr-2 size-4" />
+                            Laporkan Pengiriman
                         </Link>
                     </DropdownMenuItem>
                 )}

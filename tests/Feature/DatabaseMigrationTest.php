@@ -32,7 +32,7 @@ class DatabaseMigrationTest extends TestCase
             'purchase_order',
             'po_item',
             'chat_negosiasi',
-            'pengiriman',
+            'shipments',
             'penerimaan_barang',
             'penerimaan_barang_item',
             'invoice',
@@ -274,18 +274,21 @@ class DatabaseMigrationTest extends TestCase
             'created_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('pengiriman', [
+        $this->assertTrue(Schema::hasColumns('shipments', [
             'id',
             'uuid',
             'purchase_order_id',
-            'jalur_pengiriman',
-            'nama_armada_ekspedisi',
-            'no_polisi_armada',
-            'perkiraan_tanggal_tiba',
+            'dispute_id',
+            'route',
+            'carrier_name',
+            'vehicle_plate_number',
+            'estimated_arrival_date',
             'status',
-            'dilaporkan_oleh',
+            'reported_by',
             'created_at',
+            'updated_at',
         ]));
+        $this->assertFalse(Schema::hasTable('pengiriman'));
 
         $this->assertTrue(Schema::hasColumns('penerimaan_barang', [
             'id',

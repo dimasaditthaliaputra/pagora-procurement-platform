@@ -59,7 +59,7 @@
 | 15 | `purchase_orders` | `purchase_order` | `PurchaseOrder` | Header PO |
 | 16 | `purchase_order_items` | `po_item` | `PoItem` | Item PO |
 | 17 | `negotiation_messages` | `chat_negosiasi` | `ChatNegosiasi` | Pesan & tawaran (immutable) |
-| 18 | `shipments` | `pengiriman` | `Pengiriman` | Laporan pengiriman vendor |
+| 18 | `shipments` | ✅ `shipments` (modul 6; dulu `pengiriman`) | `Pengiriman` | Laporan pengiriman vendor |
 | 19 | `goods_receipts` | `penerimaan_barang` | `PenerimaanBarang` | Header inspeksi QC |
 | 20 | `goods_receipt_items` | `penerimaan_barang_item` | `PenerimaanBarangItem` | Hasil inspeksi per item |
 | 21 | `invoices` | `invoice` | `Invoice` | Tagihan vendor |
@@ -717,6 +717,7 @@ Cocok bila untuk setiap item: `invoice_items.quantity ≤ kuantitas diterima yan
 | 2026-11-02 | **Modul 4 selesai**: `kerja_sama` → `partnerships` (`tenant_id`, `vendor_id`, `status`, `rejection_reason`; kolom baru `requested_by` default `tenant`, `block_reason`, `blocked_by`, `blocked_at`); status `diajukan/aktif/ditolak/berakhir` → `pending/agreed/rejected/cancelled` + `blocked`. Blokir per Tenant (UC-19) belum dipindah dari `vendors.block_*` | — |
 | 2026-11-01 | **Modul 3 selesai**: `commodity_categories` [baru] (kategori dari `komoditas.kategori` dipindah ke FK `commodity_category_id`, kolom lama dihapus); `komoditas` → `commodities` (`name`, `unit`, `default_shrinkage_tolerance`, `api_reference_code`, `specification`, `is_active`); `tenant_commodities` [baru] (Tenant lama otomatis mengaktifkan semua komoditas aktif). `vendor_commodity_categories` ditunda | — |
 | 2026-11-03 | Tabel `notifications` [baru] untuk in-app notification bell menu & log notifikasi pengguna (UC-23, FR-43) | — |
+| 2026-11-05 | **Modul 6 (`shipments`) selesai**: `pengiriman` → `shipments` (`route`, `carrier_name`, `vehicle_plate_number`, `estimated_arrival_date`, `reported_by` NOT NULL; kolom baru `dispute_id` FK nullable ke `sengketa`, `updated_at`, index `purchase_order_id` & `status`); nilai status `in_transit` / `arrived` (`StatusPengiriman`); permission `pengiriman.view_any` & `pengiriman.create` (UC-14, FR-22, FR-23) | — |
 
 ## 12. Keputusan Teknis (2026-10-31)
 

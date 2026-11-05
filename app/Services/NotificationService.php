@@ -103,6 +103,11 @@ class NotificationService
             return in_array($roleName, [RoleName::Owner, RoleName::Purchasing, RoleName::Vendor], true);
         }
 
+        // Pengiriman Logistik: Owner, Purchasing, QC Gudang, and Vendor
+        if (str_starts_with($path, '/pengiriman')) {
+            return in_array($roleName, [RoleName::Owner, RoleName::Purchasing, RoleName::QcGudang, RoleName::Vendor], true);
+        }
+
         // Kerja Sama / Kemitraan: Only Owner, Manajemen, and Vendor
         if (str_starts_with($path, '/kerja-sama') || str_starts_with($path, '/master/vendor')) {
             return in_array($roleName, [RoleName::Owner, RoleName::Manajemen, RoleName::Vendor, RoleName::Superadmin], true);

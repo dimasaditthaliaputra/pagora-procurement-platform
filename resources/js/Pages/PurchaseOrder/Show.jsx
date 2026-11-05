@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Check, Edit, FileText, Lock, MessagesSquare, Send, Trash2, XCircle } from 'lucide-react';
+import { ArrowLeft, Check, Edit, Eye, FileText, Lock, MessagesSquare, Send, Trash2, Truck, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDate, formatNumber, formatRupiah } from '@/lib/format';
 import DashboardLayout from '@/Layouts/DashboardLayout';
@@ -35,7 +35,8 @@ const ALUR_LABEL = {
 
 function AlurStatus({ status }) {
     const batal = status === 'dibatalkan';
-    const current = ALUR.indexOf(status);
+    const mappedStatus = status === 'partially_received' ? 'dalam_pengiriman' : status;
+    const current = ALUR.indexOf(mappedStatus);
 
     return (
         <ol className="flex items-center gap-1 overflow-x-auto pb-1">
@@ -149,6 +150,14 @@ export default function PurchaseOrderShow({ purchase_order }) {
                                 </Link>
                             </Button>
                         )}
+                        {po.can?.kirim && (
+                            <Button size="sm" asChild className="h-8 cursor-pointer">
+                                <Link href={`/pengiriman/create?po=${po.uuid}`}>
+                                    <Truck className="mr-1.5 size-3.5" />
+                                    Laporkan Pengiriman
+                                </Link>
+                            </Button>
+                        )}
                     </div>
                 </div>
 
@@ -163,7 +172,9 @@ export default function PurchaseOrderShow({ purchase_order }) {
                         <Lock className="size-4" />
                         <AlertTitle>Dokumen terkunci</AlertTitle>
                         <AlertDescription>
-                            Harga sudah disepakati sehingga rincian dan harga PO tidak dapat diubah lagi.
+                            {po.quantity_locked
+                                ? 'Status logistik pengiriman telah dilaporkan sehingga rincian harga dan kuantitas Purchase Order terkunci mutlak dan tidak dapat diubah lagi.'
+                                : 'Harga sudah disepakati sehingga rincian dan harga PO tidak dapat diubah lagi.'}
                         </AlertDescription>
                     </Alert>
                 )}
@@ -258,6 +269,54 @@ export default function PurchaseOrderShow({ purchase_order }) {
                         </CardContent>
                     </Card>
                 </div>
+
+                {(po.shipments?.length ?? 0) > 0 && (
+                    <Card className="shadow-sm">
+                        <CardHeader className="py-3.5 px-5 border-b">
+                            <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                <Truck className="size-4 text-primary" />
+                                Riwayat Pengiriman Logistik
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="pl-5">Jalur</TableHead>
+                                        <TableHead>Armada / Ekspedisi</TableHead>
+                                        <TableHead>Nomor Plat</TableHead>
+                                        <TableHead>Estimasi Tiba (ETA)</TableHead>
+                                        <TableHead>Status Logistik</TableHead>
+                                        <TableHead className="text-right pr-5">Detail</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {po.shipments.map((ship) => (
+                                        <TableRow key={ship.uuid}>
+                                            <TableCell className="pl-5 font-medium">{ship.route}</TableCell>
+                                            <TableCell>{ship.carrier_name}</TableCell>
+                                            <TableCell className="font-mono text-xs font-semibold">
+                                                {ship.vehicle_plate_number}
+                                            </TableCell>
+                                            <TableCell className="tabular-nums">
+                                                {formatDate(ship.estimated_arrival_date)}
+                                            </TableCell>
+                                            <TableCell>{ship.status_label}</TableCell>
+                                            <TableCell className="text-right pr-5">
+                                                <Button variant="ghost" size="sm" asChild className="h-7 px-2 text-xs">
+                                                    <Link href={`/pengiriman/${ship.uuid}`}>
+                                                        <Eye className="mr-1 size-3.5" />
+                                                        Detail
+                                                    </Link>
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             <KonfirmasiNegosiasiDialog

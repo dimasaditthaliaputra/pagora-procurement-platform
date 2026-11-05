@@ -56,7 +56,7 @@ const mainNavItems = [
     { title: 'Pengadaan', icon: ShoppingCart, href: '#', badge: 'Baru' },
     { title: 'Katalog Produk', icon: Package, href: '#' },
     { title: 'Purchase Order', icon: FileText, href: '/purchase-order', routeName: 'purchase-order', ability: 'purchase_order.view_any' },
-    { title: 'Pengiriman', icon: Truck, href: '#' },
+    { title: 'Pengiriman', icon: Truck, href: '/pengiriman', routeName: 'pengiriman', ability: 'pengiriman.view_any' },
 ];
 
 const masterNavItems = [

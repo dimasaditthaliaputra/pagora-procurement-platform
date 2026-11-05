@@ -11,6 +11,7 @@ enum StatusPurchaseOrder: string
     case Negosiasi = 'negosiasi';
     case Disepakati = 'disepakati';
     case DalamPengiriman = 'dalam_pengiriman';
+    case PartiallyReceived = 'partially_received';
     case DiterimaGudang = 'diterima_gudang';
     case Ditagih = 'ditagih';
     case Lunas = 'lunas';
@@ -25,6 +26,7 @@ enum StatusPurchaseOrder: string
             self::Negosiasi => 'Negosiasi',
             self::Disepakati => 'Disepakati',
             self::DalamPengiriman => 'Dalam Pengiriman',
+            self::PartiallyReceived => 'Diterima Sebagian',
             self::DiterimaGudang => 'Diterima Gudang',
             self::Ditagih => 'Ditagih',
             self::Lunas => 'Lunas',
@@ -42,6 +44,17 @@ enum StatusPurchaseOrder: string
             self::Draft,
             self::MenungguTanggapan,
             self::Negosiasi,
-        ]);
+        ], true);
+    }
+
+    /**
+     * Apakah PO dapat dilaporkan pengiriman fisiknya oleh Vendor (BR-09, UC-14).
+     */
+    public function bisaDikirim(): bool
+    {
+        return in_array($this, [
+            self::Disepakati,
+            self::PartiallyReceived,
+        ], true);
     }
 }

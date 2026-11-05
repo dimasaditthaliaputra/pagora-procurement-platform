@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\StatusPengiriman;
 use App\Enums\StatusPurchaseOrder;
 use App\Models\Pengiriman;
 use App\Models\PurchaseOrder;
@@ -26,6 +27,7 @@ class PengirimanSeeder extends Seeder
 
         $poList = PurchaseOrder::whereIn('status', [
             StatusPurchaseOrder::DalamPengiriman->value,
+            StatusPurchaseOrder::PartiallyReceived->value,
             StatusPurchaseOrder::DiterimaGudang->value,
             StatusPurchaseOrder::Ditagih->value,
             StatusPurchaseOrder::Lunas->value,
@@ -41,12 +43,14 @@ class PengirimanSeeder extends Seeder
 
             Pengiriman::create([
                 'purchase_order_id' => $po->id,
-                'jalur_pengiriman' => 'Darat',
-                'nama_armada_ekspedisi' => $isVendor2 ? 'JNE Cargo' : 'Wahana Express',
-                'no_polisi_armada' => $isVendor2 ? 'S 1234 AB' : 'L 5678 CD',
-                'perkiraan_tanggal_tiba' => now()->subDays(2)->toDateString(),
-                'status' => $po->status === StatusPurchaseOrder::DalamPengiriman ? 'dalam_perjalanan' : 'tiba',
-                'dilaporkan_oleh' => $isVendor2 ? $userVendor2->id : $userVendor1->id,
+                'route' => 'Darat',
+                'carrier_name' => $isVendor2 ? 'JNE Cargo' : 'Wahana Express',
+                'vehicle_plate_number' => $isVendor2 ? 'S 1234 AB' : 'L 5678 CD',
+                'estimated_arrival_date' => now()->subDays(2)->toDateString(),
+                'status' => $po->status === StatusPurchaseOrder::DalamPengiriman
+                    ? StatusPengiriman::InTransit->value
+                    : StatusPengiriman::Arrived->value,
+                'reported_by' => $isVendor2 ? $userVendor2->id : $userVendor1->id,
             ]);
         }
     }

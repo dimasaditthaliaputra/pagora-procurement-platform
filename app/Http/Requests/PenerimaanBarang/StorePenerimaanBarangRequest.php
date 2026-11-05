@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\PenerimaanBarang;
 
+use App\Enums\PemicuSengketa;
 use App\Enums\StatusItemPenerimaan;
 use App\Models\PenerimaanBarang;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Validation rules for recording Goods Receipt / QC Inspection (`UC-15`, `FR-24`..`FR-26`, `BR-10`).
+ * Validation rules for recording Goods Receipt / QC Inspection & Damage Reporting (`UC-15`, `FR-24`..`FR-26`, `BR-10`).
  */
 class StorePenerimaanBarangRequest extends FormRequest
 {
@@ -41,6 +42,11 @@ class StorePenerimaanBarangRequest extends FormRequest
                 'string',
                 Rule::in(array_column(StatusItemPenerimaan::cases(), 'value')),
             ],
+            'items.*.trigger_type' => [
+                'nullable',
+                'string',
+                Rule::in(PemicuSengketa::qcInspectionValues()),
+            ],
             'items.*.received_quantity' => ['required', 'numeric', 'min:0'],
             'items.*.notes' => ['nullable', 'string', 'max:1000'],
             'items.*.photos' => ['nullable', 'array', 'max:5'],
@@ -64,10 +70,11 @@ class StorePenerimaanBarangRequest extends FormRequest
             'items' => 'daftar item pemeriksaan',
             'items.*.po_item_uuid' => 'item pesanan',
             'items.*.status' => 'opsi status pemeriksaan',
+            'items.*.trigger_type' => 'kategori kerusakan / kendala barang',
             'items.*.received_quantity' => 'kuantitas fisik diterima',
-            'items.*.notes' => 'catatan ketidaksesuaian',
-            'items.*.photos' => 'foto bukti ketidaksesuaian',
-            'items.*.photos.*' => 'berkas foto bukti ketidaksesuaian',
+            'items.*.notes' => 'catatan kerusakan / ketidaksesuaian',
+            'items.*.photos' => 'foto bukti kerusakan',
+            'items.*.photos.*' => 'berkas foto bukti kerusakan',
         ];
     }
 
@@ -89,16 +96,16 @@ class StorePenerimaanBarangRequest extends FormRequest
             'items.*.po_item_uuid.uuid' => 'Format identifier item pesanan tidak valid.',
             'items.*.status.required' => 'Status hasil pemeriksaan item (Disetujui / Ditolak) wajib dipilih.',
             'items.*.status.in' => 'Status hasil pemeriksaan item harus berupa Disetujui atau Ditolak.',
+            'items.*.trigger_type.in' => 'Kategori kerusakan / kendala barang yang dipilih tidak valid.',
             'items.*.received_quantity.required' => 'Kuantitas fisik diterima wajib diisi.',
             'items.*.received_quantity.numeric' => 'Kuantitas fisik diterima harus berupa angka.',
             'items.*.received_quantity.min' => 'Kuantitas fisik diterima tidak boleh kurang dari 0.',
-            'items.*.notes.max' => 'Catatan ketidaksesuaian item maksimal 1.000 karakter.',
+            'items.*.notes.max' => 'Catatan kerusakan / ketidaksesuaian item maksimal 1.000 karakter.',
             'items.*.photos.array' => 'Format lampiran foto bukti tidak valid.',
-            'items.*.photos.max' => 'Maksimal 5 foto bukti ketidaksesuaian per item.',
+            'items.*.photos.max' => 'Maksimal 5 foto bukti kerusakan per item.',
             'items.*.photos.*.file' => 'Lampiran bukti harus berupa berkas gambar yang valid.',
-            'items.*.photos.*.mimes' => 'Foto bukti ketidaksesuaian harus berformat JPG, JPEG, PNG, atau WEBP.',
-            'items.*.photos.*.max' => 'Ukuran setiap foto bukti ketidaksesuaian maksimal 5 MB.',
+            'items.*.photos.*.mimes' => 'Foto bukti kerusakan harus berformat JPG, JPEG, PNG, atau WEBP.',
+            'items.*.photos.*.max' => 'Ukuran setiap foto bukti kerusakan maksimal 5 MB.',
         ];
     }
 }
-

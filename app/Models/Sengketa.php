@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\PemicuSengketa;
 use App\Enums\StatusSengketa;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -95,5 +96,19 @@ class Sengketa extends Model
     public function logs(): HasMany
     {
         return $this->hasMany(LogSengketa::class, 'sengketa_id')->orderBy('created_at')->orderBy('id');
+    }
+
+    public function triggerEnum(): ?PemicuSengketa
+    {
+        if (! is_string($this->trigger_type) || $this->trigger_type === '') {
+            return null;
+        }
+
+        return PemicuSengketa::tryFrom($this->trigger_type);
+    }
+
+    public function triggerLabel(): string
+    {
+        return $this->triggerEnum()?->label() ?? 'Hasil QC Ditolak';
     }
 }

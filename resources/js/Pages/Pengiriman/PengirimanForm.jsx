@@ -457,9 +457,9 @@ export function PengirimanForm({
             >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle className="flex items-center gap-2">
-                            <Truck className="size-5 text-primary" />
-                            Konfirmasi Laporan Pengiriman Fisik?
+                        <AlertDialogTitle className="flex items-start gap-2.5 leading-snug">
+                            <Truck className="size-5 shrink-0 mt-0.5 text-primary" />
+                            <span>Konfirmasi Laporan Pengiriman Fisik?</span>
                         </AlertDialogTitle>
                         <AlertDialogDescription asChild>
                             <div className="space-y-3 text-sm">

@@ -76,19 +76,27 @@ class PenerimaanBarangResource extends JsonResource
                 $disputePayload = null;
                 if ($dispute !== null) {
                     $disputeLogs = $dispute->relationLoaded('logs')
-                        ? $dispute->logs->map(fn ($log): array => [
-                            'uuid' => $log->uuid,
-                            'type' => $log->type ?? 'note',
-                            'message' => $log->isi_pesan,
-                            'has_attachment' => is_string($log->file_bukti) && $log->file_bukti !== '',
-                            'author_name' => ($log->relationLoaded('penulis') ? $log->penulis?->name : null) ?? 'Sistem',
-                            'created_at' => $log->created_at?->toISOString(),
-                        ])->values()->all()
+                        ? $dispute->logs->map(function ($log): array {
+                            $hasAttachment = is_string($log->file_bukti) && $log->file_bukti !== '';
+
+                            return [
+                                'uuid' => $log->uuid,
+                                'type' => $log->type ?? 'note',
+                                'message' => $log->isi_pesan,
+                                'has_attachment' => $hasAttachment,
+                                'attachment_url' => $hasAttachment
+                                    ? route('inspeksi-qc.dispute-log.photo', ['logUuid' => $log->uuid])
+                                    : null,
+                                'author_name' => ($log->relationLoaded('penulis') ? $log->penulis?->name : null) ?? 'Sistem',
+                                'created_at' => $log->created_at?->toISOString(),
+                            ];
+                        })->values()->all()
                         : [];
 
                     $disputePayload = [
                         'uuid' => $dispute->uuid,
                         'trigger_type' => $dispute->trigger_type,
+                        'trigger_type_label' => $dispute->triggerLabel(),
                         'reason' => $dispute->reason,
                         'status' => $dispute->status->value,
                         'status_label' => $dispute->status->label(),
@@ -113,6 +121,9 @@ class PenerimaanBarangResource extends JsonResource
                     'notes' => $item->notes,
                     'photos_count' => count($photoUrls),
                     'photos' => $photoUrls,
+                    'damage_report_url' => $statusEnum === StatusItemPenerimaan::Rejected
+                        ? route('inspeksi-qc.damage-reports.show', ['itemUuid' => $item->uuid])
+                        : null,
                     'dispute' => $disputePayload,
                 ];
             })->values()->all()
@@ -185,4 +196,3 @@ class PenerimaanBarangResource extends JsonResource
         ];
     }
 }
-

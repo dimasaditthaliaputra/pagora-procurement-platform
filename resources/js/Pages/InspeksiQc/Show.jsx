@@ -31,6 +31,7 @@ import {
     InspectionItemStatusBadge,
     InspectionOverallBadge,
 } from '@/Pages/InspeksiQc/columns';
+import { DamageTriggerBadge } from '@/Pages/InspeksiQc/damageColumns';
 
 function DetailRow({ label, children }) {
     return (
@@ -272,11 +273,36 @@ export default function InspeksiQcShow({ receipt: rawReceipt }) {
 
                                     {isRejected && (
                                         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-4">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+                                                        <ShieldAlert className="size-3.5" />
+                                                        Laporan Kerusakan / Ketidaksesuaian QC Gudang
+                                                    </span>
+                                                    {dispute && (
+                                                        <DamageTriggerBadge
+                                                            triggerType={dispute.trigger_type}
+                                                            label={dispute.trigger_type_label}
+                                                        />
+                                                    )}
+                                                </div>
+
+                                                {item.damage_report_url && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        asChild
+                                                        className="h-8 text-xs w-fit cursor-pointer"
+                                                    >
+                                                        <Link href={item.damage_report_url}>
+                                                            <ShieldAlert className="mr-1.5 size-3.5 text-destructive" />
+                                                            Buka Berita Acara Kerusakan
+                                                        </Link>
+                                                    </Button>
+                                                )}
+                                            </div>
+
                                             <div className="space-y-1">
-                                                <span className="text-xs font-semibold text-destructive flex items-center gap-1.5">
-                                                    <ShieldAlert className="size-3.5" />
-                                                    Catatan Ketidaksesuaian QC Gudang
-                                                </span>
                                                 <p className="text-sm text-foreground whitespace-pre-line">
                                                     {item.notes || '-'}
                                                 </p>

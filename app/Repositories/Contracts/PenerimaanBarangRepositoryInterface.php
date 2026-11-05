@@ -33,6 +33,22 @@ interface PenerimaanBarangRepositoryInterface
     public function paginateForVendor(int $vendorId, array $filters, int $perPage = 10): LengthAwarePaginator;
 
     /**
+     * Paginate rejected/damaged goods receipt items (`Laporan Kerusakan Barang` — UC-15 «extend») scoped to a Tenant.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return LengthAwarePaginator<PenerimaanBarangItem>
+     */
+    public function paginateDamageReportsForTenant(int $tenantId, array $filters, int $perPage = 10): LengthAwarePaginator;
+
+    /**
+     * Paginate rejected/damaged goods receipt items (`Laporan Kerusakan Barang` — UC-15 «extend») scoped to a Vendor.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return LengthAwarePaginator<PenerimaanBarangItem>
+     */
+    public function paginateDamageReportsForVendor(int $vendorId, array $filters, int $perPage = 10): LengthAwarePaginator;
+
+    /**
      * Find a goods receipt by UUID strictly scoped to a Tenant or Vendor.
      */
     public function findByUuid(string $uuid, ?int $tenantId = null, ?int $vendorId = null): ?PenerimaanBarang;
@@ -43,11 +59,31 @@ interface PenerimaanBarangRepositoryInterface
     public function findItemByUuid(string $itemUuid, ?int $tenantId = null, ?int $vendorId = null): ?PenerimaanBarangItem;
 
     /**
-     * Retrieve Purchase Orders belonging to a Tenant currently in `dalam_pengiriman` (`In Transit`) status.
+     * Find a rejected/damaged goods receipt item with full relations strictly scoped to a Tenant or Vendor.
+     */
+    public function findRejectedItemDetailByUuid(string $itemUuid, ?int $tenantId = null, ?int $vendorId = null): ?PenerimaanBarangItem;
+
+    /**
+     * Find a dispute log entry by UUID strictly scoped to a Tenant or Vendor (for authorized evidence streaming).
+     */
+    public function findDisputeLogByUuid(string $logUuid, ?int $tenantId = null, ?int $vendorId = null): ?LogSengketa;
+
+    /**
+     * Retrieve Purchase Orders belonging to a Tenant currently in `dalam_pengiriman` (`In Transit`) status,
+     * ordered by latest date (`DESC`) with optional row limit.
      *
      * @return Collection<int, PurchaseOrder>
      */
-    public function getInspectablePurchaseOrdersForTenant(int $tenantId): Collection;
+    public function getInspectablePurchaseOrdersForTenant(int $tenantId, ?int $limit = null): Collection;
+
+    /**
+     * Paginate Purchase Orders belonging to a Tenant currently in `dalam_pengiriman` (`In Transit`) status
+     * for the dedicated "View All" QC inspection queue page.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return LengthAwarePaginator<PurchaseOrder>
+     */
+    public function paginateInspectablePurchaseOrdersForTenant(int $tenantId, array $filters, int $perPage = 8): LengthAwarePaginator;
 
     /**
      * Find a Tenant's Purchase Order by UUID for QC inspection.
@@ -57,16 +93,30 @@ interface PenerimaanBarangRepositoryInterface
     /**
      * Get summary metrics for goods receipts belonging to a Tenant.
      *
-     * @return array{in_transit_orders: int, total_inspections: int, fully_accepted: int, with_rejections: int}
+     * @return array{in_transit_orders: int, total_inspections: int, fully_accepted: int, with_rejections: int, rejected_items_count: int}
      */
     public function getStatisticsForTenant(int $tenantId): array;
 
     /**
      * Get summary metrics for goods receipts belonging to a Vendor.
      *
-     * @return array{in_transit_orders: int, total_inspections: int, fully_accepted: int, with_rejections: int}
+     * @return array{in_transit_orders: int, total_inspections: int, fully_accepted: int, with_rejections: int, rejected_items_count: int}
      */
     public function getStatisticsForVendor(int $vendorId): array;
+
+    /**
+     * Get summary metrics for QC damage reports belonging to a Tenant.
+     *
+     * @return array{total_damage_reports: int, goods_mismatch_count: int, qc_rejected_count: int, open_disputes_count: int}
+     */
+    public function getDamageStatisticsForTenant(int $tenantId): array;
+
+    /**
+     * Get summary metrics for QC damage reports belonging to a Vendor.
+     *
+     * @return array{total_damage_reports: int, goods_mismatch_count: int, qc_rejected_count: int, open_disputes_count: int}
+     */
+    public function getDamageStatisticsForVendor(int $vendorId): array;
 
     /**
      * Create a new immutable goods receipt header (`goods_receipts`).
@@ -113,4 +163,3 @@ interface PenerimaanBarangRepositoryInterface
      */
     public function getInspectionNotificationRecipients(int $tenantId, int $vendorId, bool $hasRejection, int $excludeUserId): Collection;
 }
-

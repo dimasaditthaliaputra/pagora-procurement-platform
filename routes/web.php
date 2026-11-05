@@ -125,14 +125,32 @@ Route::middleware('auth')->group(function () {
             Route::get('/{uuid}', 'show')->whereUuid('uuid')->can('viewAny', Pengiriman::class)->name('show');
         });
 
-    // Inspeksi Barang QC Gudang (Goods Receipt — UC-15)
+    // Inspeksi Barang & Laporan Kerusakan QC Gudang (Goods Receipt — UC-15 + «extend» Melaporkan Kerusakan Barang)
     Route::controller(PenerimaanBarangController::class)
         ->prefix('inspeksi-qc')
         ->name('inspeksi-qc.')
         ->group(function () {
             Route::get('/', 'index')->can('viewAny', PenerimaanBarang::class)->name('index');
+            Route::get('/pesanan-in-transit', 'inTransitOrders')
+                ->can('create', PenerimaanBarang::class)
+                ->name('in-transit.index');
             Route::get('/create', 'create')->can('create', PenerimaanBarang::class)->name('create');
             Route::post('/', 'store')->can('create', PenerimaanBarang::class)->name('store');
+            Route::get('/laporan-kerusakan', 'damageReports')
+                ->can('viewAny', PenerimaanBarang::class)
+                ->name('damage-reports.index');
+            Route::get('/laporan-kerusakan/{itemUuid}', 'showDamageReport')
+                ->whereUuid('itemUuid')
+                ->can('viewAny', PenerimaanBarang::class)
+                ->name('damage-reports.show');
+            Route::post('/laporan-kerusakan/{itemUuid}/bukti', 'storeDamageEvidence')
+                ->whereUuid('itemUuid')
+                ->can('create', PenerimaanBarang::class)
+                ->name('damage-reports.store-evidence');
+            Route::get('/log-sengketa/{logUuid}/bukti', 'disputeLogPhoto')
+                ->whereUuid('logUuid')
+                ->can('viewAny', PenerimaanBarang::class)
+                ->name('dispute-log.photo');
             Route::get('/item/{itemUuid}/foto/{index}', 'photo')
                 ->whereUuid('itemUuid')
                 ->whereNumber('index')

@@ -3,16 +3,13 @@ import { Head, Link, router } from '@inertiajs/react';
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import {
     AlertTriangle,
-    Calendar,
+    ArrowRight,
     CheckCircle2,
     ClipboardCheck,
     FilterX,
-    Plus,
-    RefreshCw,
     Search,
     Truck,
 } from 'lucide-react';
-import { formatDate } from '@/lib/format';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { DataTable } from '@/Components/data-table/data-table';
 import { DataTablePagination } from '@/Components/data-table/data-table-pagination';
@@ -27,6 +24,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/Components/ui/select';
+import { InspectableOrderList } from '@/Pages/InspeksiQc/components/InspectableOrderCard';
+import { InspeksiQcNavTabs } from '@/Pages/InspeksiQc/components/InspeksiQcNavTabs';
 import { getColumns } from '@/Pages/InspeksiQc/columns';
 
 const RESULT_FILTER_OPTIONS = [
@@ -157,6 +156,7 @@ export default function InspeksiQcIndex({
         total_inspections: statistics?.total_inspections ?? 0,
         fully_accepted: statistics?.fully_accepted ?? 0,
         with_rejections: statistics?.with_rejections ?? 0,
+        rejected_items_count: statistics?.rejected_items_count ?? 0,
     }), [statistics]);
 
     const hasFilter =
@@ -173,29 +173,25 @@ export default function InspeksiQcIndex({
             <Head title="Pengecekan & Inspeksi Barang - PAGORA" />
 
             <div className="flex flex-col gap-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                            <ClipboardCheck className="size-6 text-primary" />
-                            Pengecekan &amp; Inspeksi Barang (QC Gudang)
-                        </h1>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            {can.create
-                                ? 'Pilih pesanan berstatus Dalam Pengiriman (In Transit) untuk membuat form pengecekan fisik barang per item di dermaga gudang.'
-                                : isVendor
-                                  ? 'Pantau hasil pemeriksaan fisik penerimaan barang oleh QC Gudang pada setiap pesanan Anda.'
-                                  : 'Pantau riwayat hasil inspeksi penerimaan fisik barang dan bukti ketidaksesuaian QC Gudang.'}
-                        </p>
-                    </div>
-                    {can.create && (
-                        <Button asChild className="gap-2 cursor-pointer shadow-sm min-h-10">
-                            <Link href="/inspeksi-qc/create">
-                                <Plus className="size-4" />
-                                Buat Form Pengecekan Barang
-                            </Link>
-                        </Button>
-                    )}
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                        <ClipboardCheck className="size-6 text-primary shrink-0" />
+                        Pengecekan &amp; Inspeksi Barang (QC Gudang)
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
+                        {can.create
+                            ? 'Pilih pesanan berstatus Dalam Pengiriman (In Transit) untuk membuat form pengecekan fisik barang per item di dermaga gudang.'
+                            : isVendor
+                              ? 'Pantau hasil pemeriksaan fisik penerimaan barang oleh QC Gudang pada setiap pesanan Anda.'
+                              : 'Pantau riwayat hasil inspeksi penerimaan fisik barang dan bukti ketidaksesuaian QC Gudang.'}
+                    </p>
                 </div>
+
+                {/* Navigasi Sub-Fitur Inspeksi QC */}
+                <InspeksiQcNavTabs
+                    activeTab="inspections"
+                    damageCount={stats.rejected_items_count}
+                />
 
                 {/* 4 Kartu Metrik Ringkasan Inspeksi QC */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -281,88 +277,45 @@ export default function InspeksiQcIndex({
                     </div>
                 </div>
 
-                {/* Antrean Pesanan Berstatus "In Transit" untuk QC Gudang / Owner */}
+                {/* Antrean Ringkasan Pesanan Berstatus "In Transit" (Maks. 4 Terbaru) */}
                 {can.create && inspectable_orders.length > 0 && (
                     <Card className="border-sky-500/30 bg-sky-500/5 shadow-2xs">
                         <CardHeader className="pb-3">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                                 <div>
                                     <CardTitle className="text-base font-semibold flex items-center gap-2">
-                                        <Truck className="size-4 text-sky-600 dark:text-sky-400" />
+                                        <Truck className="size-4 text-sky-600 dark:text-sky-400 shrink-0" />
                                         Daftar Pesanan Dalam Pengiriman (In Transit) — Siap Diinspeksi
                                     </CardTitle>
                                     <CardDescription className="text-xs mt-0.5">
-                                        Pilih salah satu pesanan di bawah ini untuk memuat detail pesanan dan membuat Form Pengecekan Barang.
+                                        {stats.in_transit_orders > inspectable_orders.length
+                                            ? `Menampilkan ${inspectable_orders.length} pesanan terbaru dari total ${stats.in_transit_orders} pesanan In Transit. Pilih pesanan di bawah atau klik Lihat Semua.`
+                                            : 'Pilih salah satu pesanan di bawah ini untuk memuat detail pesanan dan membuat Form Pengecekan Barang.'}
                                     </CardDescription>
                                 </div>
-                                <Badge variant="sky" className="w-fit">
-                                    {inspectable_orders.length} Pesanan Menunggu QC
-                                </Badge>
+
+                                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                    <Badge variant="sky" className="w-fit tabular-nums">
+                                        {stats.in_transit_orders || inspectable_orders.length} Pesanan Menunggu QC
+                                    </Badge>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        asChild
+                                        className="h-8 gap-1.5 cursor-pointer bg-background/90 border-sky-500/35 text-sky-700 hover:bg-sky-500/10 hover:text-sky-800 dark:text-sky-400 dark:hover:text-sky-300"
+                                    >
+                                        <Link href="/inspeksi-qc/pesanan-in-transit">
+                                            Lihat Semua
+                                            {stats.in_transit_orders > inspectable_orders.length &&
+                                                ` (${stats.in_transit_orders})`}
+                                            <ArrowRight className="size-3.5" />
+                                        </Link>
+                                    </Button>
+                                </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-0">
-                            {inspectable_orders.map((order) => (
-                                <div
-                                    key={order.uuid}
-                                    className="flex flex-col justify-between gap-3 rounded-xl border bg-card p-4 shadow-2xs"
-                                >
-                                    <div className="space-y-2">
-                                        <div className="flex items-start justify-between gap-2">
-                                            <div>
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="font-mono text-sm font-bold text-foreground">
-                                                        {order.po_number}
-                                                    </span>
-                                                    <Badge variant="sky" className="text-[11px]">
-                                                        In Transit
-                                                    </Badge>
-                                                    {order.shipment?.is_reshipment && (
-                                                        <Badge variant="warning" className="gap-1 text-[10px]">
-                                                            <RefreshCw className="size-2.5" />
-                                                            Pengiriman Ulang
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs font-medium text-muted-foreground mt-0.5">
-                                                    Vendor: {order.vendor_name}
-                                                </p>
-                                            </div>
-                                            <span className="text-xs font-semibold text-foreground shrink-0">
-                                                {order.items_count} Item
-                                            </span>
-                                        </div>
-
-                                        {order.shipment && (
-                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                                                <span>
-                                                    Jalur: <strong className="text-foreground">{order.shipment.route}</strong>
-                                                </span>
-                                                <span>·</span>
-                                                <span>
-                                                    Armada: <strong className="text-foreground">{order.shipment.carrier_name}</strong>
-                                                </span>
-                                                <span>·</span>
-                                                <span className="font-mono font-semibold text-foreground">
-                                                    {order.shipment.vehicle_plate_number}
-                                                </span>
-                                                <span className="inline-flex items-center gap-1 ml-auto tabular-nums">
-                                                    <Calendar className="size-3" />
-                                                    ETA {formatDate(order.shipment.estimated_arrival_date)}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="flex items-center justify-end pt-1">
-                                        <Button asChild size="sm" className="w-full sm:w-auto min-h-10 gap-1.5 cursor-pointer">
-                                            <Link href={`/inspeksi-qc/create?po=${order.uuid}`}>
-                                                <ClipboardCheck className="size-4" />
-                                                Pilih &amp; Buat Form Pengecekan
-                                            </Link>
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
+                        <CardContent className="pt-0">
+                            <InspectableOrderList orders={inspectable_orders} />
                         </CardContent>
                     </Card>
                 )}

@@ -688,5 +688,93 @@ class InspeksiQcTest extends TestCase
         $this->actingAs($this->superadmin)->get("/inspeksi-qc/{$receiptA->uuid}")->assertForbidden();
         $this->actingAs($this->superadmin)->get("/inspeksi-qc/item/{$rejectedItemA->uuid}/foto/0")->assertForbidden();
     }
-}
 
+    public function test_index_limits_in_transit_summary_to_four_newest_desc_and_view_all_paginates_with_filters(): void
+    {
+        // Create 6 In Transit POs for Tenant A with distinct dates (oldest -> newest)
+        $createdPos = [];
+        for ($day = 1; $day <= 6; $day++) {
+            [$po, $shipment] = $this->createInTransitOrderWithTwoItems();
+            $po->update([
+                'nomor_po' => sprintf('PO-QUEUE-%02d', $day),
+                'tanggal_po' => now()->subDays(10 - $day)->toDateString(),
+            ]);
+            $shipment->update([
+                'route' => $day === 6 ? 'Kereta Api' : 'Darat',
+                'carrier_name' => $day === 6 ? 'GoTrain Logistik' : 'Ekspedisi Nusantara Jaya',
+            ]);
+            $createdPos[$day] = $po->fresh();
+        }
+
+        // Create 1 In Transit PO for Tenant B to verify multi-tenant isolation
+        $this->createInTransitOrderWithTwoItems(
+            tenant: $this->tenantB,
+            vendor: $this->vendorB,
+            creator: $this->qcB,
+            reporter: $this->vendorUserB,
+        );
+
+        // 1. Summary on /inspeksi-qc returns ONLY the 4 newest DESC while statistics.in_transit_orders is 6
+        $this->actingAs($this->qcA)
+            ->get('/inspeksi-qc')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('InspeksiQc/Index')
+                ->where('statistics.in_transit_orders', 6)
+                ->has('inspectable_orders', 4)
+                ->where('inspectable_orders.0.uuid', $createdPos[6]->uuid)
+                ->where('inspectable_orders.1.uuid', $createdPos[5]->uuid)
+                ->where('inspectable_orders.2.uuid', $createdPos[4]->uuid)
+                ->where('inspectable_orders.3.uuid', $createdPos[3]->uuid)
+            );
+
+        // Create form still lists all 6 inspectable POs so older In Transit POs remain selectable
+        $this->actingAs($this->qcA)
+            ->get("/inspeksi-qc/create?po={$createdPos[1]->uuid}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('InspeksiQc/Create')
+                ->where('selected_po_uuid', $createdPos[1]->uuid)
+                ->has('purchase_order_options', 6)
+            );
+
+        // 2. Dedicated "View All" page (/inspeksi-qc/pesanan-in-transit) paginates cards cleanly
+        $this->actingAs($this->qcA)
+            ->get('/inspeksi-qc/pesanan-in-transit?per_page=4&page=1')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('InspeksiQc/InTransitOrders')
+                ->where('orders.meta.total', 6)
+                ->where('orders.meta.last_page', 2)
+                ->has('orders.data', 4)
+                ->where('orders.data.0.uuid', $createdPos[6]->uuid)
+            );
+
+        $this->actingAs($this->qcA)
+            ->get('/inspeksi-qc/pesanan-in-transit?per_page=4&page=2')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('InspeksiQc/InTransitOrders')
+                ->where('orders.meta.current_page', 2)
+                ->has('orders.data', 2)
+                ->where('orders.data.0.uuid', $createdPos[2]->uuid)
+                ->where('orders.data.1.uuid', $createdPos[1]->uuid)
+            );
+
+        // Filter by route & search on "View All"
+        $this->actingAs($this->qcA)
+            ->get('/inspeksi-qc/pesanan-in-transit?route=Kereta+Api&search=GoTrain')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('InspeksiQc/InTransitOrders')
+                ->has('orders.data', 1)
+                ->where('orders.data.0.uuid', $createdPos[6]->uuid)
+            );
+
+        // Unauthorized roles (Purchasing, Manajemen, Vendor, Superadmin) receive 403 on "View All"
+        $this->actingAs($this->purchasingA)->get('/inspeksi-qc/pesanan-in-transit')->assertForbidden();
+        $this->actingAs($this->manajemenA)->get('/inspeksi-qc/pesanan-in-transit')->assertForbidden();
+        $this->actingAs($this->vendorUserA)->get('/inspeksi-qc/pesanan-in-transit')->assertForbidden();
+        $this->actingAs($this->superadmin)->get('/inspeksi-qc/pesanan-in-transit')->assertForbidden();
+    }
+}

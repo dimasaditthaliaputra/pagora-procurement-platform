@@ -9,7 +9,9 @@ import {
     ClipboardCheck,
     Info,
     PackageCheck,
+    PackageX,
     RefreshCw,
+    Scale,
     ShieldAlert,
     Truck,
     XCircle,
@@ -46,6 +48,21 @@ const PHOTO_ACCEPT = {
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5 MB (PRD BR-10, RULES §7 & §8.7)
 const MAX_PHOTOS_PER_ITEM = 5;
 
+const DEFAULT_TRIGGER_OPTIONS = [
+    {
+        value: 'goods_mismatch',
+        label: 'Barang Rusak / Tidak Sesuai Pesanan',
+        description:
+            'Kemasan pecah/basah, kondisi fisik barang rusak/cacat, jenis barang keliru, atau bobot fisik menyusut melebihi batas toleransi.',
+    },
+    {
+        value: 'qc_rejected',
+        label: 'Hasil QC Ditolak (Mutu Tidak Sesuai)',
+        description:
+            'Spesifikasi mutu atau kualitas bahan baku (kadar air, ukuran, kesegaran, grade) tidak memenuhi standar penerimaan QC Gudang.',
+    },
+];
+
 function buildInitialItems(order) {
     if (!order || !Array.isArray(order.items)) {
         return [];
@@ -54,13 +71,24 @@ function buildInitialItems(order) {
     return order.items.map((poItem) => ({
         po_item_uuid: poItem.uuid,
         status: '',
+        trigger_type: '',
         received_quantity: '',
         notes: '',
         photos: [],
     }));
 }
 
-export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null }) {
+export function InspeksiQcForm({
+    purchaseOrderOptions = [],
+    initialPoUuid = null,
+    damageMode = false,
+    triggerOptions = [],
+}) {
+    const resolvedTriggerOptions =
+        Array.isArray(triggerOptions) && triggerOptions.length > 0
+            ? triggerOptions
+            : DEFAULT_TRIGGER_OPTIONS;
+
     const initialOrder = useMemo(
         () => purchaseOrderOptions.find((po) => po.uuid === initialPoUuid) ?? null,
         [purchaseOrderOptions, initialPoUuid]
@@ -109,7 +137,7 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
         );
     };
 
-    const handleSelectItemStatus = (index, statusValue, orderedQty) => {
+    const handleSelectItemStatus = (index, statusValue, orderedQty, preferredTrigger = '') => {
         updateItem(index, (prev) => {
             let nextQty = prev.received_quantity;
             if (statusValue === 'accepted' && (nextQty === '' || Number(nextQty) <= 0)) {
@@ -118,20 +146,41 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                 nextQty = '0';
             }
 
+            let nextTrigger = prev.trigger_type;
+            if (statusValue === 'accepted') {
+                nextTrigger = '';
+            } else if (statusValue === 'rejected') {
+                if (preferredTrigger) {
+                    nextTrigger = preferredTrigger;
+                } else if (!nextTrigger) {
+                    nextTrigger = damageMode ? 'goods_mismatch' : 'goods_mismatch';
+                }
+            }
+
             return {
                 ...prev,
                 status: statusValue,
+                trigger_type: nextTrigger,
                 received_quantity: nextQty,
             };
         });
 
         clearErrors(
             `items.${index}.status`,
+            `items.${index}.trigger_type`,
             `items.${index}.received_quantity`,
             `items.${index}.notes`,
             `items.${index}.photos`,
             'items'
         );
+    };
+
+    const handleSelectTriggerType = (index, triggerValue) => {
+        updateItem(index, (prev) => ({
+            ...prev,
+            trigger_type: triggerValue,
+        }));
+        clearErrors(`items.${index}.trigger_type`);
     };
 
     const handleReceivedQuantityChange = (index, value) => {
@@ -195,7 +244,10 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
         }
 
         const plate = (data.matched_plate_number || '').trim();
-        if (plate !== '' && (plate.length < 3 || plate.length > 20 || !/^[A-Za-z0-9\s\-]+$/.test(plate))) {
+        if (
+            plate !== '' &&
+            (plate.length < 3 || plate.length > 20 || !/^[A-Za-z0-9\s\-]+$/.test(plate))
+        ) {
             nextErrors.matched_plate_number =
                 'Nomor plat armada harus 3–20 karakter (huruf, angka, spasi, atau tanda hubung).';
         }
@@ -216,7 +268,12 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                 const rawQty = String(row.received_quantity ?? '').trim();
                 const parsedQty = Number(rawQty);
 
-                if (rawQty === '' || Number.isNaN(parsedQty) || parsedQty < 0 || parsedQty > poItem.quantity) {
+                if (
+                    rawQty === '' ||
+                    Number.isNaN(parsedQty) ||
+                    parsedQty < 0 ||
+                    parsedQty > poItem.quantity
+                ) {
                     nextErrors[`items.${index}.received_quantity`] =
                         `Kuantitas diterima harus di antara 0 dan ${poItem.quantity} ${poItem.unit}.`;
                 } else if (row.status === 'accepted' && parsedQty <= 0) {
@@ -225,14 +282,19 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                 }
 
                 if (row.status === 'rejected') {
+                    if (!row.trigger_type) {
+                        nextErrors[`items.${index}.trigger_type`] =
+                            'Pilih kategori kerusakan / kendala barang.';
+                    }
+
                     if (!(row.notes || '').trim()) {
                         nextErrors[`items.${index}.notes`] =
-                            'Catatan ketidaksesuaian wajib diisi pada kolom item yang ditolak.';
+                            'Catatan kerusakan / ketidaksesuaian wajib diisi pada kolom item yang ditolak.';
                     }
 
                     if (!Array.isArray(row.photos) || row.photos.length < 1) {
                         nextErrors[`items.${index}.photos`] =
-                            'Unggah minimal 1 foto bukti ketidaksesuaian untuk item yang ditolak.';
+                            'Unggah minimal 1 foto bukti kerusakan untuk item yang ditolak.';
                     }
                 }
             });
@@ -294,7 +356,9 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                     Pilih Pesanan &amp; Pencocokan Armada (In Transit)
                                 </CardTitle>
                                 <CardDescription>
-                                    Pilih pesanan berstatus Dalam Pengiriman (In Transit) untuk memuat rincian barang dan mencocokkan plat nomor kendaraan di gudang.
+                                    Pilih pesanan berstatus Dalam Pengiriman (In Transit) untuk
+                                    memuat rincian barang dan mencocokkan plat nomor kendaraan di
+                                    gudang.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-5">
@@ -358,14 +422,17 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                 <p className="text-xs text-muted-foreground">
                                                     Dilaporkan vendor:{' '}
                                                     <strong className="font-mono text-foreground">
-                                                        {selectedPo.shipment?.vehicle_plate_number ?? '-'}
+                                                        {selectedPo.shipment
+                                                            ?.vehicle_plate_number ?? '-'}
                                                     </strong>
                                                 </p>
                                             )}
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label htmlFor="notes">Catatan Umum Penerimaan (Opsional)</Label>
+                                            <Label htmlFor="notes">
+                                                Catatan Umum Penerimaan (Opsional)
+                                            </Label>
                                             <Input
                                                 id="notes"
                                                 type="text"
@@ -384,7 +451,9 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                 )}
                                             />
                                             {errors.notes && (
-                                                <p className="text-sm text-destructive">{errors.notes}</p>
+                                                <p className="text-sm text-destructive">
+                                                    {errors.notes}
+                                                </p>
                                             )}
                                         </div>
                                     </div>
@@ -400,12 +469,15 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                     <Info className="size-4" />
                                     <AlertTitle>Pengiriman Ulang (Reshipment)</AlertTitle>
                                     <AlertDescription>
-                                        Sebanyak {selectedPo.already_accepted_items.length} item pada PO ini telah disetujui pada inspeksi sebelumnya. Form di bawah ini hanya menampilkan item yang belum disetujui dan sedang dikirim ulang oleh vendor.
+                                        Sebanyak {selectedPo.already_accepted_items.length} item
+                                        pada PO ini telah disetujui pada inspeksi sebelumnya. Form
+                                        di bawah ini hanya menampilkan item yang belum disetujui dan
+                                        sedang dikirim ulang oleh vendor.
                                     </AlertDescription>
                                 </Alert>
                             )}
 
-                        {/* Langkah 2: Form Pengecekan Fisik per Item */}
+                        {/* Langkah 2: Form Pengecekan Fisik & Laporan Kerusakan per Item */}
                         {selectedPo ? (
                             <Card className="shadow-sm">
                                 <CardHeader className="border-b">
@@ -413,20 +485,27 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                         <div>
                                             <CardTitle className="text-base font-semibold flex items-center gap-2">
                                                 <ClipboardCheck className="size-4 text-primary" />
-                                                Form Pengecekan Barang per Item ({selectedPo.po_number})
+                                                Form Pengecekan &amp; Laporan Kerusakan per Item (
+                                                {selectedPo.po_number})
                                             </CardTitle>
                                             <CardDescription className="mt-0.5">
-                                                Periksa kualitas dan kuantitas fisik setiap item. Tekan opsi{' '}
-                                                <strong>Disetujui</strong> jika barang sesuai atau{' '}
-                                                <strong>Ditolak</strong> jika tidak sesuai spesifikasi.
+                                                Periksa kualitas dan kuantitas fisik setiap item.
+                                                Pilih opsi <strong>Disetujui</strong> jika barang
+                                                sesuai, atau <strong>Ditolak</strong> untuk mencatat
+                                                rincian kerusakan maupun ketidaksesuaian mutu.
                                             </CardDescription>
                                         </div>
-                                        <Badge variant="outline" className="w-fit">
+                                        <Badge
+                                            variant="outline"
+                                            className="w-fit shrink-0 whitespace-nowrap"
+                                        >
                                             {selectedPo.items.length} Item Diperiksa
                                         </Badge>
                                     </div>
                                     {errors.items && (
-                                        <p className="text-sm text-destructive pt-1">{errors.items}</p>
+                                        <p className="text-sm text-destructive pt-1">
+                                            {errors.items}
+                                        </p>
                                     )}
                                 </CardHeader>
 
@@ -435,6 +514,7 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                         const row = data.items[index] ?? {
                                             po_item_uuid: poItem.uuid,
                                             status: '',
+                                            trigger_type: '',
                                             received_quantity: '',
                                             notes: '',
                                             photos: [],
@@ -442,9 +522,34 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                         const isAccepted = row.status === 'accepted';
                                         const isRejected = row.status === 'rejected';
                                         const statusError = errors[`items.${index}.status`];
+                                        const triggerError = errors[`items.${index}.trigger_type`];
                                         const qtyError = errors[`items.${index}.received_quantity`];
                                         const notesError = errors[`items.${index}.notes`];
                                         const photoError = getItemPhotoError(index);
+
+                                        const rawQty = String(row.received_quantity ?? '').trim();
+                                        const parsedQty = rawQty !== '' ? Number(rawQty) : null;
+                                        const orderedQty = Number(poItem.quantity || 0);
+                                        const tolerancePct = Number(
+                                            poItem.shrinkage_tolerance ?? 0
+                                        );
+                                        const shortageQty =
+                                            parsedQty !== null &&
+                                            !Number.isNaN(parsedQty) &&
+                                            parsedQty >= 0 &&
+                                            parsedQty <= orderedQty
+                                                ? Math.max(0, orderedQty - parsedQty)
+                                                : 0;
+                                        const shrinkagePct =
+                                            orderedQty > 0 && shortageQty > 0
+                                                ? Math.round(
+                                                      (shortageQty / orderedQty) * 100 * 100
+                                                  ) / 100
+                                                : 0;
+                                        const exceedsTolerance =
+                                            parsedQty !== null &&
+                                            !Number.isNaN(parsedQty) &&
+                                            shrinkagePct > tolerancePct;
 
                                         return (
                                             <div
@@ -462,7 +567,7 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                             : 'border-border bg-card')
                                                 )}
                                             >
-                                                {/* Header Info Item */}
+                                                {/* Header Info Item + Batas Toleransi Susut (BR-23) */}
                                                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                                                     <div>
                                                         <div className="flex items-center gap-2 flex-wrap">
@@ -472,6 +577,19 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                             <h3 className="text-base font-semibold text-foreground">
                                                                 {poItem.commodity_name}
                                                             </h3>
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="gap-1 text-[11px] font-normal"
+                                                            >
+                                                                <Scale className="size-3 text-muted-foreground" />
+                                                                Toleransi Susut:{' '}
+                                                                {formatNumber(tolerancePct)}% (Min.{' '}
+                                                                {formatNumber(
+                                                                    poItem.min_acceptable_quantity ??
+                                                                        orderedQty
+                                                                )}{' '}
+                                                                {poItem.unit})
+                                                            </Badge>
                                                         </div>
                                                         <p className="text-xs text-muted-foreground mt-1">
                                                             Harga Satuan PO:{' '}
@@ -490,16 +608,18 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                             Kuantitas Pesanan PO (Terkunci)
                                                         </span>
                                                         <span className="text-sm font-bold text-foreground tabular-nums">
-                                                            {formatNumber(poItem.quantity)} {poItem.unit}
+                                                            {formatNumber(poItem.quantity)}{' '}
+                                                            {poItem.unit}
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                {/* Keputusan: Barang Sesuai? -> Tombol Opsi Status Disetujui / Ditolak */}
+                                                {/* Keputusan: Barang Sesuai? -> Disetujui vs Ditolak */}
                                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start pt-1">
-                                                    <div className="md:col-span-7 space-y-2">
+                                                    <div className="md:col-span-6 space-y-2">
                                                         <Label>
-                                                            Apakah Barang Sesuai? (Pilih Opsi Status) *
+                                                            Apakah Barang Sesuai? (Pilih Opsi
+                                                            Status) *
                                                         </Label>
                                                         <div
                                                             role="group"
@@ -509,7 +629,12 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                         >
                                                             <Button
                                                                 type="button"
-                                                                variant={isAccepted ? 'default' : 'outline'}
+                                                                variant={
+                                                                    isAccepted
+                                                                        ? 'default'
+                                                                        : 'outline'
+                                                                }
+                                                                aria-pressed={isAccepted}
                                                                 disabled={processing}
                                                                 onClick={() =>
                                                                     handleSelectItemStatus(
@@ -519,9 +644,10 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                                     )
                                                                 }
                                                                 className={cn(
-                                                                    'min-h-11 gap-2 font-semibold cursor-pointer',
-                                                                    isAccepted &&
-                                                                        'bg-emerald-600 text-white hover:bg-emerald-700 border-emerald-600',
+                                                                    'w-full min-h-11 gap-2 font-semibold cursor-pointer',
+                                                                    isAccepted
+                                                                        ? 'bg-emerald-600 text-white hover:bg-emerald-700 border-emerald-600 shadow-2xs'
+                                                                        : 'hover:border-emerald-500/45 hover:bg-emerald-500/5 hover:text-emerald-700 dark:hover:text-emerald-400',
                                                                     statusError &&
                                                                         !row.status &&
                                                                         'border-destructive'
@@ -534,18 +660,25 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                             <Button
                                                                 type="button"
                                                                 variant={
-                                                                    isRejected ? 'destructive' : 'outline'
+                                                                    isRejected
+                                                                        ? 'default'
+                                                                        : 'outline'
                                                                 }
+                                                                aria-pressed={isRejected}
                                                                 disabled={processing}
                                                                 onClick={() =>
                                                                     handleSelectItemStatus(
                                                                         index,
                                                                         'rejected',
-                                                                        poItem.quantity
+                                                                        poItem.quantity,
+                                                                        'goods_mismatch'
                                                                     )
                                                                 }
                                                                 className={cn(
-                                                                    'min-h-11 gap-2 font-semibold cursor-pointer',
+                                                                    'w-full min-h-11 gap-2 font-semibold cursor-pointer',
+                                                                    isRejected
+                                                                        ? 'bg-destructive text-white hover:bg-destructive/90 border-destructive shadow-2xs'
+                                                                        : 'hover:border-destructive/45 hover:bg-destructive/5 hover:text-destructive',
                                                                     statusError &&
                                                                         !row.status &&
                                                                         'border-destructive'
@@ -562,9 +695,12 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                         )}
                                                     </div>
 
-                                                    <div className="md:col-span-5 space-y-2">
-                                                        <Label htmlFor={`received_qty_${poItem.uuid}`}>
-                                                            Kuantitas Fisik Diterima ({poItem.unit}) *
+                                                    <div className="md:col-span-6 space-y-2">
+                                                        <Label
+                                                            htmlFor={`received_qty_${poItem.uuid}`}
+                                                        >
+                                                            Kuantitas Fisik Diterima ({poItem.unit})
+                                                            *
                                                         </Label>
                                                         <Input
                                                             id={`received_qty_${poItem.uuid}`}
@@ -587,32 +723,174 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                                     'border-destructive focus-visible:ring-destructive'
                                                             )}
                                                         />
-                                                        {qtyError && (
+                                                        {qtyError ? (
                                                             <p className="text-sm text-destructive">
                                                                 {qtyError}
                                                             </p>
+                                                        ) : (
+                                                            shortageQty > 0 && (
+                                                                <p
+                                                                    className={cn(
+                                                                        'text-xs tabular-nums',
+                                                                        exceedsTolerance
+                                                                            ? 'text-destructive font-medium'
+                                                                            : 'text-muted-foreground'
+                                                                    )}
+                                                                >
+                                                                    Selisih fisik:{' '}
+                                                                    {formatNumber(shortageQty)}{' '}
+                                                                    {poItem.unit} (Susut{' '}
+                                                                    {formatNumber(shrinkagePct)}%)
+                                                                </p>
+                                                            )
                                                         )}
                                                     </div>
                                                 </div>
 
-                                                {/* Kolom Ketidaksesuaian & Foto Bukti saat Opsi "Ditolak" Dipilih */}
+                                                {/* Peringatan Otomatis bila Penyusutan Melebihi Toleransi Susut Komoditas */}
+                                                {exceedsTolerance && !isRejected && (
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+                                                        <div className="flex items-start gap-2 text-amber-900 dark:text-amber-200">
+                                                            <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                                                            <span>
+                                                                Penyusutan fisik sebesar{' '}
+                                                                <strong>
+                                                                    {formatNumber(shrinkagePct)}%
+                                                                </strong>{' '}
+                                                                melebihi batas toleransi komoditas (
+                                                                <strong>
+                                                                    {formatNumber(tolerancePct)}%
+                                                                </strong>
+                                                                ). Disarankan untuk melaporkan
+                                                                ketidaksesuaian/kerusakan barang.
+                                                            </span>
+                                                        </div>
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            disabled={processing}
+                                                            onClick={() =>
+                                                                handleSelectItemStatus(
+                                                                    index,
+                                                                    'rejected',
+                                                                    poItem.quantity,
+                                                                    'goods_mismatch'
+                                                                )
+                                                            }
+                                                            className="shrink-0 cursor-pointer gap-1.5"
+                                                        >
+                                                            <XCircle className="size-3.5" />
+                                                            Pilih Ditolak
+                                                        </Button>
+                                                    </div>
+                                                )}
+
+                                                {/* Form Laporan Kerusakan Barang («extend» UC-15) saat Opsi "Ditolak" Dipilih */}
                                                 {isRejected && (
                                                     <div className="rounded-xl border border-destructive/30 bg-background p-4 space-y-4">
                                                         <div className="flex items-start gap-2 text-xs text-destructive">
                                                             <ShieldAlert className="size-4 shrink-0 mt-0.5" />
                                                             <span>
-                                                                Item yang ditolak wajib disertai catatan ketidaksesuaian dan minimal 1 foto bukti (maks. 5 MB/foto). Bukti bersifat <strong>immutable</strong> dan akan dicatat langsung ke <strong>Log Sengketa</strong>.
+                                                                <strong>
+                                                                    Form Laporan Kerusakan &amp;
+                                                                    Ketidaksesuaian Barang:
+                                                                </strong>{' '}
+                                                                Pilih kategori kendala, isi rincian
+                                                                kerusakan, dan unggah minimal 1 foto
+                                                                bukti (maks. 5 MB/foto). Rekaman ini
+                                                                bersifat <strong>immutable</strong>{' '}
+                                                                dan otomatis membuka{' '}
+                                                                <strong>Log Sengketa</strong>.
                                                             </span>
                                                         </div>
 
+                                                        {/* Pilihan Kategori Kerusakan / Kendala Barang (PRD §9.3) */}
                                                         <div className="space-y-2">
-                                                            <Label htmlFor={`item_notes_${poItem.uuid}`}>
-                                                                Catatan Ketidaksesuaian Inspeksi *
+                                                            <Label>
+                                                                Kategori Kerusakan / Kendala Barang
+                                                                *
+                                                            </Label>
+                                                            <div
+                                                                role="radiogroup"
+                                                                aria-label={`Kategori kerusakan ${poItem.commodity_name}`}
+                                                                aria-invalid={Boolean(triggerError)}
+                                                                className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                                                            >
+                                                                {resolvedTriggerOptions.map(
+                                                                    (opt) => {
+                                                                        const active =
+                                                                            row.trigger_type ===
+                                                                            opt.value;
+                                                                        const isDamageOpt =
+                                                                            opt.value ===
+                                                                            'goods_mismatch';
+
+                                                                        return (
+                                                                            <button
+                                                                                key={opt.value}
+                                                                                type="button"
+                                                                                role="radio"
+                                                                                aria-checked={
+                                                                                    active
+                                                                                }
+                                                                                disabled={
+                                                                                    processing
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    handleSelectTriggerType(
+                                                                                        index,
+                                                                                        opt.value
+                                                                                    )
+                                                                                }
+                                                                                className={cn(
+                                                                                    'flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors cursor-pointer',
+                                                                                    active
+                                                                                        ? 'border-destructive bg-destructive/5 ring-1 ring-destructive'
+                                                                                        : triggerError
+                                                                                          ? 'border-destructive hover:bg-muted/40'
+                                                                                          : 'border-border hover:bg-muted/40'
+                                                                                )}
+                                                                            >
+                                                                                <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-foreground">
+                                                                                    {isDamageOpt ? (
+                                                                                        <PackageX className="size-4 text-destructive shrink-0" />
+                                                                                    ) : (
+                                                                                        <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                                                                                    )}
+                                                                                    {opt.label}
+                                                                                </span>
+                                                                                {opt.description && (
+                                                                                    <span className="text-[11px] leading-relaxed text-muted-foreground">
+                                                                                        {
+                                                                                            opt.description
+                                                                                        }
+                                                                                    </span>
+                                                                                )}
+                                                                            </button>
+                                                                        );
+                                                                    }
+                                                                )}
+                                                            </div>
+                                                            {triggerError && (
+                                                                <p className="text-sm text-destructive">
+                                                                    {triggerError}
+                                                                </p>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Catatan Kerusakan / Ketidaksesuaian */}
+                                                        <div className="space-y-2">
+                                                            <Label
+                                                                htmlFor={`item_notes_${poItem.uuid}`}
+                                                            >
+                                                                Catatan Kerusakan / Ketidaksesuaian
+                                                                Inspeksi *
                                                             </Label>
                                                             <Textarea
                                                                 id={`item_notes_${poItem.uuid}`}
                                                                 rows={3}
-                                                                placeholder="Jelaskan rincian ketidaksesuaian (misal: kemasan pecah/basah, mutu di bawah spesifikasi, bobot susut melebihi batas)..."
+                                                                placeholder="Jelaskan rincian kerusakan fisik atau ketidaksesuaian mutu (misal: 12 karung robek terkena air hujan, barang membusuk, bobot susut melebihi batas)..."
                                                                 value={row.notes}
                                                                 disabled={processing}
                                                                 onChange={(e) =>
@@ -634,63 +912,84 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                             )}
                                                         </div>
 
+                                                        {/* Unggah Foto Bukti Kerusakan */}
                                                         <div className="space-y-3">
                                                             <div className="flex items-center justify-between gap-2">
                                                                 <Label className="flex items-center gap-1.5">
                                                                     <Camera className="size-4 text-muted-foreground" />
-                                                                    Foto Bukti Ketidaksesuaian Inspeksi *
+                                                                    Foto Bukti Kerusakan /
+                                                                    Ketidaksesuaian *
                                                                 </Label>
                                                                 <span className="text-xs text-muted-foreground">
-                                                                    {row.photos.length}/{MAX_PHOTOS_PER_ITEM} Foto
+                                                                    {row.photos.length}/
+                                                                    {MAX_PHOTOS_PER_ITEM} Foto
                                                                 </span>
                                                             </div>
 
                                                             {row.photos.length > 0 && (
                                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                                    {row.photos.map((photoFile, photoIdx) => (
-                                                                        <FileDropzone
-                                                                            key={`${poItem.uuid}-photo-${photoIdx}`}
-                                                                            value={photoFile}
-                                                                            accept={PHOTO_ACCEPT}
-                                                                            maxSize={MAX_PHOTO_SIZE}
-                                                                            disabled={processing}
-                                                                            uploading={processing}
-                                                                            progress={progress?.percentage ?? null}
-                                                                            error={
-                                                                                errors[
-                                                                                    `items.${index}.photos.${photoIdx}`
-                                                                                ]
-                                                                            }
-                                                                            onChange={(nextFile) =>
-                                                                                handleReplaceOrRemovePhoto(
-                                                                                    index,
-                                                                                    photoIdx,
+                                                                    {row.photos.map(
+                                                                        (photoFile, photoIdx) => (
+                                                                            <FileDropzone
+                                                                                key={`${poItem.uuid}-photo-${photoIdx}`}
+                                                                                value={photoFile}
+                                                                                accept={
+                                                                                    PHOTO_ACCEPT
+                                                                                }
+                                                                                maxSize={
+                                                                                    MAX_PHOTO_SIZE
+                                                                                }
+                                                                                disabled={
+                                                                                    processing
+                                                                                }
+                                                                                uploading={
+                                                                                    processing
+                                                                                }
+                                                                                progress={
+                                                                                    progress?.percentage ??
+                                                                                    null
+                                                                                }
+                                                                                error={
+                                                                                    errors[
+                                                                                        `items.${index}.photos.${photoIdx}`
+                                                                                    ]
+                                                                                }
+                                                                                onChange={(
                                                                                     nextFile
-                                                                                )
-                                                                            }
-                                                                            onError={(msg) => {
-                                                                                setError(
-                                                                                    `items.${index}.photos`,
-                                                                                    msg
-                                                                                );
-                                                                                notify.validationFailed();
-                                                                            }}
-                                                                        />
-                                                                    ))}
+                                                                                ) =>
+                                                                                    handleReplaceOrRemovePhoto(
+                                                                                        index,
+                                                                                        photoIdx,
+                                                                                        nextFile
+                                                                                    )
+                                                                                }
+                                                                                onError={(msg) => {
+                                                                                    setError(
+                                                                                        `items.${index}.photos`,
+                                                                                        msg
+                                                                                    );
+                                                                                    notify.validationFailed();
+                                                                                }}
+                                                                            />
+                                                                        )
+                                                                    )}
                                                                 </div>
                                                             )}
 
-                                                            {row.photos.length < MAX_PHOTOS_PER_ITEM && (
+                                                            {row.photos.length <
+                                                                MAX_PHOTOS_PER_ITEM && (
                                                                 <FileDropzone
                                                                     value={null}
                                                                     accept={PHOTO_ACCEPT}
                                                                     maxSize={MAX_PHOTO_SIZE}
                                                                     disabled={processing}
                                                                     uploading={processing}
-                                                                    progress={progress?.percentage ?? null}
+                                                                    progress={
+                                                                        progress?.percentage ?? null
+                                                                    }
                                                                     label={
                                                                         row.photos.length === 0
-                                                                            ? 'Unggah Foto Bukti Ketidaksesuaian'
+                                                                            ? 'Unggah Foto Bukti Kerusakan Barang'
                                                                             : 'Tambah Foto Bukti Lainnya (Opsional)'
                                                                     }
                                                                     description="Format JPG, JPEG, PNG, atau WEBP (Maksimal 5 MB per foto)"
@@ -712,11 +1011,12 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                                 />
                                                             )}
 
-                                                            {row.photos.length > 0 && photoError && (
-                                                                <p className="text-sm text-destructive">
-                                                                    {photoError}
-                                                                </p>
-                                                            )}
+                                                            {row.photos.length > 0 &&
+                                                                photoError && (
+                                                                    <p className="text-sm text-destructive">
+                                                                        {photoError}
+                                                                    </p>
+                                                                )}
                                                         </div>
                                                     </div>
                                                 )}
@@ -733,7 +1033,9 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                         Belum Ada Pesanan yang Dipilih
                                     </p>
                                     <p className="text-xs text-muted-foreground max-w-md mt-1">
-                                        Pilih Purchase Order berstatus Dalam Pengiriman (In Transit) pada kotak pilihan di atas untuk memuat daftar barang yang perlu diinspeksi.
+                                        Pilih Purchase Order berstatus Dalam Pengiriman (In Transit)
+                                        pada kotak pilihan di atas untuk memuat daftar barang yang
+                                        perlu diinspeksi atau dilaporkan kerusakannya.
                                     </p>
                                 </CardContent>
                             </Card>
@@ -820,7 +1122,10 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                                             Nomor Plat Dilaporkan Vendor
                                                         </span>
                                                         <span className="inline-flex items-center rounded-md border bg-muted/40 px-2 py-0.5 font-mono font-bold text-foreground mt-0.5">
-                                                            {selectedPo.shipment.vehicle_plate_number}
+                                                            {
+                                                                selectedPo.shipment
+                                                                    .vehicle_plate_number
+                                                            }
                                                         </span>
                                                     </div>
                                                     <div>
@@ -851,7 +1156,8 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                     </>
                                 ) : (
                                     <p className="text-xs text-muted-foreground">
-                                        Rincian vendor, jalur logistik, plat nomor armada, dan daftar komoditas akan tampil setelah Anda memilih pesanan.
+                                        Rincian vendor, jalur logistik, plat nomor armada, dan
+                                        daftar komoditas akan tampil setelah Anda memilih pesanan.
                                     </p>
                                 )}
                             </CardContent>
@@ -867,23 +1173,25 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                     if (!processing) setConfirmOpen(val);
                 }}
             >
-                <AlertDialogContent>
+                <AlertDialogContent size="lg">
                     <AlertDialogHeader>
-                        <AlertDialogTitle className="flex items-center gap-2">
+                        <AlertDialogTitle className="flex items-start gap-2.5 leading-snug">
                             {summaryCounts.hasRejection ? (
                                 <>
-                                    <AlertTriangle className="size-5 text-destructive" />
-                                    Konfirmasi Simpan Form Penolakan Barang
+                                    <AlertTriangle className="size-5 shrink-0 mt-0.5 text-destructive" />
+                                    <span>
+                                        Konfirmasi Simpan Laporan Kerusakan &amp; Penolakan Barang
+                                    </span>
                                 </>
                             ) : (
                                 <>
-                                    <CheckCircle2 className="size-5 text-emerald-600" />
-                                    Konfirmasi Simpan Form Persetujuan Barang
+                                    <CheckCircle2 className="size-5 shrink-0 mt-0.5 text-emerald-600" />
+                                    <span>Konfirmasi Simpan Form Persetujuan Barang</span>
                                 </>
                             )}
                         </AlertDialogTitle>
                         <AlertDialogDescription asChild>
-                            <div className="space-y-2 text-sm text-muted-foreground">
+                            <div className="space-y-2.5 text-sm leading-relaxed text-muted-foreground">
                                 {summaryCounts.hasRejection ? (
                                     <>
                                         <p>
@@ -897,17 +1205,20 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                             </strong>{' '}
                                             dan{' '}
                                             <strong className="text-destructive">
-                                                {summaryCounts.rejected} item ditolak
+                                                {summaryCounts.rejected} item dilaporkan rusak /
+                                                ditolak
                                             </strong>
                                             .
                                         </p>
                                         <p>
-                                            Item yang ditolak beserta foto bukti bersifat{' '}
+                                            Laporan kerusakan beserta foto bukti bersifat{' '}
                                             <strong className="text-foreground">
                                                 permanen (immutable)
                                             </strong>
-                                            , otomatis dicatat ke{' '}
-                                            <strong className="text-foreground">Log Sengketa</strong>
+                                            , otomatis membuka sengketa &amp;{' '}
+                                            <strong className="text-foreground">
+                                                Log Sengketa
+                                            </strong>
                                             , dan mengubah status pesanan menjadi{' '}
                                             <strong className="text-foreground">
                                                 Diterima Sebagian
@@ -925,8 +1236,10 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
                                         <strong className="font-mono text-foreground">
                                             {selectedPo?.po_number}
                                         </strong>{' '}
-                                        dinyatakan sesuai. Hasil inspeksi akan disimpan secara permanen dan status Purchase Order diperbarui menjadi{' '}
-                                        <strong className="text-foreground">Diterima Gudang</strong>.
+                                        dinyatakan sesuai. Hasil inspeksi akan disimpan secara
+                                        permanen dan status Purchase Order diperbarui menjadi{' '}
+                                        <strong className="text-foreground">Diterima Gudang</strong>
+                                        .
                                     </p>
                                 )}
                             </div>
@@ -954,4 +1267,3 @@ export function InspeksiQcForm({ purchaseOrderOptions = [], initialPoUuid = null
 }
 
 export default InspeksiQcForm;
-

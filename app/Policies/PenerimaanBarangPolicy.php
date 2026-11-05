@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\StatusSengketa;
 use App\Models\PenerimaanBarang;
+use App\Models\Sengketa;
 use App\Models\User;
 
 /**
@@ -71,5 +73,26 @@ class PenerimaanBarangPolicy
             && ($user->isQcGudang() || $user->isOwner())
             && $user->hasPermission('penerimaan_barang.create');
     }
-}
 
+    /**
+     * Determine whether the user can append supplementary damage notes/photo evidence to an open QC dispute
+     * (`UC-15 «extend»`, `BR-17`, `RULES` §9.4: append-only log, disallowed once dispute is `resolved`).
+     */
+    public function reportDamageEvidence(User $user, PenerimaanBarang $penerimaanBarang, ?Sengketa $sengketa = null): bool
+    {
+        if (! $this->create($user)) {
+            return false;
+        }
+
+        $po = $penerimaanBarang->purchaseOrder;
+        if ($po === null || (int) $user->tenant_id !== (int) $po->perusahaan_buyer_id) {
+            return false;
+        }
+
+        if ($sengketa === null || $sengketa->status === StatusSengketa::Selesai) {
+            return false;
+        }
+
+        return true;
+    }
+}

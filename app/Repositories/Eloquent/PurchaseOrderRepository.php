@@ -155,6 +155,7 @@ class PurchaseOrderRepository implements PurchaseOrderRepositoryInterface
                 'pembuat:id,uuid,name,email',
                 'poItems.komoditas:id,uuid,name,unit',
                 'chatNegosiasi.pengirim.role',
+                'pengiriman.reporter:id,uuid,name,email',
             ])
             ->first();
     }

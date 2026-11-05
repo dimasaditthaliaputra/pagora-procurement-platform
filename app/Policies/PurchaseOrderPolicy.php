@@ -124,4 +124,16 @@ class PurchaseOrderPolicy
             && $user->hasPermission('purchase_order.create')
             && $purchaseOrder->status->bisaDibatalkan();
     }
+
+    /**
+     * Determine whether the vendor user can report physical shipment for this PO (UC-14, BR-09).
+     */
+    public function kirim(User $user, PurchaseOrder $purchaseOrder): bool
+    {
+        return $user->isVendor()
+            && $user->vendor_id !== null
+            && (int) $user->vendor_id === (int) $purchaseOrder->vendor_id
+            && $user->hasPermission('pengiriman.create')
+            && $purchaseOrder->status->bisaDikirim();
+    }
 }

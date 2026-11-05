@@ -5,6 +5,7 @@ export const STATUS_PO = {
     negosiasi: { label: 'Negosiasi', variant: 'warning' },
     disepakati: { label: 'Disepakati', variant: 'green' },
     dalam_pengiriman: { label: 'Dalam Pengiriman', variant: 'sky' },
+    partially_received: { label: 'Diterima Sebagian', variant: 'warning' },
     diterima_gudang: { label: 'Diterima Gudang', variant: 'sky' },
     ditagih: { label: 'Ditagih', variant: 'warning' },
     lunas: { label: 'Lunas', variant: 'green' },
@@ -24,7 +25,7 @@ export const isLocked = (po) =>
     !['draft', 'menunggu_tanggapan', 'negosiasi'].includes(po?.status);
 
 export const hasNegotiation = (po) =>
-    ['negosiasi', 'disepakati', 'dalam_pengiriman', 'diterima_gudang', 'ditagih', 'lunas', 'dibatalkan', 'sengketa'].includes(po?.status)
+    ['negosiasi', 'disepakati', 'dalam_pengiriman', 'partially_received', 'diterima_gudang', 'ditagih', 'lunas', 'dibatalkan', 'sengketa'].includes(po?.status)
     && (po?.chat?.length ?? 0) > 0;
 
 export const totalPo = (items = []) =>

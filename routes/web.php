@@ -11,6 +11,7 @@ use App\Http\Controllers\KomoditasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\PengaturanController;
+use App\Http\Controllers\PengirimanController;
 use App\Http\Controllers\PerusahaanController;
 use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\PurchaseOrderController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\VerifikasiTenantController;
 use App\Models\DokumenLegalitasVendor;
 use App\Models\Komoditas;
 use App\Models\Pengaturan;
+use App\Models\Pengiriman;
 use App\Models\PerusahaanBuyer;
 use App\Models\PurchaseOrder;
 use App\Models\Role;
@@ -108,6 +110,17 @@ Route::middleware('auth')->group(function () {
             Route::post('/{uuid}/tawar', 'tawar')->whereUuid('uuid')->name('tawar');
             Route::post('/{uuid}/setujui', 'setujui')->whereUuid('uuid')->name('setujui');
             Route::post('/{uuid}/batalkan', 'batalkan')->whereUuid('uuid')->name('batalkan');
+        });
+
+    // Pengiriman Logistik (Self-Reporting Logistics — UC-14)
+    Route::controller(PengirimanController::class)
+        ->prefix('pengiriman')
+        ->name('pengiriman.')
+        ->group(function () {
+            Route::get('/', 'index')->can('viewAny', Pengiriman::class)->name('index');
+            Route::get('/create', 'create')->can('create', Pengiriman::class)->name('create');
+            Route::post('/', 'store')->can('create', Pengiriman::class)->name('store');
+            Route::get('/{uuid}', 'show')->whereUuid('uuid')->can('viewAny', Pengiriman::class)->name('show');
         });
 
     // Manajemen Perusahaan (Tenant Owner & Vendor manage their company profile)

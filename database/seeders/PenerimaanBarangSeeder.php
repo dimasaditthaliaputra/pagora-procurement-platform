@@ -41,7 +41,7 @@ class PenerimaanBarangSeeder extends Seeder
             $penerimaan = PenerimaanBarang::create([
                 'purchase_order_id' => $po->id,
                 'check_by' => $qc->id,
-                'no_polisi_dicocokkan' => $po->pengiriman->first()?->no_polisi_armada,
+                'no_polisi_dicocokkan' => $po->pengiriman->first()?->vehicle_plate_number,
                 'tanggal_pemeriksaan' => now()->subDay(),
                 'catatan' => $isSengketa ? 'Sebagian barang kondisi rusak.' : null,
             ]);

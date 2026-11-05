@@ -26,6 +26,7 @@ class RoleAksesService
      */
     public const MODULE_LABELS = [
         'purchase_order' => 'Purchase Order',
+        'pengiriman' => 'Pengiriman Logistik',
         'komoditas' => 'Master Komoditas',
         'vendor' => 'Data Rekanan Vendor',
         'dokumen_legalitas' => 'Verifikasi Legalitas Vendor',

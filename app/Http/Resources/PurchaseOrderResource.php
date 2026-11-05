@@ -73,6 +73,29 @@ class PurchaseOrderResource extends JsonResource
             })->values()->all()
             : [];
 
+        $shipments = $this->relationLoaded('pengiriman')
+            ? $this->pengiriman->map(function ($shipment): array {
+                $shipStatusValue = $shipment->status?->value ?? (string) $shipment->status;
+                $shipStatusLabel = method_exists($shipment->status, 'label')
+                    ? $shipment->status->label()
+                    : ucfirst(str_replace('_', ' ', $shipStatusValue));
+                $reporter = $shipment->relationLoaded('reporter') ? $shipment->reporter : null;
+
+                return [
+                    'uuid' => $shipment->uuid,
+                    'route' => $shipment->route,
+                    'carrier_name' => $shipment->carrier_name,
+                    'vehicle_plate_number' => $shipment->vehicle_plate_number,
+                    'estimated_arrival_date' => $shipment->estimated_arrival_date?->format('Y-m-d') ?? (string) $shipment->estimated_arrival_date,
+                    'status' => $shipStatusValue,
+                    'status_label' => $shipStatusLabel,
+                    'is_reshipment' => $shipment->dispute_id !== null,
+                    'reported_by_name' => $reporter?->name ?? 'Vendor',
+                    'created_at' => $shipment->created_at?->toISOString(),
+                ];
+            })->values()->all()
+            : [];
+
         return [
             'uuid' => $this->uuid,
             'nomor_po' => $this->nomor_po,
@@ -82,6 +105,7 @@ class PurchaseOrderResource extends JsonResource
             'status' => $statusValue,
             'status_label' => $statusLabel,
             'is_editable' => $statusValue === 'draft',
+            'quantity_locked' => $this->isQuantityLocked(),
             'current_role' => $isVendorUser ? 'vendor' : 'buyer',
             'harga_pagu_acuan' => $isVendorUser ? null : (float) ($this->harga_pagu_acuan ?? $totalPagu),
             'dibuat_oleh' => $this->pembuat?->name ?? 'User',
@@ -99,6 +123,7 @@ class PurchaseOrderResource extends JsonResource
                 'address' => $this->vendor?->address,
             ],
             'items' => $items->values()->all(),
+            'shipments' => $shipments,
             'chat' => $chat,
             'total_po' => (float) $totalPo,
             'total_pagu' => $totalPagu,
@@ -113,6 +138,7 @@ class PurchaseOrderResource extends JsonResource
                 'tawar' => (bool) $user?->can('tawar', $this->resource),
                 'setujui' => (bool) $user?->can('setujui', $this->resource),
                 'batalkan' => (bool) $user?->can('batalkan', $this->resource),
+                'kirim' => (bool) $user?->can('kirim', $this->resource),
             ],
         ];
     }

@@ -25,6 +25,9 @@ class PermissionSeeder extends Seeder
         'purchase_order.view_any' => ['Lihat purchase order', [...self::TENANT, 'vendor'], ['owner', 'purchasing', 'vendor']],
         'purchase_order.create' => ['Buat & ubah purchase order', self::TENANT, ['owner', 'purchasing']],
 
+        'pengiriman.view_any' => ['Lihat pengiriman logistik', [...self::TENANT, 'vendor'], ['owner', 'purchasing', 'qc_gudang', 'vendor']],
+        'pengiriman.create' => ['Laporkan pengiriman logistik fisik', ['vendor'], ['vendor']],
+
         'komoditas.view_any' => ['Lihat master komoditas', [...self::PLATFORM, ...self::TENANT], ['superadmin']],
         'komoditas.create' => ['Tambah komoditas', self::PLATFORM, ['superadmin']],
         'komoditas.update' => ['Ubah komoditas', self::PLATFORM, ['superadmin']],

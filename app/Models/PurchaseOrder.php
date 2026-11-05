@@ -104,7 +104,35 @@ class PurchaseOrder extends Model
 
     public function pengiriman(): HasMany
     {
-        return $this->hasMany(Pengiriman::class, 'purchase_order_id');
+        return $this->hasMany(Pengiriman::class, 'purchase_order_id')->orderByDesc('created_at')->orderByDesc('id');
+    }
+
+    public function shipments(): HasMany
+    {
+        return $this->pengiriman();
+    }
+
+    /**
+     * Determine whether PO document & item quantities are permanently locked after shipment (BR-07, FR-23).
+     */
+    public function isQuantityLocked(): bool
+    {
+        if (in_array($this->status, [
+            StatusPurchaseOrder::DalamPengiriman,
+            StatusPurchaseOrder::PartiallyReceived,
+            StatusPurchaseOrder::DiterimaGudang,
+            StatusPurchaseOrder::Ditagih,
+            StatusPurchaseOrder::Lunas,
+            StatusPurchaseOrder::Sengketa,
+        ], true)) {
+            return true;
+        }
+
+        if ($this->relationLoaded('pengiriman')) {
+            return $this->pengiriman->isNotEmpty();
+        }
+
+        return false;
     }
 
     public function penerimaanBarang(): HasMany

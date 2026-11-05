@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\DokumenLegalitasVendor;
 use App\Models\Komoditas;
 use App\Models\Pengaturan;
+use App\Models\Pengiriman;
 use App\Models\PerusahaanBuyer;
 use App\Models\PurchaseOrder;
 use App\Models\Role;
@@ -86,6 +87,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             'purchase_order.view_any' => $user->can('viewAny', PurchaseOrder::class),
+            'pengiriman.view_any' => $user->can('viewAny', Pengiriman::class),
             'komoditas.view_any' => $user->can('viewAny', Komoditas::class),
             'vendor.view_any' => $user->can('viewAny', Vendor::class),
             'dokumen_legalitas.view_any' => $user->can('viewAny', DokumenLegalitasVendor::class),

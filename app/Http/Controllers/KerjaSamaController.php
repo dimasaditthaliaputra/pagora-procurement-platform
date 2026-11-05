@@ -11,10 +11,13 @@ use App\Models\User;
 use App\Services\CalonMitraService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
+use App\Services\VendorInvitationService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class KerjaSamaController extends Controller
 {
@@ -121,5 +124,70 @@ class KerjaSamaController extends Controller
                 $e
             );
         }
+    }
+
+    public function incomingInvitations(
+    Request $request,
+    VendorInvitationService $service
+    ) {
+        Gate::authorize('viewAny', \App\Models\KerjaSama::class);
+
+        $vendorId = (int) $request->user()->vendor_id;
+
+        return inertia('KerjaSama/UndanganMasuk/Index', [
+            'invitations' => $service->paginateIncoming($vendorId),
+        ]);
+    }
+
+    public function showInvitation(
+        Request $request,
+        string $uuid,
+        VendorInvitationService $service
+    ) {
+        $invitation = $service->findIncoming(
+            $uuid,
+            (int) $request->user()->vendor_id,
+            $request->user()
+        );
+
+        abort_unless($invitation, 404);
+
+        return inertia('KerjaSama/UndanganMasuk/Show', [
+            'invitation' => $invitation,
+        ]);
+    }
+
+    public function respondInvitation(
+        Request $request,
+        string $uuid,
+        VendorInvitationService $service
+    ) {
+        $validated = $request->validate([
+            'action' => ['required', 'in:accept,reject'],
+            'rejection_reason' => [
+                'nullable',
+                'string',
+                'max:1000',
+                'required_if:action,reject',
+            ],
+        ], [
+            'action.required' => 'Tindakan wajib dipilih.',
+            'action.in' => 'Tindakan tidak valid.',
+            'rejection_reason.required_if' => 'Alasan penolakan wajib diisi.',
+            'rejection_reason.max' => 'Alasan penolakan maksimal 1000 karakter.',
+        ]);
+
+        $service->respond(
+            $request->user(),
+            $uuid,
+            $validated['action'],
+            $validated['rejection_reason'] ?? null
+        );
+
+        return redirect()
+            ->route('kerja-sama.undangan-masuk.index')
+            ->with('success', $validated['action'] === 'accept'
+                ? 'Undangan kerja sama berhasil diterima.'
+                : 'Undangan kerja sama berhasil ditolak.');
     }
 }

@@ -229,4 +229,34 @@ Route::middleware('auth')->group(function () {
             Route::post('/notifications/read-all', 'markAllAsRead')->name('notifications.read-all');
             Route::post('/notifications/{uuid}/read', 'markAsRead')->whereUuid('uuid')->name('notifications.read');
         });
+
+    // Kerja Sama Vendor Routes
+    Route::controller(KerjaSamaController::class)
+        ->prefix('kerja-sama')
+        ->name('kerja-sama.')
+        ->group(function () {
+            // Feature 4: Vendor mengajukan kerja sama kepada Buyer
+            Route::get('/calon-mitra', 'calonMitraIndex')->name('calon-mitra.index');
+
+            Route::get('/calon-mitra/{uuid}', 'calonMitraShow')
+                ->whereUuid('uuid')
+                ->name('calon-mitra.show');
+
+            Route::post('/calon-mitra/{uuid}/ajukan', 'ajukanKerjaSama')
+                ->whereUuid('uuid')
+                ->name('calon-mitra.ajukan');
+
+            // Feature 5: Vendor menanggapi undangan kerja sama dari Buyer
+            Route::get('/undangan-masuk', 'incomingInvitations')
+                ->name('undangan-masuk.index');
+
+            Route::get('/undangan-masuk/{uuid}', 'showInvitation')
+                ->whereUuid('uuid')
+                ->name('undangan-masuk.show');
+
+            Route::post('/undangan-masuk/{uuid}/tanggapi', 'respondInvitation')
+                ->whereUuid('uuid')
+                ->name('undangan-masuk.respond');
+        });
+
 });

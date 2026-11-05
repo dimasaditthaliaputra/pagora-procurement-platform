@@ -19,4 +19,19 @@ interface KerjaSamaRepositoryInterface
      * @param array<string, mixed> $data
      */
     public function create(array $data): KerjaSama;
+
+    public function paginateIncomingForVendor(
+    int $vendorId,
+    int $perPage = 12
+    ): \Illuminate\Contracts\Pagination\LengthAwarePaginator;
+
+    public function findIncomingByUuidForVendor(
+        string $uuid,
+        int $vendorId
+    ): ?\App\Models\KerjaSama;
+
+    public function update(
+        \App\Models\KerjaSama $kerjaSama,
+        array $data
+    ): \App\Models\KerjaSama;
 }

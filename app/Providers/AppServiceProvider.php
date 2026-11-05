@@ -9,6 +9,9 @@ use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
+use App\Models\KerjaSama;
+use App\Policies\KerjaSamaPolicy;
+use Illuminate\Support\Facades\Gate;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Block migrate:fresh, db:wipe, migrate:reset, etc. on production.
         DB::prohibitDestructiveCommands($this->app->isProduction());
+        Gate::policy(KerjaSama::class, KerjaSamaPolicy::class);
 
         $this->configureDevelopmentDiagnostics();
         $this->configureSlowQueryLogging();

@@ -14,6 +14,7 @@ enum StatusPurchaseOrder: string
     case PartiallyReceived = 'partially_received';
     case DiterimaGudang = 'diterima_gudang';
     case Ditagih = 'ditagih';
+    case ReadyToPay = 'ready_to_pay';
     case Lunas = 'lunas';
     case Dibatalkan = 'dibatalkan';
     case Sengketa = 'sengketa';
@@ -29,6 +30,7 @@ enum StatusPurchaseOrder: string
             self::PartiallyReceived => 'Diterima Sebagian',
             self::DiterimaGudang => 'Diterima Gudang',
             self::Ditagih => 'Ditagih',
+            self::ReadyToPay => 'Siap Dibayar',
             self::Lunas => 'Lunas',
             self::Dibatalkan => 'Dibatalkan',
             self::Sengketa => 'Sengketa',

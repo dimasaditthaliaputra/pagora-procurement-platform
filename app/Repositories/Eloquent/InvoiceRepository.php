@@ -96,7 +96,7 @@ class InvoiceRepository implements InvoiceRepositoryInterface
         $items = PoItem::query()
             ->where('purchase_order_id', $purchaseOrder->id)
             ->whereHas('penerimaanBarangItems', function ($query) use ($purchaseOrder): void {
-                $query->whereIn('status', ['diterima', 'ditolak_sebagian'])
+                $query->whereIn('status', ['accepted', 'diterima', 'ditolak_sebagian'])
                     ->whereHas('penerimaanBarang', function ($receipt) use ($purchaseOrder): void {
                         $receipt->where('purchase_order_id', $purchaseOrder->id);
                     });
@@ -104,7 +104,7 @@ class InvoiceRepository implements InvoiceRepositoryInterface
             ->with([
                 'komoditas:id,uuid,name,unit',
                 'penerimaanBarangItems' => function ($query) use ($purchaseOrder): void {
-                    $query->whereIn('status', ['diterima', 'ditolak_sebagian'])
+                    $query->whereIn('status', ['accepted', 'diterima', 'ditolak_sebagian'])
                         ->whereHas('penerimaanBarang', function ($receipt) use ($purchaseOrder): void {
                             $receipt->where('purchase_order_id', $purchaseOrder->id);
                         });
@@ -114,7 +114,9 @@ class InvoiceRepository implements InvoiceRepositoryInterface
             ->get();
 
         return $items->map(function (PoItem $item): PoItem {
-            $acceptedQuantity = (float) $item->penerimaanBarangItems->sum('jumlah_diterima');
+            $acceptedQuantity = (float) $item->penerimaanBarangItems->sum(function ($pbi) {
+                return (float) ($pbi->received_quantity ?? $pbi->jumlah_diterima ?? 0);
+            });
             $invoicedQuantity = (float) $item->invoiceItems->sum('quantity');
 
             $item->setAttribute(
@@ -204,10 +206,10 @@ class InvoiceRepository implements InvoiceRepositoryInterface
         return PurchaseOrder::query()
             ->where('vendor_id', $vendorId)
             ->whereHas('poItems.penerimaanBarangItems', function ($query): void {
-                $query->whereIn('status', ['diterima', 'ditolak_sebagian'])
+                $query->whereIn('status', ['accepted', 'diterima', 'ditolak_sebagian'])
                     ->whereHas('penerimaanBarang', function ($receipt): void {
                         $receipt->whereColumn(
-                            'penerimaan_barang.purchase_order_id',
+                            'goods_receipts.purchase_order_id',
                             'purchase_order.id'
                         );
                     });
@@ -223,5 +225,128 @@ class InvoiceRepository implements InvoiceRepositoryInterface
                     $this->getAvailableItems($purchaseOrder)->isNotEmpty()
             )
             ->values();
+    }
+
+    /**
+     * Paginate invoices belonging to a buyer company (tenant).
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForTenant(
+        int $tenantId,
+        array $filters,
+        int $perPage = 10
+    ): LengthAwarePaginator {
+        $sort = in_array(
+            $filters['sort'] ?? null,
+            ['nomor_invoice_vendor', 'tanggal_invoice', 'jumlah_tagihan', 'created_at'],
+            true
+        ) ? (string) $filters['sort'] : 'created_at';
+
+        $direction = strtolower((string) ($filters['direction'] ?? 'desc')) === 'asc'
+            ? 'asc'
+            : 'desc';
+
+        $driver = DB::getDriverName();
+        $op = $driver === 'pgsql' ? 'ilike' : 'like';
+
+        return $this->model->newQuery()
+            ->whereHas('purchaseOrder', function ($poQuery) use ($tenantId): void {
+                $poQuery->where('perusahaan_buyer_id', $tenantId);
+            })
+            ->with([
+                'purchaseOrder:id,uuid,nomor_po,status,perusahaan_buyer_id',
+                'vendor:id,uuid,company_name,contact_email,phone',
+                'verifikator:id,uuid,name',
+                'items.purchaseOrderItem.komoditas:id,uuid,name,unit',
+            ])
+            ->when(! empty($filters['search']), function ($query) use ($filters, $op): void {
+                $term = '%'.trim((string) $filters['search']).'%';
+
+                $query->where(function ($q) use ($term, $op): void {
+                    $q->where('nomor_invoice_vendor', $op, $term)
+                        ->orWhereHas('purchaseOrder', function ($po) use ($term, $op): void {
+                            $po->where('nomor_po', $op, $term);
+                        })
+                        ->orWhereHas('vendor', function ($vendor) use ($term, $op): void {
+                            $vendor->where('company_name', $op, $term);
+                        });
+                });
+            })
+            ->when(
+                ! empty($filters['status_matching']) &&
+                $filters['status_matching'] !== 'all',
+                fn ($query) => $query->where(
+                    'status_matching',
+                    $filters['status_matching']
+                )
+            )
+            ->when(! empty($filters['start_date']), fn ($query) => $query->whereDate('tanggal_invoice', '>=', $filters['start_date']))
+            ->when(! empty($filters['end_date']), fn ($query) => $query->whereDate('tanggal_invoice', '<=', $filters['end_date']))
+            ->orderBy($sort, $direction)
+            ->paginate(min($perPage, 100))
+            ->withQueryString();
+    }
+
+    /**
+     * Find an invoice by UUID, scoped to buyer company (tenant).
+     */
+    public function findByUuidForTenant(
+        string $uuid,
+        int $tenantId
+    ): ?Invoice {
+        return $this->model->newQuery()
+            ->where('uuid', $uuid)
+            ->whereHas('purchaseOrder', function ($poQuery) use ($tenantId): void {
+                $poQuery->where('perusahaan_buyer_id', $tenantId);
+            })
+            ->with([
+                'purchaseOrder.tenant',
+                'purchaseOrder.poItems.komoditas',
+                'purchaseOrder.poItems.penerimaanBarangItems.goodsReceipt',
+                'vendor',
+                'verifikator',
+                'items.purchaseOrderItem.komoditas',
+                'items.purchaseOrderItem.penerimaanBarangItems.goodsReceipt',
+                'sengketa.logs.penulis',
+            ])
+            ->first();
+    }
+
+    /**
+     * Get aggregate matching status counts for a buyer company (tenant).
+     *
+     * @return array{total: int, pending: int, matched: int, mismatched: int}
+     */
+    public function getMatchingCountsForTenant(int $tenantId): array
+    {
+        $raw = $this->model->newQuery()
+            ->whereHas('purchaseOrder', fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status_matching = 'pending' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status_matching = 'matched' THEN 1 ELSE 0 END) as matched,
+                SUM(CASE WHEN status_matching = 'mismatched' THEN 1 ELSE 0 END) as mismatched
+            ")
+            ->first();
+
+        return [
+            'total' => (int) ($raw?->total ?? 0),
+            'pending' => (int) ($raw?->pending ?? 0),
+            'matched' => (int) ($raw?->matched ?? 0),
+            'mismatched' => (int) ($raw?->mismatched ?? 0),
+        ];
+    }
+
+    /**
+     * Update invoice matching verification fields.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function updateMatching(
+        Invoice $invoice,
+        array $attributes
+    ): bool {
+        return $invoice->update($attributes);
     }
 }

@@ -71,6 +71,7 @@ class RoleAccessTest extends TestCase
             'pengaturan.view_any' => false,
             'role.view_any' => false,
             'kerja-sama.calon-mitra.view' => false,
+            'invoice.verify_any' => false,
         ];
 
         return [
@@ -93,6 +94,7 @@ class RoleAccessTest extends TestCase
                 'vendor.view_any' => true,
                 'perusahaan.view' => true,
                 'pengguna.view_any' => true,
+                'invoice.verify_any' => true,
             ]],
             'manajemen' => [RoleName::Manajemen, [
                 ...$none,
@@ -106,6 +108,7 @@ class RoleAccessTest extends TestCase
                 'pengiriman.view_any' => true,
                 'penerimaan_barang.view_any' => true,
                 'sengketa.view_any' => true,
+                'invoice.verify_any' => true,
             ]],
             'qc_gudang' => [RoleName::QcGudang, [
                 ...$none,

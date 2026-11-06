@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\DokumenLegalitasVendor;
+use App\Models\Invoice;
 use App\Models\Komoditas;
 use App\Models\PenerimaanBarang;
 use App\Models\Pengaturan;
@@ -101,6 +102,7 @@ class HandleInertiaRequests extends Middleware
             'pengaturan.view_any' => $user->can('viewAny', Pengaturan::class),
             'role.view_any' => $user->can('viewAny', Role::class),
             'kerja-sama.calon-mitra.view' => $user->isVendor() && $user->vendor_id !== null,
+            'invoice.verify_any' => $user->can('verifyAny', Invoice::class),
         ];
     }
 }

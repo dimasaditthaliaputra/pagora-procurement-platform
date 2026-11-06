@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\StatusMatching;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -90,5 +91,27 @@ class Invoice extends Model
     public function sengketa(): HasMany
     {
         return $this->hasMany(Sengketa::class, 'invoice_id');
+    }
+
+    public function statusMatchingEnum(): ?StatusMatching
+    {
+        return is_string($this->status_matching)
+            ? StatusMatching::tryFrom($this->status_matching)
+            : null;
+    }
+
+    public function isMatched(): bool
+    {
+        return $this->status_matching === StatusMatching::Matched->value || $this->status_matching === 'matched';
+    }
+
+    public function isMismatched(): bool
+    {
+        return $this->status_matching === StatusMatching::Mismatched->value || $this->status_matching === 'mismatched';
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status_matching === StatusMatching::Pending->value || $this->status_matching === 'pending';
     }
 }

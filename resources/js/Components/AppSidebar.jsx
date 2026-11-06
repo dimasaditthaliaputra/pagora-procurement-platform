@@ -49,6 +49,7 @@ import {
     X,
     Handshake,
     Scale,
+    Receipt,
 } from 'lucide-react';
 import Logo from '../../assets/logo/logo.webp';
 
@@ -83,6 +84,17 @@ const kerjaSamaNavItems = [
     { title: 'Calon Mitra', icon: Handshake, href: '/kerja-sama/calon-mitra', routeName: 'kerja-sama.calon-mitra.index', ability: 'kerja-sama.calon-mitra.view' },
 ];
 
+// Menu khusus Vendor
+const vendorNavItems = [
+    {
+        title: 'Invoice',
+        icon: Receipt,
+        href: '/invoice',
+        routeName: 'invoice.index',
+        exact: true,
+    },
+];
+
 function getInitials(name) {
     if (!name) return 'U';
     return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
@@ -102,18 +114,48 @@ export function AppSidebar({ className, ...props }) {
     // Filter menu berdasarkan izin dari backend (Policy) lalu query pencarian
     const filterItems = (items) => {
         const allowed = items.filter((item) => !item.ability || permissions[item.ability]);
+
         if (!searchQuery.trim()) return allowed;
+
         return allowed.filter((item) =>
             item.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
         );
     };
 
-    const filteredMain = useMemo(() => filterItems(mainNavItems), [searchQuery, permissions]);
-    const filteredMaster = useMemo(() => filterItems(masterNavItems), [searchQuery, permissions]);
-    const filteredManagement = useMemo(() => filterItems(managementNavItems), [searchQuery, permissions]);
-    const filteredKerjaSama = useMemo(() => filterItems(kerjaSamaNavItems), [searchQuery, permissions]);
+    const filteredMain = useMemo(
+        () => filterItems(mainNavItems),
+        [searchQuery, permissions]
+    );
 
-    const hasResults = filteredMain.length > 0 || filteredMaster.length > 0 || filteredManagement.length > 0 || filteredKerjaSama.length > 0;
+    const filteredMaster = useMemo(
+        () => filterItems(masterNavItems),
+        [searchQuery, permissions]
+    );
+
+    const filteredManagement = useMemo(
+        () => filterItems(managementNavItems),
+        [searchQuery, permissions]
+    );
+
+    const filteredKerjaSama = useMemo(
+        () => filterItems(kerjaSamaNavItems),
+        [searchQuery, permissions]
+    );
+
+    // Invoice hanya ditampilkan untuk akun dengan role Vendor
+    const filteredVendor = useMemo(
+        () => auth?.role?.name === 'vendor'
+            ? filterItems(vendorNavItems)
+            : [],
+        [searchQuery, permissions, auth?.role?.name]
+    );
+
+    const hasResults =
+        filteredMain.length > 0 ||
+        filteredMaster.length > 0 ||
+        filteredManagement.length > 0 ||
+        filteredKerjaSama.length > 0 ||
+        filteredVendor.length > 0;
 
     return (
         <Sidebar
@@ -129,12 +171,18 @@ export function AppSidebar({ className, ...props }) {
                         className="group/logo flex items-center gap-2.5 min-w-0 outline-none"
                     >
                         <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-white shadow-2xs border border-white/20 p-1.5 shrink-0 transition-transform duration-200 group-hover/logo:scale-105">
-                            <img src={aplikasi?.logo_url || Logo} alt={`Logo ${namaAplikasi}`} className="size-full object-contain" />
+                            <img
+                                src={aplikasi?.logo_url || Logo}
+                                alt={`Logo ${namaAplikasi}`}
+                                className="size-full object-contain"
+                            />
                         </div>
+
                         <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                             <span className="truncate font-bold tracking-tight text-white text-base">
                                 {namaAplikasi}
                             </span>
+
                             {aplikasi?.tagline && (
                                 <span className="truncate text-[11px] text-zinc-400 font-medium">
                                     {aplikasi.tagline}
@@ -150,15 +198,17 @@ export function AppSidebar({ className, ...props }) {
                     </div>
                 </div>
 
-                {/* Search Bar (Auto-hides on collapsed mode) */}
+                {/* Search Bar */}
                 <div className="relative mt-3 w-full group-data-[collapsible=icon]:hidden">
                     <Search className="absolute top-2.5 left-3 size-4 text-zinc-500 pointer-events-none" />
+
                     <Input
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Cari menu..."
                         className="h-9 bg-zinc-900/90 pl-9 pr-8 text-xs shadow-none hover:bg-zinc-900 focus:bg-zinc-900 rounded-lg border-zinc-800 text-zinc-100 transition-colors placeholder:text-zinc-500 focus:border-zinc-700"
                     />
+
                     {searchQuery && (
                         <button
                             type="button"
@@ -177,8 +227,12 @@ export function AppSidebar({ className, ...props }) {
                 {!hasResults ? (
                     <div className="flex flex-col items-center justify-center py-8 px-3 text-center">
                         <Search className="size-6 text-zinc-600 mb-2" />
-                        <p className="text-xs font-medium text-zinc-400">Tidak ada menu ditemukan</p>
-                        <p className="text-[11px] text-zinc-500 mt-0.5">Coba kata kunci pencarian lain</p>
+                        <p className="text-xs font-medium text-zinc-400">
+                            Tidak ada menu ditemukan
+                        </p>
+                        <p className="text-[11px] text-zinc-500 mt-0.5">
+                            Coba kata kunci pencarian lain
+                        </p>
                     </div>
                 ) : (
                     <>
@@ -187,6 +241,7 @@ export function AppSidebar({ className, ...props }) {
                                 <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
                                     Menu Utama
                                 </SidebarGroupLabel>
+
                                 <SidebarGroupContent className="mt-1">
                                     <SidebarMenu className="gap-1">
                                         {filteredMain.map((item) => (
@@ -210,6 +265,7 @@ export function AppSidebar({ className, ...props }) {
                                 <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
                                     Master Data
                                 </SidebarGroupLabel>
+
                                 <SidebarGroupContent className="mt-1">
                                     <SidebarMenu className="gap-1">
                                         {filteredMaster.map((item) => (
@@ -233,6 +289,7 @@ export function AppSidebar({ className, ...props }) {
                                 <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
                                     Manajemen
                                 </SidebarGroupLabel>
+
                                 <SidebarGroupContent className="mt-1">
                                     <SidebarMenu className="gap-1">
                                         {filteredManagement.map((item) => (
@@ -256,9 +313,35 @@ export function AppSidebar({ className, ...props }) {
                                 <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
                                     Kerja Sama
                                 </SidebarGroupLabel>
+
                                 <SidebarGroupContent className="mt-1">
                                     <SidebarMenu className="gap-1">
                                         {filteredKerjaSama.map((item) => (
+                                            <SidebarItem
+                                                key={item.title}
+                                                title={item.title}
+                                                icon={item.icon}
+                                                href={item.href}
+                                                routeName={item.routeName}
+                                                exact={item.exact}
+                                                badge={item.badge}
+                                            />
+                                        ))}
+                                    </SidebarMenu>
+                                </SidebarGroupContent>
+                            </SidebarGroup>
+                        )}
+
+                        {/* Menu khusus Vendor */}
+                        {filteredVendor.length > 0 && (
+                            <SidebarGroup className="mt-2">
+                                <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
+                                    Transaksi Vendor
+                                </SidebarGroupLabel>
+
+                                <SidebarGroupContent className="mt-1">
+                                    <SidebarMenu className="gap-1">
+                                        {filteredVendor.map((item) => (
                                             <SidebarItem
                                                 key={item.title}
                                                 title={item.title}
@@ -288,11 +371,15 @@ export function AppSidebar({ className, ...props }) {
                                     className="group flex h-12 w-full items-center gap-3 rounded-lg p-2 transition-all hover:bg-zinc-900 data-[state=open]:bg-zinc-900"
                                 >
                                     <Avatar className="size-9 rounded-lg border border-zinc-800 shrink-0">
-                                        <AvatarImage src={user?.avatar_url} alt={user?.name} />
+                                        <AvatarImage
+                                            src={user?.avatar_url}
+                                            alt={user?.name}
+                                        />
                                         <AvatarFallback className="rounded-lg bg-zinc-800 font-bold text-white text-xs border border-zinc-700">
                                             {getInitials(user?.name)}
                                         </AvatarFallback>
                                     </Avatar>
+
                                     <div className="grid flex-1 text-left text-sm leading-tight overflow-hidden group-data-[collapsible=icon]:hidden">
                                         <span className="truncate font-semibold text-white text-xs">
                                             {user?.name ?? 'Pengguna'}
@@ -301,9 +388,11 @@ export function AppSidebar({ className, ...props }) {
                                             {user?.email ?? roleLabel}
                                         </span>
                                     </div>
+
                                     <ChevronsUpDown className="size-4 text-zinc-500 group-data-[collapsible=icon]:hidden shrink-0 ml-auto" />
                                 </SidebarMenuButton>
                             </DropdownMenuTrigger>
+
                             <DropdownMenuContent
                                 className="w-56 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 p-1.5 shadow-xl"
                                 side="top"
@@ -313,11 +402,15 @@ export function AppSidebar({ className, ...props }) {
                                 <DropdownMenuLabel className="p-0 font-normal">
                                     <div className="flex items-center gap-2.5 px-2 py-2 text-left text-sm">
                                         <Avatar className="size-8 rounded-lg border border-zinc-800">
-                                            <AvatarImage src={user?.avatar_url} alt={user?.name} />
+                                            <AvatarImage
+                                                src={user?.avatar_url}
+                                                alt={user?.name}
+                                            />
                                             <AvatarFallback className="rounded-lg bg-zinc-800 font-bold text-white text-xs">
                                                 {getInitials(user?.name)}
                                             </AvatarFallback>
                                         </Avatar>
+
                                         <div className="grid flex-1 text-left text-xs leading-tight">
                                             <span className="truncate font-semibold text-white">
                                                 {user?.name}
@@ -328,22 +421,33 @@ export function AppSidebar({ className, ...props }) {
                                         </div>
                                     </div>
                                 </DropdownMenuLabel>
+
                                 <DropdownMenuSeparator className="my-1 bg-zinc-800" />
-                                <DropdownMenuItem asChild className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white">
+
+                                <DropdownMenuItem
+                                    asChild
+                                    className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white"
+                                >
                                     <Link href="/profil">
                                         <UserCircle className="size-4 text-zinc-400" />
                                         Profil Saya
                                     </Link>
                                 </DropdownMenuItem>
+
                                 {permissions?.['perusahaan.view'] && (
-                                    <DropdownMenuItem asChild className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white">
+                                    <DropdownMenuItem
+                                        asChild
+                                        className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white"
+                                    >
                                         <Link href="/manajemen/perusahaan">
                                             <Building2 className="size-4 text-zinc-400" />
                                             Profil Perusahaan
                                         </Link>
                                     </DropdownMenuItem>
                                 )}
+
                                 <DropdownMenuSeparator className="my-1 bg-zinc-800" />
+
                                 <DropdownMenuItem
                                     onClick={handleLogout}
                                     className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 focus:bg-rose-500/10 focus:text-rose-300"
@@ -356,6 +460,7 @@ export function AppSidebar({ className, ...props }) {
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarFooter>
+
             <SidebarRail />
         </Sidebar>
     );

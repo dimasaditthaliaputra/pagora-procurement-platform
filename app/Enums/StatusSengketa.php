@@ -18,4 +18,33 @@ enum StatusSengketa: string
             self::Selesai => 'Selesai',
         };
     }
+
+    /**
+     * All enum values as strings for validation rules.
+     *
+     * @return list<string>
+     */
+    public static function values(): array
+    {
+        return array_map(
+            static fn (self $case): string => $case->value,
+            self::cases()
+        );
+    }
+
+    /**
+     * Formatted options for frontend Select / filter controls.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    public static function options(): array
+    {
+        return array_map(
+            static fn (self $case): array => [
+                'value' => $case->value,
+                'label' => $case->label(),
+            ],
+            self::cases()
+        );
+    }
 }

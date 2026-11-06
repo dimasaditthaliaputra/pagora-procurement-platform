@@ -10,6 +10,7 @@ use App\Models\Pengiriman;
 use App\Models\PerusahaanBuyer;
 use App\Models\PurchaseOrder;
 use App\Models\Role;
+use App\Models\Sengketa;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Repositories\Contracts\NotificationRepositoryInterface;
@@ -90,6 +91,7 @@ class HandleInertiaRequests extends Middleware
             'purchase_order.view_any' => $user->can('viewAny', PurchaseOrder::class),
             'pengiriman.view_any' => $user->can('viewAny', Pengiriman::class),
             'penerimaan_barang.view_any' => $user->can('viewAny', PenerimaanBarang::class),
+            'sengketa.view_any' => $user->can('viewAny', Sengketa::class),
             'komoditas.view_any' => $user->can('viewAny', Komoditas::class),
             'vendor.view_any' => $user->can('viewAny', Vendor::class),
             'dokumen_legalitas.view_any' => $user->can('viewAny', DokumenLegalitasVendor::class),

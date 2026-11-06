@@ -61,6 +61,7 @@ class RoleAccessTest extends TestCase
             'purchase_order.view_any' => false,
             'pengiriman.view_any' => false,
             'penerimaan_barang.view_any' => false,
+            'sengketa.view_any' => false,
             'komoditas.view_any' => false,
             'vendor.view_any' => false,
             'dokumen_legalitas.view_any' => false,
@@ -88,6 +89,7 @@ class RoleAccessTest extends TestCase
                 'purchase_order.view_any' => true,
                 'pengiriman.view_any' => true,
                 'penerimaan_barang.view_any' => true,
+                'sengketa.view_any' => true,
                 'vendor.view_any' => true,
                 'perusahaan.view' => true,
                 'pengguna.view_any' => true,
@@ -95,6 +97,7 @@ class RoleAccessTest extends TestCase
             'manajemen' => [RoleName::Manajemen, [
                 ...$none,
                 'penerimaan_barang.view_any' => true,
+                'sengketa.view_any' => true,
                 'vendor.view_any' => true,
             ]],
             'purchasing' => [RoleName::Purchasing, [
@@ -102,6 +105,7 @@ class RoleAccessTest extends TestCase
                 'purchase_order.view_any' => true,
                 'pengiriman.view_any' => true,
                 'penerimaan_barang.view_any' => true,
+                'sengketa.view_any' => true,
             ]],
             'qc_gudang' => [RoleName::QcGudang, [
                 ...$none,
@@ -163,6 +167,9 @@ class RoleAccessTest extends TestCase
             'manajemen opens create inspeksi qc' => [RoleName::Manajemen, '/inspeksi-qc/create'],
             'vendor opens create inspeksi qc' => [RoleName::Vendor, '/inspeksi-qc/create'],
             'superadmin opens create inspeksi qc' => [RoleName::Superadmin, '/inspeksi-qc/create'],
+            'superadmin opens log sengketa' => [RoleName::Superadmin, '/log-sengketa'],
+            'qc opens log sengketa' => [RoleName::QcGudang, '/log-sengketa'],
+            'vendor opens log sengketa' => [RoleName::Vendor, '/log-sengketa'],
         ];
     }
 
@@ -308,7 +315,7 @@ class RoleAccessTest extends TestCase
                 ->component('Manajemen/RoleAkses/Index')
                 ->has('roles.data', 6)
                 ->where('roles.data', fn ($roles) => collect($roles)->firstWhere('name', 'owner')['users_count'] === 1)
-                ->has('permission_groups', 10)
+                ->has('permission_groups', 11)
             );
     }
 

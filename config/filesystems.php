@@ -1,5 +1,26 @@
 <?php
 
+/**
+ * Builds a Cloudflare R2 (S3-compatible) disk. Used in place of the "local" and
+ * "public" disks when UPLOAD_STORAGE=r2, because Heroku's filesystem is ephemeral.
+ *
+ * @return array<string, mixed>
+ */
+$r2Disk = fn (?string $bucket, ?string $url = null): array => [
+    'driver' => 's3',
+    'key' => env('R2_ACCESS_KEY_ID'),
+    'secret' => env('R2_SECRET_ACCESS_KEY'),
+    'region' => 'auto',
+    'bucket' => $bucket,
+    'url' => $url,
+    'endpoint' => env('R2_ENDPOINT'),
+    'use_path_style_endpoint' => true,
+    'throw' => false,
+    'report' => false,
+];
+
+$usesR2 = env('UPLOAD_STORAGE', 'local') === 'r2';
+
 return [
 
     /*
@@ -30,7 +51,7 @@ return [
 
     'disks' => [
 
-        'local' => [
+        'local' => $usesR2 ? $r2Disk(env('R2_PRIVATE_BUCKET')) : [
             'driver' => 'local',
             'root' => storage_path('app/private'),
             'serve' => true,
@@ -38,7 +59,7 @@ return [
             'report' => false,
         ],
 
-        'public' => [
+        'public' => $usesR2 ? $r2Disk(env('R2_PUBLIC_BUCKET'), rtrim((string) env('R2_PUBLIC_URL'), '/')) : [
             'driver' => 'local',
             'root' => storage_path('app/public'),
             'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',

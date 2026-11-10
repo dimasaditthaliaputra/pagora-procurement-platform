@@ -31,6 +31,7 @@ class InvoiceItemResource extends JsonResource
                     'uuid' => $this->purchaseOrderItem?->uuid,
                     'jumlah_pesanan' => $this->purchaseOrderItem?->jumlah_pesanan,
                     'harga_satuan_po' => $this->purchaseOrderItem?->harga_satuan_po,
+                    'subtotal' => $this->purchaseOrderItem?->subtotal,
                     'komoditas' => $this->when(
                         $this->purchaseOrderItem?->relationLoaded('komoditas'),
                         fn () => [

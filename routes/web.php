@@ -22,6 +22,7 @@ use App\Http\Controllers\SengketaController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorRegistrationController;
 use App\Http\Controllers\VerifikasiDokumenController;
+use App\Http\Controllers\VerifikasiTagihanController;
 use App\Http\Controllers\VerifikasiTenantController;
 use App\Models\DokumenLegalitasVendor;
 use App\Models\Komoditas;
@@ -483,5 +484,15 @@ Route::middleware('auth')->group(function () {
             Route::get('/{uuid}', 'show')
                 ->whereUuid('uuid')
                 ->name('show');
+        });
+
+    // Buyer Invoice Verification & 3-Way Matching Routes (UC-17, FR-28..30)
+    Route::controller(VerifikasiTagihanController::class)
+        ->prefix('verifikasi-tagihan')
+        ->name('verifikasi-tagihan.')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/{uuid}', 'show')->whereUuid('uuid')->name('show');
+            Route::post('/{uuid}/verifikasi', 'verify')->whereUuid('uuid')->name('verify');
         });
 });

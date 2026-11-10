@@ -122,6 +122,7 @@ class PurchaseOrder extends Model
             StatusPurchaseOrder::PartiallyReceived,
             StatusPurchaseOrder::DiterimaGudang,
             StatusPurchaseOrder::Ditagih,
+            StatusPurchaseOrder::ReadyToPay,
             StatusPurchaseOrder::Lunas,
             StatusPurchaseOrder::Sengketa,
         ], true)) {

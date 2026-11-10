@@ -8,13 +8,18 @@ import {
     Building2,
     Hash,
     Download,
+    CheckCircle2,
+    AlertTriangle,
+    XCircle,
+    ShieldAlert,
 } from 'lucide-react';
 
 import { formatDate, formatNumber, formatRupiah } from '@/lib/format';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Button } from '@/Components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/Components/ui/alert';
 import {
     Table,
     TableBody,
@@ -277,19 +282,154 @@ export default function InvoiceShow({ invoice }) {
                     </CardContent>
                 </Card>
 
-                {/* Hasil Pencocokan */}
+                {/* Hasil Pencocokan 3-Way Matching */}
                 {data.matching_result && (
                     <Card className="shadow-sm">
                         <CardHeader className="border-b px-5 py-3.5">
-                            <CardTitle className="text-base font-semibold">
-                                Hasil Pencocokan Invoice
-                            </CardTitle>
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                                        <Package className="size-4 text-primary" />
+                                        Hasil Pencocokan 3 Dokumen (3-Way Matching)
+                                    </CardTitle>
+                                    <CardDescription className="text-xs">
+                                        Hasil verifikasi perbandingan PO, bukti penerimaan QC Gudang, dan tagihan invoice.
+                                    </CardDescription>
+                                </div>
+                                <MatchingBadge status={data.status_matching} />
+                            </div>
                         </CardHeader>
 
-                        <CardContent className="p-5">
-                            <pre className="overflow-x-auto whitespace-pre-wrap text-sm">
-                                {JSON.stringify(data.matching_result, null, 2)}
-                            </pre>
+                        <CardContent className="space-y-4 p-5">
+                            {data.status_matching === 'matched' ? (
+                                <Alert className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                                    <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+                                    <AlertTitle className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                                        Invoice Telah Terverifikasi (Sesuai)
+                                    </AlertTitle>
+                                    <AlertDescription className="text-xs text-emerald-700 dark:text-emerald-400">
+                                        Seluruh kuantitas dan harga satuan pada invoice telah sesuai dengan Purchase Order dan barang yang diterima oleh QC Gudang.
+                                        {data.diverifikasi_pada && (
+                                            <span className="block mt-1 text-[11px] text-muted-foreground">
+                                                Diverifikasi oleh {data.verifikator?.name || 'Buyer'} pada {formatDate(data.diverifikasi_pada)}.
+                                            </span>
+                                        )}
+                                    </AlertDescription>
+                                </Alert>
+                            ) : data.status_matching === 'mismatched' ? (
+                                <Alert className="border-rose-200 bg-rose-50/50 dark:border-rose-900/40 dark:bg-rose-950/20">
+                                    <AlertTriangle className="size-4 text-rose-600 dark:text-rose-400" />
+                                    <AlertTitle className="text-sm font-semibold text-rose-800 dark:text-rose-300">
+                                        Ketidaksesuaian Tagihan Terdeteksi
+                                    </AlertTitle>
+                                    <AlertDescription className="text-xs text-rose-700 dark:text-rose-400">
+                                        Ditemukan perbedaan antara kuantitas/harga pada invoice dengan data PO atau penerimaan QC Gudang. Sengketa otomatis telah dibuka untuk penyelesaian.
+                                        {data.diverifikasi_pada && (
+                                            <span className="block mt-1 text-[11px] text-muted-foreground">
+                                                Diverifikasi oleh {data.verifikator?.name || 'Buyer'} pada {formatDate(data.diverifikasi_pada)}.
+                                            </span>
+                                        )}
+                                    </AlertDescription>
+                                </Alert>
+                            ) : null}
+
+                            {/* Dispute Info if any */}
+                            {data.sengketa && data.sengketa.length > 0 && (
+                                <div className="rounded-lg border border-rose-200 bg-rose-50/40 p-4 dark:border-rose-900/30 dark:bg-rose-950/10">
+                                    <div className="flex items-center gap-2 font-medium text-rose-800 dark:text-rose-300 text-sm">
+                                        <ShieldAlert className="size-4 text-rose-600" />
+                                        Informasi Sengketa Aktif
+                                    </div>
+                                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3 text-xs">
+                                        <div>
+                                            <span className="text-muted-foreground">Nomor Sengketa:</span>
+                                            <p className="font-mono font-medium">{data.sengketa[0]?.nomor_sengketa || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Pemicu:</span>
+                                            <p className="font-medium">{data.sengketa[0]?.trigger_type || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Status:</span>
+                                            <p className="font-medium">{data.sengketa[0]?.status || '-'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Comparison Table */}
+                            {data.matching_result?.items && data.matching_result.items.length > 0 && (
+                                <div className="overflow-x-auto rounded-md border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="bg-muted/40 text-xs">
+                                                <TableHead className="pl-4">Komoditas</TableHead>
+                                                <TableHead className="text-right">Qty Pesan (PO)</TableHead>
+                                                <TableHead className="text-right">Qty Diterima (QC)</TableHead>
+                                                <TableHead className="text-right">Qty Ditagih</TableHead>
+                                                <TableHead className="text-right">Harga PO</TableHead>
+                                                <TableHead className="text-right">Harga Ditagih</TableHead>
+                                                <TableHead className="pr-4 text-center">Status</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {data.matching_result.items.map((item, idx) => (
+                                                <TableRow
+                                                    key={idx}
+                                                    className={!item.is_matched ? 'bg-rose-50/30 dark:bg-rose-950/20' : ''}
+                                                >
+                                                    <TableCell className="pl-4 font-medium text-xs">
+                                                        <div>{item.commodity_name}</div>
+                                                        <span className="text-[10px] text-muted-foreground">
+                                                            Satuan: {item.unit}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-xs tabular-nums">
+                                                        {formatNumber(item.po_quantity)} {item.unit}
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-xs tabular-nums font-medium text-amber-700 dark:text-amber-400">
+                                                        {formatNumber(item.received_quantity)} {item.unit}
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-xs tabular-nums font-semibold">
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <span>{formatNumber(item.invoiced_quantity)} {item.unit}</span>
+                                                            {item.quantity_matched ? (
+                                                                <CheckCircle2 className="size-3 text-emerald-600 shrink-0" />
+                                                            ) : (
+                                                                <XCircle className="size-3 text-rose-600 shrink-0" />
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-xs tabular-nums">
+                                                        {formatRupiah(item.po_unit_price)}
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-xs tabular-nums">
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <span>{formatRupiah(item.invoice_unit_price)}</span>
+                                                            {item.price_matched ? (
+                                                                <CheckCircle2 className="size-3 text-emerald-600 shrink-0" />
+                                                            ) : (
+                                                                <XCircle className="size-3 text-rose-600 shrink-0" />
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="pr-4 text-center text-xs">
+                                                        {item.is_matched ? (
+                                                            <Badge variant="outline" className="text-[10px] text-emerald-700 border-emerald-300 dark:text-emerald-400">
+                                                                Sesuai
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="destructive" className="text-[10px]">
+                                                                {item.discrepancy_reason || 'Selisih'}
+                                                            </Badge>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 )}

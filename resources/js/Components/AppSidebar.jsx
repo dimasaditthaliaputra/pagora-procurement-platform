@@ -60,6 +60,7 @@ const mainNavItems = [
     { title: 'Purchase Order', icon: FileText, href: '/purchase-order', routeName: 'purchase-order', ability: 'purchase_order.view_any' },
     { title: 'Pengiriman', icon: Truck, href: '/pengiriman', routeName: 'pengiriman', ability: 'pengiriman.view_any' },
     { title: 'Inspeksi QC', icon: ClipboardCheck, href: '/inspeksi-qc', routeName: 'inspeksi-qc', ability: 'penerimaan_barang.view_any' },
+    { title: 'Verifikasi Tagihan', icon: Receipt, href: '/verifikasi-tagihan', routeName: 'verifikasi-tagihan.index', ability: 'invoice.verify_any' },
     { title: 'Log Sengketa', icon: Scale, href: '/log-sengketa', routeName: 'log-sengketa', ability: 'sengketa.view_any' },
 ];
 

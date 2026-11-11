@@ -16,6 +16,7 @@ use App\Http\Controllers\PengaturanController;
 use App\Http\Controllers\PengirimanController;
 use App\Http\Controllers\PerusahaanController;
 use App\Http\Controllers\ProfilController;
+use App\Http\Controllers\PublicFileController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\RoleAksesController;
 use App\Http\Controllers\SengketaController;
@@ -39,6 +40,13 @@ use Illuminate\Support\Facades\Route;
 
 // Public Home
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// Public uploads (avatar, logo) served via the app domain; no session needed for static files.
+Route::get('/files/{path}', PublicFileController::class)
+    ->where('path', '[A-Za-z0-9_\-./]+')
+    ->withoutMiddleware('web')
+    ->middleware('throttle:600,1')
+    ->name('files.show');
 
 // Guest Authentication Routes
 Route::middleware('guest')->group(function () {

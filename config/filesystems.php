@@ -59,7 +59,7 @@ return [
             'report' => false,
         ],
 
-        'public' => $usesR2 ? $r2Disk(env('R2_PUBLIC_BUCKET'), rtrim((string) env('R2_PUBLIC_URL'), '/')) : [
+        'public' => $usesR2 ? $r2Disk(env('R2_PUBLIC_BUCKET'), rtrim((string) (env('R2_PUBLIC_URL') ?: rtrim((string) env('APP_URL', 'http://localhost'), '/').'/files'), '/')) : [
             'driver' => 'local',
             'root' => storage_path('app/public'),
             'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',

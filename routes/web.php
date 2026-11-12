@@ -97,6 +97,10 @@ Route::middleware('guest')->group(function () {
             Route::post('/otp', [VendorRegistrationController::class, 'sendOtp'])
                 ->middleware('throttle:6,1')
                 ->name('.otp');
+
+            Route::post('/otp/verify', [VendorRegistrationController::class, 'verifyOtp'])
+                ->middleware('throttle:10,1')
+                ->name('.otp.verify');
         });
 
     Route::redirect('/register-vendor', '/register/vendor');

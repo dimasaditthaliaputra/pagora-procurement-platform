@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\Vendor;
 use Database\Seeders\CommodityCategorySeeder;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
@@ -121,6 +122,49 @@ class VendorRegistrationTest extends TestCase
             ->assertJsonValidationErrors('contact_email');
 
         Mail::assertQueuedCount(1);
+    }
+
+    public function test_vendor_otp_can_be_verified_successfully(): void
+    {
+        Mail::fake();
+        $code = $this->requestOtp('verifikasi@vendor.co.id');
+
+        $response = $this->postJson('/register/vendor/otp/verify', [
+            'contact_email' => 'verifikasi@vendor.co.id',
+            'otp' => $code,
+        ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'message' => 'Kode OTP berhasil diverifikasi.',
+        ]);
+    }
+
+    public function test_vendor_otp_verification_fails_with_wrong_or_different_code(): void
+    {
+        Mail::fake();
+        $code = $this->requestOtp('verifikasi@vendor.co.id');
+        $wrongCode = $code === '123456' ? '654321' : '123456';
+
+        $response = $this->postJson('/register/vendor/otp/verify', [
+            'contact_email' => 'verifikasi@vendor.co.id',
+            'otp' => $wrongCode,
+        ]);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors(['otp']);
+    }
+
+    public function test_vendor_otp_verification_fails_when_otp_not_requested_or_expired(): void
+    {
+        $response = $this->postJson('/register/vendor/otp/verify', [
+            'contact_email' => 'belumada@vendor.co.id',
+            'otp' => '123456',
+        ]);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors(['otp']);
     }
 
     /**
@@ -277,8 +321,14 @@ class VendorRegistrationTest extends TestCase
         $documents = DokumenLegalitasVendor::where('vendor_id', $vendor->getKey())->get();
         $this->assertCount(2, $documents);
 
+        /** @var FilesystemAdapter $localDisk */
+        $localDisk = Storage::disk('local');
+
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $localDisk */
+        $localDisk = Storage::disk('local');
+
         foreach ($documents as $document) {
-            Storage::disk('local')->assertExists($document->file_path);
+            $localDisk->assertExists($document->file_path);
             $this->assertSame('pending', $document->verification_status->value);
             $this->assertNull($document->verified_by);
             $this->assertNull($document->rejection_reason);

@@ -109,6 +109,20 @@ class VendorRegistrationService
     }
 
     /**
+     * Verify the contact email OTP without consuming it.
+     *
+     * @throws ValidationException
+     */
+    public function verifyEmailOtp(string $email, string $otp): void
+    {
+        $this->otpService->check(
+            OtpService::PURPOSE_VENDOR_REGISTRATION,
+            strtolower(trim($email)),
+            $otp
+        );
+    }
+
+    /**
      * Register a new vendor candidate, its user account, commodity categories, and legal document.
      *
      * @param  array<string, mixed>  $data

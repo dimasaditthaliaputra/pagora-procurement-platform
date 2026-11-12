@@ -37,32 +37,61 @@ export function isImageSource(value) {
  * Daftar ekstensi dari objek `accept` react-dropzone, contoh: "PDF, JPG, JPEG, atau PNG".
  */
 export function describeAcceptedFormats(accept) {
-    const extensions = [...new Set(Object.values(accept).flat().map((ext) => ext.replace('.', '').toUpperCase()))];
+    if (!accept || typeof accept !== 'object') {
+        return 'PDF';
+    }
 
-    if (extensions.length <= 1) return extensions[0] ?? '';
+    const extensions = [
+        ...new Set(
+            Object.values(accept)
+                .flat()
+                .filter(Boolean)
+                .map((ext) => ext.replace('.', '').toUpperCase())
+        ),
+    ];
+
+    if (extensions.length === 0) return 'PDF';
+    if (extensions.length === 1) return extensions[0];
 
     return `${extensions.slice(0, -1).join(', ')}, atau ${extensions.at(-1)}`;
 }
 
 /**
  * Pesan yang ramah untuk penolakan react-dropzone.
+ * Mendukung pemanggilan opsi objek `{ accept, maxSize }` maupun argumen terpisah `(rejection, accept, maxSize)`.
  */
-export function describeRejection(rejection, { accept, maxSize }) {
-    const codes = rejection.errors.map((error) => error.code);
+export function describeRejection(rejection, optionsOrAccept = {}, maybeMaxSize) {
+    if (!rejection) {
+        return 'File tidak dapat diterima.';
+    }
+
+    const options =
+        optionsOrAccept && (optionsOrAccept.accept !== undefined || optionsOrAccept.maxSize !== undefined)
+            ? optionsOrAccept
+            : { accept: optionsOrAccept, maxSize: maybeMaxSize };
+
+    const codes = Array.isArray(rejection.errors) ? rejection.errors.map((error) => error.code) : [];
+    const maxSize = options.maxSize || 5 * 1024 * 1024;
+    const accept = options.accept;
 
     if (codes.includes('file-too-large')) {
         return `Ukuran file terlalu besar. Maksimal ${formatBytes(maxSize)}.`;
     }
 
     if (codes.includes('file-invalid-type')) {
-        return `Format file tidak didukung. Harap unggah ${describeAcceptedFormats(accept)}.`;
+        const formats = describeAcceptedFormats(accept);
+        return `Format file tidak didukung. Harap unggah berkas ${formats}.`;
+    }
+
+    if (codes.includes('file-empty')) {
+        return 'File kosong (0 byte) tidak dapat diunggah.';
     }
 
     if (codes.includes('too-many-files')) {
-        return 'Hanya satu file yang dapat diunggah.';
+        return 'Jumlah file melebihi batas yang diizinkan.';
     }
 
-    return 'File tidak dapat diterima.';
+    return rejection.errors?.[0]?.message || 'File tidak dapat diterima.';
 }
 
 /**

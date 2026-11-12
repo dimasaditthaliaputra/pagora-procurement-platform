@@ -448,6 +448,58 @@ class VendorRegistrationTest extends TestCase
         $response->assertSessionHasErrors(['legal_documents.0.file']);
     }
 
+    public function test_registration_fails_when_legal_documents_do_not_contain_npwp(): void
+    {
+        Storage::fake('local');
+        $category = CommodityCategory::firstOrFail();
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Andi Wijaya',
+            'email' => 'nonpwp@perusahaan.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'company_name' => 'PT Tanpa NPWP',
+            'tax_number' => '01.234.567.8-901.000',
+            'contact_email' => 'nonpwp@perusahaan.com',
+            'phone' => '081234567890',
+            'address' => 'Surabaya',
+            'commodity_category_uuids' => [$category->uuid],
+            'legal_documents' => [
+                $this->sampleLegalDocument('dokumen_nib.pdf', 'nib', 'NIB-12345'),
+            ],
+        ]);
+
+        $response->assertSessionHasErrors(['legal_documents' => 'Dokumen legalitas NPWP Perusahaan wajib diunggah.']);
+    }
+
+    public function test_registration_fails_when_legal_document_file_is_empty(): void
+    {
+        Storage::fake('local');
+        $category = CommodityCategory::firstOrFail();
+        $emptyFile = UploadedFile::fake()->create('kosong.pdf', 0, 'application/pdf');
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Andi Wijaya',
+            'email' => 'kosong@perusahaan.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'company_name' => 'PT File Kosong',
+            'tax_number' => '01.234.567.8-901.000',
+            'contact_email' => 'kosong@perusahaan.com',
+            'phone' => '081234567890',
+            'address' => 'Semarang',
+            'commodity_category_uuids' => [$category->uuid],
+            'legal_documents' => [
+                [
+                    'document_type' => 'npwp',
+                    'file' => $emptyFile,
+                ],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors(['legal_documents.0.file']);
+    }
+
     public function test_phone_number_is_stored_in_e164_format(): void
     {
         Storage::fake('local');

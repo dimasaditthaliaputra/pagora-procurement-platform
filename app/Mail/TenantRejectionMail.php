@@ -31,7 +31,7 @@ class TenantRejectionMail extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            view: 'emails.tenant-rejection',
+            markdown: 'emails.tenant-rejection',
             with: [
                 'ownerName' => $this->ownerName,
                 'companyName' => $this->companyName,

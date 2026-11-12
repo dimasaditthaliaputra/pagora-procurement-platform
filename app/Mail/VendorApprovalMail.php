@@ -26,7 +26,7 @@ class VendorApprovalMail extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            view: 'emails.vendor-approval',
+            markdown: 'emails.vendor-approval',
             with: [
                 'vendorName' => $this->vendorName,
                 'companyName' => $this->companyName,

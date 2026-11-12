@@ -30,7 +30,7 @@ class TenantApprovalMail extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            view: 'emails.tenant-approval',
+            markdown: 'emails.tenant-approval',
             with: [
                 'ownerName' => $this->ownerName,
                 'companyName' => $this->companyName,

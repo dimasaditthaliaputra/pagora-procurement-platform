@@ -867,7 +867,7 @@ class PegawaiTest extends TestCase
         $mail = $notification->toMail($newUser);
 
         $this->assertStringContainsString('Undangan Bergabung & Kredensial Akun Internal - PT Nusantara Sejahtera', $mail->subject);
-        $renderedHtml = $mail->render();
+        $renderedHtml = (string) $mail->render();
         $this->assertStringContainsString('PT Nusantara Sejahtera', $renderedHtml);
         $this->assertStringContainsString('Pgr-AbCdEf-1234', $renderedHtml);
         $this->assertStringContainsString('Purchasing / Finance', $renderedHtml);

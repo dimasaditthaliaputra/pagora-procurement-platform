@@ -29,7 +29,7 @@ class UndanganVendorMail extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            view: 'emails.undangan-vendor',
+            markdown: 'emails.undangan-vendor',
             with: [
                 'invitation' => $this->invitation,
                 'companyName' => $this->invitation->company_name,

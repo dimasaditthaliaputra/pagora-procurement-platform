@@ -26,7 +26,7 @@ class SmtpTestMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'emails.smtp-test',
+            markdown: 'emails.smtp-test',
             with: [
                 'appName' => config('app.name'),
                 'mailer' => config('mail.default'),

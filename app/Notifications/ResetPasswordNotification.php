@@ -41,11 +41,10 @@ class ResetPasswordNotification extends Notification implements ShouldQueue
 
         return (new MailMessage)
             ->subject('Atur Ulang Kata Sandi PAGORA')
-            ->greeting('Halo, '.$notifiable->name.'!')
-            ->line('Kami menerima permintaan untuk mengatur ulang kata sandi akun PAGORA Anda.')
-            ->action('Atur Ulang Kata Sandi', $url)
-            ->line("Tautan ini berlaku selama {$expire} menit.")
-            ->line('Jika Anda tidak merasa meminta pengaturan ulang kata sandi, abaikan email ini. Kata sandi Anda tidak akan berubah.')
-            ->salutation('Salam hormat, Tim PAGORA');
+            ->markdown('emails.reset-password', [
+                'name' => $notifiable->name,
+                'url' => $url,
+                'expireMinutes' => $expire,
+            ]);
     }
 }

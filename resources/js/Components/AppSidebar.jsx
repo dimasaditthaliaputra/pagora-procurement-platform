@@ -53,7 +53,7 @@ import {
 } from 'lucide-react';
 import Logo from '../../assets/logo/logo.webp';
 
-const mainNavItems = [
+export const mainNavItems = [
     { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', routeName: 'dashboard' },
     { title: 'Pengadaan', icon: ShoppingCart, href: '#', badge: 'Baru' },
     { title: 'Katalog Produk', icon: Package, href: '#' },

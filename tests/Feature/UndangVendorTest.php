@@ -7,9 +7,11 @@ namespace Tests\Feature;
 use App\Enums\StatusUndanganVendor;
 use App\Mail\OtpMail;
 use App\Mail\UndanganVendorMail;
+use App\Models\CommodityCategory;
 use App\Models\UndanganVendor;
 use App\Models\User;
 use App\Models\Vendor;
+use Database\Seeders\CommodityCategorySeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -32,6 +34,7 @@ class UndangVendorTest extends TestCase
     {
         parent::setUp();
         $this->seed(RoleSeeder::class);
+        $this->seed(CommodityCategorySeeder::class);
 
         $this->superadmin = User::factory()->create([
             'role_id' => 1, // Superadmin
@@ -243,6 +246,7 @@ class UndangVendorTest extends TestCase
                 ->where('company_name', 'PT Jagung Makmur')
                 ->where('contact_email', 'jagung@makmur.test')
                 ->where('kategori_komoditas', 'Beras & Biji-bijian')
+                ->etc()
             )
         );
     }
@@ -299,12 +303,19 @@ class UndangVendorTest extends TestCase
 
         // Submit vendor registration with invitation token
         $dummyPdf = UploadedFile::fake()->create('npwp.pdf', 500, 'application/pdf');
+        $category = CommodityCategory::where('name', 'Gula & Pemanis')->first()
+            ?? CommodityCategory::firstOrFail();
 
         $regResponse = $this->post('/register/vendor', [
+            'name' => 'Budi Tebu',
+            'email' => 'budi@sejahtera.test',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
             'company_name' => 'PT Tebu Sejahtera',
+            'tax_number' => '01.234.567.8-901.000',
             'contact_email' => $email,
             'phone' => '081234567890',
-            'kategori_komoditas' => 'Gula, Pemanis & Rempah',
+            'commodity_category_uuids' => [$category->uuid],
             'address' => 'Jl. Perkebunan Tebu No. 10',
             'otp' => $code,
             'legal_document' => $dummyPdf,

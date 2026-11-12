@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Helpers\ResponseHelper;
 use App\Http\Middleware\AssignRequestId;
+use App\Models\CommodityCategory;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Providers\AppServiceProvider;
@@ -162,6 +163,8 @@ class ApplicationHelpersTest extends TestCase
     {
         Storage::fake('local');
 
+        $category = CommodityCategory::factory()->create(['is_active' => true]);
+
         $this->mock(OtpService::class)->shouldReceive('verify')->andReturnNull();
         $this->mock(VendorRepositoryInterface::class)
             ->shouldReceive('create')
@@ -169,11 +172,15 @@ class ApplicationHelpersTest extends TestCase
 
         try {
             app(VendorRegistrationService::class)->register([
+                'name' => 'Andi Uji',
+                'email' => 'andi@vendor.test',
+                'password' => 'password123',
                 'company_name' => 'PT Uji',
+                'tax_number' => '01.234.567.8-901.000',
                 'contact_email' => 'uji@vendor.test',
                 'phone' => '081234567890',
                 'address' => 'Bekasi',
-                'kategori_komoditas' => 'Lainnya',
+                'commodity_category_uuids' => [$category->uuid],
                 'otp' => '123456',
                 'legal_document' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
             ]);

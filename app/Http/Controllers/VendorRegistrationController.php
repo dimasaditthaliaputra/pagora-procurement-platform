@@ -81,6 +81,16 @@ class VendorRegistrationController extends Controller
     }
 
     /**
+     * Tampilkan halaman konfirmasi setelah pendaftaran berhasil dikirim.
+     */
+    public function success(Request $request): Response
+    {
+        return Inertia::render('Auth/RegisterSuccess', [
+            'email' => session('registered_email'),
+        ]);
+    }
+
+    /**
      * Proses penyimpanan registrasi calon vendor mitra baru.
      */
     public function store(StoreVendorRegistrationRequest $request): JsonResponse|RedirectResponse
@@ -88,9 +98,11 @@ class VendorRegistrationController extends Controller
         try {
             $this->service->register($request->validated());
 
+            session()->flash('registered_email', (string) $request->validated('contact_email'));
+
             return ResponseHelper::success(
                 'Pendaftaran sukses! Akun dan dokumen legalitas Anda sedang menunggu verifikasi.',
-                redirectTo: route('register.vendor')
+                redirectTo: route('register.success')
             );
         } catch (ValidationException $e) {
             return ResponseHelper::validationError($e->errors());

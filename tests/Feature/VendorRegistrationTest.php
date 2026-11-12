@@ -49,6 +49,18 @@ class VendorRegistrationTest extends TestCase
         $response->assertRedirect('/register/vendor');
     }
 
+    public function test_registration_success_page_can_be_rendered(): void
+    {
+        $response = $this->withSession(['registered_email' => 'vendor@perusahaan.co.id'])
+            ->get('/register/sukses');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Auth/RegisterSuccess')
+            ->where('email', 'vendor@perusahaan.co.id')
+        );
+    }
+
     /**
      * Request an OTP for the email and return the code that was mailed.
      */
@@ -215,7 +227,7 @@ class VendorRegistrationTest extends TestCase
         $response = $this->from('/register/vendor')
             ->post('/register/vendor', $payload);
 
-        $response->assertRedirect('/register/vendor');
+        $response->assertRedirect(route('register.success'));
         $response->assertSessionHas(
             'status',
             'Pendaftaran sukses! Akun dan dokumen legalitas Anda sedang menunggu verifikasi.'

@@ -3,7 +3,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { Input } from '@/Components/ui/input';
 import { cn } from '@/lib/utils';
 
-export function PasswordInput({ id, value, onChange, error, disabled, autoComplete, className }) {
+export function PasswordInput({ id, value, onChange, error, disabled, autoComplete, placeholder, className }) {
     const [visible, setVisible] = useState(false);
 
     return (
@@ -14,6 +14,7 @@ export function PasswordInput({ id, value, onChange, error, disabled, autoComple
                 value={value}
                 onChange={onChange}
                 autoComplete={autoComplete}
+                placeholder={placeholder}
                 aria-invalid={!!error}
                 aria-describedby={error ? `${id}-error` : undefined}
                 className={cn('pr-10', error && 'border-destructive focus-visible:ring-destructive', className)}

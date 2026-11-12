@@ -178,7 +178,7 @@ export default function Register() {
                                 >
                                     {step > 1 ? <CheckCircle2 className="size-3.5" /> : '1'}
                                 </span>
-                                <span className="truncate">1. Profil Akun</span>
+                                <span className="truncate">Profil Akun</span>
                             </button>
 
                             <div className="h-4 w-px bg-border/70 shrink-0" />
@@ -207,7 +207,7 @@ export default function Register() {
                                 >
                                     2
                                 </span>
-                                <span className="truncate">2. Data Perusahaan</span>
+                                <span className="truncate">Data Perusahaan</span>
                             </button>
                         </div>
 

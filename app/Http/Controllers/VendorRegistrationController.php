@@ -27,25 +27,40 @@ class VendorRegistrationController extends Controller
      */
     public function create(Request $request): Response
     {
+        $commodityCategories = $this->service->getActiveCommodityCategories();
         $invitation = null;
+        $invitationError = null;
         $token = $request->query('invitation');
 
         if (is_string($token) && $token !== '') {
             $undangan = $this->service->findValidInvitationByToken($token);
+
             if ($undangan !== null) {
+                $matchedCategoryUuid = null;
+                if (filled($undangan->kategori_komoditas)) {
+                    $matchedCategory = collect($commodityCategories)
+                        ->firstWhere('name', $undangan->kategori_komoditas);
+                    $matchedCategoryUuid = $matchedCategory['uuid'] ?? null;
+                }
+
                 $invitation = [
                     'token' => $undangan->token,
                     'company_name' => $undangan->company_name,
                     'contact_email' => $undangan->email,
                     'kategori_komoditas' => $undangan->kategori_komoditas,
+                    'commodity_category_uuid' => $matchedCategoryUuid,
                 ];
+            } else {
+                $invitationError = 'Tautan undangan pendaftaran vendor tidak valid atau sudah kedaluwarsa.';
             }
         }
 
         return Inertia::render('Auth/RegisterVendor', [
+            'commodity_categories' => $commodityCategories,
             'kategori_options' => VendorRegistrationService::KATEGORI_OPTIONS,
             'status' => session('status'),
             'invitation' => $invitation,
+            'invitation_error' => $invitationError,
         ]);
     }
 
@@ -74,7 +89,7 @@ class VendorRegistrationController extends Controller
             $this->service->register($request->validated());
 
             return ResponseHelper::success(
-                'Pendaftaran berhasil disubmit dan sedang dalam tahap validasi Manajemen.',
+                'Pendaftaran sukses! Akun dan dokumen legalitas Anda sedang menunggu verifikasi.',
                 redirectTo: route('register.vendor')
             );
         } catch (ValidationException $e) {

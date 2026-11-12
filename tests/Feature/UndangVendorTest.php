@@ -318,7 +318,12 @@ class UndangVendorTest extends TestCase
             'commodity_category_uuids' => [$category->uuid],
             'address' => 'Jl. Perkebunan Tebu No. 10',
             'otp' => $code,
-            'legal_document' => $dummyPdf,
+            'legal_documents' => [
+                [
+                    'document_type' => 'npwp',
+                    'file' => $dummyPdf,
+                ],
+            ],
             'invitation_token' => $invitation->token,
         ]);
 

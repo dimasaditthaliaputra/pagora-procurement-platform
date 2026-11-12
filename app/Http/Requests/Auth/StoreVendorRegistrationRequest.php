@@ -101,13 +101,14 @@ class StoreVendorRegistrationRequest extends FormRequest
                     ->where('is_active', true)
                     ->whereNull('deleted_at'),
             ],
-            'document_type' => ['nullable', 'string', Rule::in(['npwp', 'siup', 'nib'])],
-            'document_number' => ['nullable', 'string', 'max:100'],
-            'legal_document' => [
+            'legal_documents' => ['required', 'array', 'min:1'],
+            'legal_documents.*.document_type' => ['required', 'string', Rule::in(['npwp', 'siup', 'nib'])],
+            'legal_documents.*.document_number' => ['nullable', 'string', 'max:100'],
+            'legal_documents.*.file' => [
                 'required',
                 'file',
-                'mimes:pdf,jpg,jpeg,png',
-                'max:5120', // 5 MB sesuai PRD NFR-05 & UC-02
+                'mimes:pdf',
+                'max:5120', // Maksimal 5 MB per file sesuai PRD NFR-05 & UC-02
             ],
             'invitation_token' => ['nullable', 'string', 'max:64'],
         ];
@@ -166,13 +167,16 @@ class StoreVendorRegistrationRequest extends FormRequest
             'commodity_category_uuids.*.uuid' => 'Kategori komoditas tidak valid.',
             'commodity_category_uuids.*.exists' => 'Kategori komoditas yang dipilih tidak ditemukan atau tidak aktif.',
 
-            'document_type.in' => 'Jenis dokumen legalitas tidak valid.',
-            'document_number.max' => 'Nomor dokumen tidak boleh lebih dari 100 karakter.',
-
-            'legal_document.required' => 'Dokumen legalitas (NPWP/SIUP/NIB) wajib diunggah.',
-            'legal_document.file' => 'Dokumen legalitas harus berupa file yang valid.',
-            'legal_document.mimes' => 'Format file dokumen legalitas harus berupa PDF, JPG, JPEG, atau PNG.',
-            'legal_document.max' => 'Ukuran file dokumen legalitas tidak boleh lebih dari 5 MB.',
+            'legal_documents.required' => 'Unggah minimal satu dokumen legalitas (NPWP/SIUP/NIB) berformat PDF.',
+            'legal_documents.array' => 'Format daftar dokumen legalitas tidak valid.',
+            'legal_documents.min' => 'Unggah minimal satu dokumen legalitas (NPWP/SIUP/NIB) berformat PDF.',
+            'legal_documents.*.document_type.required' => 'Jenis dokumen legalitas wajib dipilih.',
+            'legal_documents.*.document_type.in' => 'Jenis dokumen legalitas tidak valid.',
+            'legal_documents.*.document_number.max' => 'Nomor dokumen tidak boleh lebih dari 100 karakter.',
+            'legal_documents.*.file.required' => 'File dokumen legalitas wajib diunggah.',
+            'legal_documents.*.file.file' => 'Dokumen legalitas harus berupa file yang valid.',
+            'legal_documents.*.file.mimes' => 'Format file dokumen legalitas harus berupa PDF (.pdf).',
+            'legal_documents.*.file.max' => 'Ukuran setiap file dokumen legalitas tidak boleh lebih dari 5 MB.',
         ];
     }
 
@@ -193,7 +197,10 @@ class StoreVendorRegistrationRequest extends FormRequest
             'phone' => 'nomor telepon',
             'address' => 'alamat lengkap',
             'commodity_category_uuids' => 'kategori komoditas',
-            'legal_document' => 'dokumen legalitas',
+            'legal_documents' => 'dokumen legalitas',
+            'legal_documents.*.file' => 'file dokumen legalitas',
+            'legal_documents.*.document_type' => 'jenis dokumen legalitas',
+            'legal_documents.*.document_number' => 'nomor dokumen legalitas',
         ];
     }
 }

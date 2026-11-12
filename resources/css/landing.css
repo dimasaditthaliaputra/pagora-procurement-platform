@@ -1,68 +1,286 @@
 /* ==========================================================================
-   PAGORA — Landing Page Scoped Styles
-   Dikhususkan untuk Landing Page (Home.jsx) agar tidak mencemari Dashboard,
-   Login, dan halaman internal aplikasi lainnya.
+   PAGORA — Landing Page
+   Token & utilitas mengikuti DESIGN.md. Semua kelas di sini hanya dipakai
+   oleh Pages/Home agar tidak memengaruhi dasbor dan halaman auth.
    ========================================================================== */
 
+@theme {
+  --color-brand-lime: #beff50;
+  --color-brand-offblack: #14140f;
+  --color-brand-offwhite: #f5f5eb;
+  --color-brand-orange: #ff8c5f;
+  --color-brand-cyan: #82dcfa;
+  --color-brand-pink: #fab9fa;
+  --color-brand-purple: #c8a0ff;
+  --color-brand-yellow: #ffbe00;
+
+  --color-warm-95: #fafaf5;
+  --color-warm-80: #d2d2c8;
+  --color-warm-75: #919183;
+  --color-warm-70: #838377;
+  --color-warm-60: #6e6e64;
+  --color-warm-50: #44443c;
+
+  --color-positive: #007d4b;
+  --color-positive-soft: #d6ffef;
+  --color-negative: #d20f46;
+  --color-negative-soft: #fde7ed;
+  --color-caution-soft: #ffedb8;
+
+  /*
+   * Soft layered shadows, tinted with the brand off-black instead of pure black.
+   * Each step adds a tight contact shadow plus a wide, faint ambient one.
+   */
+  --shadow-soft-xs: 0 1px 2px #14140f0a;
+  --shadow-soft-sm: 0 1px 2px #14140f08, 0 2px 8px -2px #14140f0d;
+  --shadow-soft-md: 0 1px 2px #14140f08, 0 6px 16px -4px #14140f0f, 0 16px 32px -12px #14140f14;
+  --shadow-soft-lg: 0 2px 4px #14140f08, 0 12px 28px -8px #14140f14, 0 32px 64px -24px #14140f26;
+  --shadow-soft-popover: 0 0 0 1px #14140f0f, 0 4px 10px -2px #14140f0d, 0 18px 36px -12px #14140f1f;
+  --shadow-soft-stack: 0 -1px 2px #14140f05, 0 -12px 32px -18px #14140f26, 0 2px 8px -2px #14140f0d;
+
+  --radius-xsmall: 8px;
+  --radius-small: 18px;
+  --radius-medium: 28px;
+
+  --breakpoint-tab: 578px;
+  --breakpoint-desk: 1092px;
+  --breakpoint-wide: 1396px;
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-pill: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-out-quick: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-float: lp-appear 2.5s forwards, lp-float var(--float-duration, 6s) ease-in-out infinite;
+  --animate-fade-in-up: lp-fade-in-up 0.5s ease-out both;
+  --animate-fade-in: lp-fade-in 0.5s ease-in both;
+
+  @keyframes lp-appear {
+    from { opacity: 0; visibility: hidden; }
+    to { opacity: 1; visibility: visible; }
+  }
+
+  @keyframes lp-float {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(var(--float-x, 0px), var(--float-y, -10px)); }
+  }
+
+  @keyframes lp-fade-in-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes lp-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Skala tipografi (mobile → desktop ≥ 1092px)
+   -------------------------------------------------------------------------- */
+
+@utility type-display-xl {
+  font-size: 48px;
+  line-height: 48px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  @media (width >= 1092px) {
+    font-size: 90px;
+    line-height: 80px;
+  }
+}
+
+@utility type-heading-l {
+  font-size: 42px;
+  line-height: 40px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  @media (width >= 1092px) {
+    font-size: 80px;
+    line-height: 72px;
+  }
+}
+
+/* Hero headline: scales with viewport height on desktop so the device showcase fits the first screen. */
+@utility type-hero {
+  font-size: 42px;
+  line-height: 40px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  @media (width >= 1092px) {
+    font-size: clamp(56px, 8svh, 80px);
+    line-height: 0.92;
+  }
+}
+
+@utility type-heading-m {
+  font-size: 36px;
+  line-height: 38px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  @media (width >= 1092px) {
+    font-size: 60px;
+    line-height: 60px;
+  }
+}
+
+@utility type-heading-s {
+  font-size: 28px;
+  line-height: 32px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  @media (width >= 1092px) {
+    font-size: 40px;
+    line-height: 42px;
+    letter-spacing: -0.03em;
+  }
+}
+
+@utility type-heading-xs {
+  font-size: 24px;
+  line-height: 26px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  @media (width >= 1092px) {
+    font-size: 28px;
+    line-height: 32px;
+  }
+}
+
+@utility type-body-l {
+  font-size: 18px;
+  line-height: 22px;
+  @media (width >= 1092px) {
+    font-size: 22px;
+    line-height: 26px;
+  }
+}
+
+@utility type-body-m {
+  font-size: 18px;
+  line-height: 24px;
+}
+
+@utility type-body-s {
+  font-size: 14px;
+  line-height: 16px;
+  @media (width >= 1092px) {
+    font-size: 16px;
+    line-height: 20px;
+  }
+}
+
+@utility type-body-xs {
+  font-size: 14px;
+  line-height: 18px;
+}
+
+@utility type-eyebrow {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Container halaman: gutter 33 → 34 → 48px, maksimum 1300px. */
+@utility landing-container {
+  margin-inline: 33px;
+  @media (width >= 578px) {
+    margin-inline: 34px;
+  }
+  @media (width >= 1092px) {
+    margin-inline: 48px;
+  }
+  @media (width >= 1396px) {
+    max-width: 1300px;
+    margin-inline: auto;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Dasar halaman
+   -------------------------------------------------------------------------- */
+
 .landing-page {
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  background-color: var(--color-cream-paper);
-  color: var(--color-ink-black);
+  --focus-outline-color: var(--color-brand-offblack);
+  font-family: var(--font-sans);
+  background-color: var(--color-warm-95);
+  color: var(--color-brand-offblack);
 }
 
-.landing-page section[id] {
-  scroll-margin-top: 5.5rem;
+.landing-page [data-focus-theme='dark'] {
+  --focus-outline-color: var(--color-brand-lime);
 }
 
-/* SVG Scroll Path — subtle connecting thread */
-.landing-page .scroll-path-line {
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.15;
+/* Snap points sit at the top of each section; section padding already clears the navbar. */
+.landing-page [data-snap] {
+  scroll-margin-top: 0;
 }
 
-/* Media Container Hover Effect */
-.landing-page .media-container {
-  border-radius: var(--radius-media);
-  overflow: hidden;
-  transition: transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+/* Fallback when Lenis is off (touch devices, reduced motion): native CSS scroll snap. */
+html.lp-native-snap {
+  scroll-snap-type: y proximity;
 }
 
-.landing-page .media-container:hover {
-  transform: scale(1.02);
+html.lp-native-snap .landing-page [data-snap] {
+  scroll-snap-align: start;
 }
 
-.landing-page .media-container img,
-.landing-page .media-container video {
-  transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.landing-page
+  :where(a[href], button, summary, [role='tab'], [tabindex]:not([tabindex='-1'])):not(:disabled):focus-visible {
+  outline: 2px solid var(--focus-outline-color);
+  outline-offset: 2px;
 }
 
-.landing-page .media-container:hover img,
-.landing-page .media-container:hover video {
-  transform: scale(1.06);
+/* Device previews always show the app's light theme, regardless of the visitor's color scheme. */
+.landing-page .app-screen-light {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  color-scheme: light;
 }
 
-/* Stacked Problem Cards — sticky positioning base */
-.landing-page .stacked-problem-card {
-  position: sticky;
-  top: 5rem;
-  will-change: transform, opacity;
-  transition: box-shadow 0.4s ease;
+/* Border gradien conic untuk slide carousel yang aktif. */
+.landing-page .conic-border {
+  border: 2px solid transparent;
+  background-image:
+    linear-gradient(var(--color-warm-95), var(--color-warm-95)),
+    conic-gradient(
+      from 220deg at 35% 80%,
+      #82dcfab3 -6deg,
+      #c8a0ffb3 25deg,
+      #fab9fab3 41deg,
+      #ff8c5fb3 51deg,
+      #beff50b3 63deg,
+      #beff50 120deg,
+      #82dcfab3 354deg
+    );
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
 }
 
-/* Split text word animation base */
-.landing-page .split-word {
-  display: inline-block;
-  will-change: transform, opacity;
-}
-
-/* Smooth number counter */
-@keyframes countUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .landing-page *,
+  .landing-page *::before,
+  .landing-page *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

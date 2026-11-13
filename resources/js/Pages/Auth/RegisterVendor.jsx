@@ -90,8 +90,17 @@ export default function RegisterVendor({
     const legalDocumentFeedback = useUploadFeedback(form, 'legal_documents');
 
     const [otpSent, setOtpSent] = useState(false);
+    const [verifiedOtpInfo, setVerifiedOtpInfo] = useState(null);
+    const [verifyingOtp, setVerifyingOtp] = useState(false);
     const resend = useCountdown();
     const otpRequest = useHttp({ contact_email: '' });
+
+    const isOtpVerified = Boolean(
+        verifiedOtpInfo &&
+        verifiedOtpInfo.email === data.contact_email.trim().toLowerCase() &&
+        verifiedOtpInfo.otp === data.otp &&
+        data.otp.length === OTP_LENGTH
+    );
 
     const scrollBodyToTop = () => {
         if (bodyScrollRef.current) {
@@ -130,6 +139,8 @@ export default function RegisterVendor({
         }
 
         clearErrors('contact_email', 'otp');
+        setVerifiedOtpInfo(null);
+        setData('otp', '');
         otpRequest.transform(() => ({ contact_email: email }));
         otpRequest.post('/register/vendor/otp', {
             onSuccess: () => {
@@ -192,7 +203,75 @@ export default function RegisterVendor({
         return true;
     };
 
-    const validateStep2 = () => {
+    const verifyOtpWithServer = async (email, otp) => {
+        if (!email || otp.length !== OTP_LENGTH) {
+            return false;
+        }
+
+        setVerifyingOtp(true);
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const response = await fetch('/register/vendor/otp/verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                },
+                body: JSON.stringify({
+                    contact_email: email,
+                    otp,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                setVerifiedOtpInfo({ email: email.toLowerCase(), otp });
+                clearErrors('otp');
+                notify.success('Kode OTP berhasil diverifikasi.');
+                return true;
+            }
+
+            const errorMsg =
+                result.errors?.otp?.[0] ||
+                result.errors?.otp ||
+                result.errors?.contact_email?.[0] ||
+                result.message ||
+                'Kode OTP salah. Pastikan kode sesuai dengan yang dikirim ke email bisnis Anda.';
+
+            setError('otp', errorMsg);
+            setVerifiedOtpInfo(null);
+            notify.error(errorMsg);
+            scrollToFirstError();
+            return false;
+        } catch {
+            const errorMsg = 'Terjadi kesalahan saat memverifikasi kode OTP. Silakan coba lagi.';
+            setError('otp', errorMsg);
+            setVerifiedOtpInfo(null);
+            notify.error(errorMsg);
+            scrollToFirstError();
+            return false;
+        } finally {
+            setVerifyingOtp(false);
+        }
+    };
+
+    const handleOtpChange = (value) => {
+        setData('otp', value);
+        clearErrors('otp');
+
+        if (verifiedOtpInfo && value !== verifiedOtpInfo.otp) {
+            setVerifiedOtpInfo(null);
+        }
+
+        if (value.length === OTP_LENGTH && data.contact_email.trim() && isEmail(data.contact_email.trim())) {
+            verifyOtpWithServer(data.contact_email.trim(), value);
+        }
+    };
+
+    const validateStep2Sync = () => {
         let hasError = false;
         clearErrors('company_name', 'tax_number', 'contact_email', 'phone', 'address', 'otp');
 
@@ -261,6 +340,25 @@ export default function RegisterVendor({
         }
 
         return true;
+    };
+
+    const validateStep2 = async () => {
+        if (!validateStep2Sync()) {
+            return false;
+        }
+
+        const email = data.contact_email.trim();
+        const otp = data.otp;
+
+        if (
+            verifiedOtpInfo &&
+            verifiedOtpInfo.email === email.toLowerCase() &&
+            verifiedOtpInfo.otp === otp
+        ) {
+            return true;
+        }
+
+        return await verifyOtpWithServer(email, otp);
     };
 
     const clearLegalDocumentErrors = () => {
@@ -443,8 +541,8 @@ export default function RegisterVendor({
         return true;
     };
 
-    const handleStepClick = (targetStep) => {
-        if (processing || targetStep === step) {
+    const handleStepClick = async (targetStep) => {
+        if (processing || verifyingOtp || targetStep === step) {
             return;
         }
 
@@ -457,20 +555,30 @@ export default function RegisterVendor({
             return;
         }
 
-        if (targetStep === 3 && !validateStep2()) {
-            goToStep(2);
-            scrollToFirstError();
-            return;
+        if (targetStep === 3) {
+            const valid = await validateStep2();
+            if (!valid) {
+                goToStep(2);
+                scrollToFirstError();
+                return;
+            }
         }
 
         goToStep(targetStep);
     };
 
-    const handleNextStep = () => {
+    const handleNextStep = async () => {
+        if (processing || verifyingOtp) {
+            return;
+        }
+
         if (step === 1 && validateStep1()) {
             goToStep(2);
-        } else if (step === 2 && validateStep2()) {
-            goToStep(3);
+        } else if (step === 2) {
+            const valid = await validateStep2();
+            if (valid) {
+                goToStep(3);
+            }
         }
     };
 
@@ -487,8 +595,11 @@ export default function RegisterVendor({
         clearErrors('commodity_category_uuids');
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        if (processing || verifyingOtp) {
+            return;
+        }
 
         if (!validateStep1()) {
             goToStep(1);
@@ -496,7 +607,8 @@ export default function RegisterVendor({
             return;
         }
 
-        if (!validateStep2()) {
+        const validStep2 = await validateStep2();
+        if (!validStep2) {
             goToStep(2);
             scrollToFirstError();
             return;
@@ -529,6 +641,7 @@ export default function RegisterVendor({
             onSuccess: () => {
                 reset();
                 setOtpSent(false);
+                setVerifiedOtpInfo(null);
                 resend.start(0);
             },
         });
@@ -597,6 +710,7 @@ export default function RegisterVendor({
                                         key={item.id}
                                         type="button"
                                         onClick={() => handleStepClick(item.id)}
+                                        disabled={processing || verifyingOtp}
                                         className={cn(
                                             'flex items-center justify-center sm:justify-start gap-2 px-3 py-2 rounded-lg font-medium transition-all text-left cursor-pointer',
                                             isActive
@@ -911,6 +1025,7 @@ export default function RegisterVendor({
                                                 onChange={(e) => {
                                                     setData('contact_email', e.target.value);
                                                     clearErrors('contact_email');
+                                                    setVerifiedOtpInfo(null);
                                                     if (otpSent) {
                                                         setOtpSent(false);
                                                         setData('otp', '');
@@ -969,22 +1084,39 @@ export default function RegisterVendor({
                                     <div
                                         data-invalid={!!errors.otp}
                                         className={cn(
-                                            'rounded-xl border bg-muted/30 p-3.5 sm:p-4 space-y-3',
-                                            errors.otp ? 'border-destructive' : 'border-border'
+                                            'rounded-xl border bg-muted/30 p-3.5 sm:p-4 space-y-3 transition-colors',
+                                            errors.otp
+                                                ? 'border-destructive bg-destructive/5'
+                                                : isOtpVerified
+                                                    ? 'border-emerald-500/40 bg-emerald-500/5'
+                                                    : 'border-border'
                                         )}
                                     >
                                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                             <div className="text-sm">
-                                                <p
-                                                    className={cn(
-                                                        'font-semibold',
-                                                        errors.otp ? 'text-destructive' : 'text-foreground'
+                                                <div className="flex items-center gap-2">
+                                                    <p
+                                                        className={cn(
+                                                            'font-semibold',
+                                                            errors.otp
+                                                                ? 'text-destructive'
+                                                                : isOtpVerified
+                                                                    ? 'text-emerald-700 dark:text-emerald-400'
+                                                                    : 'text-foreground'
+                                                        )}
+                                                    >
+                                                        Verifikasi Email Bisnis <span className="text-destructive">*</span>
+                                                    </p>
+                                                    {isOtpVerified && (
+                                                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full">
+                                                            <CheckCircle2 className="size-3" /> Terverifikasi
+                                                        </span>
                                                     )}
-                                                >
-                                                    Verifikasi Email Bisnis <span className="text-destructive">*</span>
-                                                </p>
+                                                </div>
                                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                                    Kirim kode 6 digit ke email bisnis di atas.
+                                                    {isOtpVerified
+                                                        ? 'Email bisnis Anda telah terverifikasi.'
+                                                        : 'Kirim kode 6 digit ke email bisnis di atas.'}
                                                 </p>
                                             </div>
                                             <LoadingButton
@@ -994,8 +1126,8 @@ export default function RegisterVendor({
                                                 onClick={sendOtp}
                                                 loading={otpRequest.processing}
                                                 loadingText="Mengirim..."
-                                                disabled={processing || resend.seconds > 0}
-                                                className="shrink-0"
+                                                disabled={processing || verifyingOtp || resend.seconds > 0}
+                                                className="shrink-0 cursor-pointer"
                                             >
                                                 {resend.seconds > 0
                                                     ? `Kirim ulang (${resend.seconds}d)`
@@ -1005,15 +1137,20 @@ export default function RegisterVendor({
                                             </LoadingButton>
                                         </div>
                                         {otpSent && (
-                                            <OtpField
-                                                value={data.otp}
-                                                onChange={(value) => {
-                                                    setData('otp', value);
-                                                    clearErrors('otp');
-                                                }}
-                                                error={errors.otp}
-                                                disabled={processing}
-                                            />
+                                            <div className="space-y-2">
+                                                <OtpField
+                                                    value={data.otp}
+                                                    onChange={handleOtpChange}
+                                                    error={errors.otp}
+                                                    disabled={processing || verifyingOtp}
+                                                />
+                                                {verifyingOtp && (
+                                                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                                        <span className="size-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                                        <span>Memverifikasi kode OTP...</span>
+                                                    </p>
+                                                )}
+                                            </div>
                                         )}
                                         {!otpSent && errors.otp && (
                                             <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
@@ -1391,12 +1528,16 @@ export default function RegisterVendor({
                                     type="button"
                                     size="icon"
                                     onClick={handleNextStep}
-                                    disabled={processing}
+                                    disabled={processing || verifyingOtp}
                                     aria-label="Langkah berikutnya"
                                     title="Langkah berikutnya"
                                     className="cursor-pointer"
                                 >
-                                    <ChevronRight className="size-4" />
+                                    {verifyingOtp ? (
+                                        <span className="size-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <ChevronRight className="size-4" />
+                                    )}
                                 </Button>
                             ) : (
                                 <LoadingButton

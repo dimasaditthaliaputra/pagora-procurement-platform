@@ -94,6 +94,40 @@ class OtpService
     }
 
     /**
+     * Check if a submitted code is valid without consuming it immediately.
+     *
+     * @throws ValidationException
+     */
+    public function check(string $purpose, string $email, string $code, string $errorField = 'otp'): void
+    {
+        $key = $this->key($purpose, $email);
+        $entry = Cache::get($key);
+
+        if (! is_array($entry)) {
+            throw ValidationException::withMessages([
+                $errorField => 'Kode OTP tidak ditemukan atau sudah kedaluwarsa. Silakan minta kode baru.',
+            ]);
+        }
+
+        if ($entry['attempts'] >= self::MAX_ATTEMPTS) {
+            Cache::forget($key);
+
+            throw ValidationException::withMessages([
+                $errorField => 'Terlalu banyak percobaan. Silakan minta kode baru.',
+            ]);
+        }
+
+        if (! Hash::check($code, $entry['hash'])) {
+            $entry['attempts']++;
+            Cache::put($key, $entry, now()->addMinutes(self::TTL_MINUTES));
+
+            throw ValidationException::withMessages([
+                $errorField => 'Kode OTP salah. Pastikan kode sesuai dengan yang dikirim ke email bisnis Anda.',
+            ]);
+        }
+    }
+
+    /**
      * Seconds until a new code may be requested (0 when allowed).
      */
     public function cooldownRemaining(string $purpose, string $email): int

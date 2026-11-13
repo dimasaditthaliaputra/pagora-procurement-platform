@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Helpers\ResponseHelper;
 use App\Http\Requests\Auth\SendVendorOtpRequest;
 use App\Http\Requests\Auth\StoreVendorRegistrationRequest;
+use App\Http\Requests\Auth\VerifyVendorOtpRequest;
 use App\Services\VendorRegistrationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -77,6 +78,30 @@ class VendorRegistrationController extends Controller
             return ResponseHelper::validationError($e->errors());
         } catch (Throwable $e) {
             return ResponseHelper::serverError('Gagal mengirim kode OTP.', $e);
+        }
+    }
+
+    /**
+     * Verifikasi kode OTP email bisnis calon vendor sebelum lanjut ke langkah berikutnya.
+     */
+    public function verifyOtp(VerifyVendorOtpRequest $request): JsonResponse|RedirectResponse
+    {
+        try {
+            $this->service->verifyEmailOtp(
+                (string) $request->validated('contact_email'),
+                (string) $request->validated('otp')
+            );
+
+            return ResponseHelper::success(
+                'Kode OTP berhasil diverifikasi.',
+                null,
+                url()->previous() ?: route('register.vendor'),
+                $request
+            );
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors(), request: $request);
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Gagal memverifikasi kode OTP.', $e, $request);
         }
     }
 

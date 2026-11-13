@@ -273,11 +273,38 @@ export default function RegisterVendor({
     };
 
     const handleLegalDocumentsDrop = (acceptedFiles, fileRejections) => {
-        if (acceptedFiles.length > 0) {
+        const rejectionMessages = [];
+
+        if (Array.isArray(fileRejections) && fileRejections.length > 0) {
+            fileRejections.forEach((rej) => {
+                const desc = describeRejection(rej, { accept: PDF_ACCEPT, maxSize: MAX_DOCUMENT_SIZE });
+                const fileName = rej.file?.name ? `"${rej.file.name}": ` : '';
+                rejectionMessages.push(`${fileName}${desc}`);
+            });
+        }
+
+        const validFiles = [];
+        if (Array.isArray(acceptedFiles) && acceptedFiles.length > 0) {
+            acceptedFiles.forEach((file) => {
+                if (!file || file.size <= 0) {
+                    rejectionMessages.push(`"${file?.name ?? 'Berkas'}": File kosong (0 byte) tidak dapat diunggah.`);
+                } else if (file.size > MAX_DOCUMENT_SIZE) {
+                    rejectionMessages.push(
+                        `"${file.name}": Ukuran file (${formatBytes(file.size)}) melebihi batas maksimal 5 MB.`
+                    );
+                } else if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+                    rejectionMessages.push(`"${file.name}": Format file tidak didukung. Harap unggah berkas PDF (.pdf).`);
+                } else {
+                    validFiles.push(file);
+                }
+            });
+        }
+
+        if (validFiles.length > 0) {
             const currentDocs = Array.isArray(data.legal_documents) ? data.legal_documents : [];
             const usedTypes = new Set(currentDocs.map((doc) => doc.document_type));
 
-            const additions = acceptedFiles
+            const additions = validFiles
                 .filter(
                     (file) =>
                         !currentDocs.some(
@@ -295,22 +322,22 @@ export default function RegisterVendor({
                     return {
                         file,
                         document_type: nextType,
-                        document_number: '',
+                        document_number: nextType === 'npwp' && data.tax_number ? data.tax_number : '',
                     };
                 });
 
             if (additions.length > 0) {
                 setData('legal_documents', [...currentDocs, ...additions]);
             }
-            clearLegalDocumentErrors();
+            if (rejectionMessages.length === 0) {
+                clearLegalDocumentErrors();
+            }
         }
 
-        if (fileRejections.length > 0) {
-            const firstRejection = fileRejections[0];
-            const message = describeRejection(firstRejection, PDF_ACCEPT, MAX_DOCUMENT_SIZE);
-            const prefix = firstRejection.file?.name ? `${firstRejection.file.name}: ` : '';
-            setError('legal_documents', `${prefix}${message}`);
-            notify.validationFailed();
+        if (rejectionMessages.length > 0) {
+            const fullMessage = rejectionMessages.join(' • ');
+            setError('legal_documents', fullMessage);
+            notify.error(rejectionMessages[0]);
         }
     };
 
@@ -354,28 +381,54 @@ export default function RegisterVendor({
             );
             hasError = true;
         } else {
+            const hasNpwpDoc = docs.some((doc) => doc?.document_type === 'npwp');
+            if (!hasNpwpDoc) {
+                setError(
+                    'legal_documents',
+                    'Dokumen legalitas NPWP Perusahaan wajib diunggah (pilih salah satu jenis dokumen sebagai NPWP).'
+                );
+                hasError = true;
+            }
+
             docs.forEach((doc, idx) => {
                 const file = doc?.file;
                 const isPdf =
                     file instanceof File &&
                     (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'));
 
-                if (!file || !isPdf) {
+                if (!file) {
+                    setError(`legal_documents.${idx}.file`, 'File dokumen legalitas wajib diunggah.');
+                    hasError = true;
+                } else if (!isPdf) {
                     setError(
                         `legal_documents.${idx}.file`,
                         'Format file dokumen legalitas harus berupa PDF (.pdf).'
                     );
                     hasError = true;
+                } else if (file.size <= 0) {
+                    setError(
+                        `legal_documents.${idx}.file`,
+                        'File dokumen legalitas kosong (0 byte).'
+                    );
+                    hasError = true;
                 } else if (file.size > MAX_DOCUMENT_SIZE) {
                     setError(
                         `legal_documents.${idx}.file`,
-                        'Ukuran setiap file dokumen legalitas tidak boleh lebih dari 5 MB.'
+                        `Ukuran file (${formatBytes(file.size)}) melebihi batas maksimal 5 MB.`
                     );
                     hasError = true;
                 }
 
                 if (!doc?.document_type) {
                     setError(`legal_documents.${idx}.document_type`, 'Jenis dokumen wajib dipilih.');
+                    hasError = true;
+                }
+
+                if (doc?.document_type === 'npwp' && doc?.document_number && !isNpwp(doc.document_number)) {
+                    setError(
+                        `legal_documents.${idx}.document_number`,
+                        'Format nomor NPWP tidak valid (15 atau 16 digit angka).'
+                    );
                     hasError = true;
                 }
             });
@@ -1118,7 +1171,7 @@ export default function RegisterVendor({
                                                             : 'Seret & letakkan satu atau beberapa berkas PDF, atau klik untuk memilih'}
                                                     </p>
                                                     <p className="text-xs text-muted-foreground">
-                                                        Hanya format PDF (.pdf), maksimal 5 MB per file (bisa multi-upload)
+                                                        Hanya format PDF (.pdf) dan maksimal 5 MB per file
                                                     </p>
                                                 </div>
                                             </div>
@@ -1142,10 +1195,16 @@ export default function RegisterVendor({
                                         </div>
 
                                         {errors.legal_documents && (
-                                            <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
-                                                <AlertCircle className="size-3.5 shrink-0" />
-                                                <span>{errors.legal_documents}</span>
-                                            </p>
+                                            <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs font-medium text-destructive flex items-start gap-2.5">
+                                                <AlertCircle className="size-4 shrink-0 mt-0.5 text-destructive" />
+                                                <div className="space-y-1 min-w-0">
+                                                    {errors.legal_documents.split(' • ').map((msg, idx) => (
+                                                        <p key={idx} className="leading-relaxed">
+                                                            {msg}
+                                                        </p>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         )}
 
                                         {data.legal_documents.length > 0 && (

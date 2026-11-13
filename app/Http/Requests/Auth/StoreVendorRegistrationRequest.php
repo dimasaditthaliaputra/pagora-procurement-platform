@@ -10,6 +10,7 @@ use App\Rules\Npwp;
 use App\Rules\PhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreVendorRegistrationRequest extends FormRequest
 {
@@ -55,6 +56,16 @@ class StoreVendorRegistrationRequest extends FormRequest
             $this->merge([
                 'contact_email' => strtolower(trim($this->string('contact_email')->toString())),
             ]);
+        }
+
+        if ($this->has('legal_documents') && is_array($this->input('legal_documents'))) {
+            $docs = $this->input('legal_documents');
+            foreach ($docs as $idx => $doc) {
+                if (is_array($doc) && ($doc['document_type'] ?? null) === 'npwp' && ! empty($doc['document_number'])) {
+                    $docs[$idx]['document_number'] = NpwpHelper::normalize($doc['document_number']);
+                }
+            }
+            $this->merge(['legal_documents' => $docs]);
         }
     }
 
@@ -108,10 +119,33 @@ class StoreVendorRegistrationRequest extends FormRequest
                 'required',
                 'file',
                 'mimes:pdf',
+                'min:1', // Minimal 1 KB (mencegah file 0 byte)
                 'max:5120', // Maksimal 5 MB per file sesuai PRD NFR-05 & UC-02
             ],
             'invitation_token' => ['nullable', 'string', 'max:64'],
         ];
+    }
+
+    /**
+     * Configure the validator instance with cross-field validation rules.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $docs = $this->input('legal_documents', []);
+            if (is_array($docs)) {
+                $hasNpwp = collect($docs)->contains(function ($doc): bool {
+                    return is_array($doc) && ($doc['document_type'] ?? null) === 'npwp';
+                });
+
+                if (! $hasNpwp) {
+                    $validator->errors()->add(
+                        'legal_documents',
+                        'Dokumen legalitas NPWP Perusahaan wajib diunggah.'
+                    );
+                }
+            }
+        });
     }
 
     /**
@@ -171,11 +205,12 @@ class StoreVendorRegistrationRequest extends FormRequest
             'legal_documents.array' => 'Format daftar dokumen legalitas tidak valid.',
             'legal_documents.min' => 'Unggah minimal satu dokumen legalitas (NPWP/SIUP/NIB) berformat PDF.',
             'legal_documents.*.document_type.required' => 'Jenis dokumen legalitas wajib dipilih.',
-            'legal_documents.*.document_type.in' => 'Jenis dokumen legalitas tidak valid.',
+            'legal_documents.*.document_type.in' => 'Jenis dokumen legalitas harus berupa NPWP, SIUP, atau NIB.',
             'legal_documents.*.document_number.max' => 'Nomor dokumen tidak boleh lebih dari 100 karakter.',
             'legal_documents.*.file.required' => 'File dokumen legalitas wajib diunggah.',
             'legal_documents.*.file.file' => 'Dokumen legalitas harus berupa file yang valid.',
             'legal_documents.*.file.mimes' => 'Format file dokumen legalitas harus berupa PDF (.pdf).',
+            'legal_documents.*.file.min' => 'File dokumen legalitas tidak boleh kosong (minimal 1 KB).',
             'legal_documents.*.file.max' => 'Ukuran setiap file dokumen legalitas tidak boleh lebih dari 5 MB.',
         ];
     }

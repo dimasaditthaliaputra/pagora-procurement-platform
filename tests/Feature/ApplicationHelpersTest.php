@@ -182,7 +182,16 @@ class ApplicationHelpersTest extends TestCase
                 'address' => 'Bekasi',
                 'commodity_category_uuids' => [$category->uuid],
                 'otp' => '123456',
-                'legal_document' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
+                'legal_documents' => [
+                    [
+                        'document_type' => 'npwp',
+                        'file' => UploadedFile::fake()->create('npwp.pdf', 100, 'application/pdf'),
+                    ],
+                    [
+                        'document_type' => 'nib',
+                        'file' => UploadedFile::fake()->create('nib.pdf', 100, 'application/pdf'),
+                    ],
+                ],
             ]);
             $this->fail('Exception should be rethrown.');
         } catch (RuntimeException) {

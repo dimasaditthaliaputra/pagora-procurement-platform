@@ -111,6 +111,24 @@ class VendorRegistrationTest extends TestCase
         Mail::assertQueuedCount(1);
     }
 
+    /**
+     * Build a legal document payload item for registration requests.
+     *
+     * @return array<string, mixed>
+     */
+    private function sampleLegalDocument(
+        string $filename = 'dok.pdf',
+        string $type = 'npwp',
+        ?string $number = null,
+        int $kb = 100,
+    ): array {
+        return [
+            'document_type' => $type,
+            'document_number' => $number,
+            'file' => UploadedFile::fake()->create($filename, $kb, 'application/pdf'),
+        ];
+    }
+
     public function test_registration_is_rejected_with_wrong_otp(): void
     {
         Storage::fake('local');
@@ -130,7 +148,7 @@ class VendorRegistrationTest extends TestCase
             'address' => 'Bekasi',
             'commodity_category_uuids' => [$category->uuid],
             'otp' => '000000',
-            'legal_document' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
+            'legal_documents' => [$this->sampleLegalDocument()],
         ]);
 
         $response->assertRedirect('/register/vendor');
@@ -157,14 +175,14 @@ class VendorRegistrationTest extends TestCase
             'address' => 'Bekasi',
             'commodity_category_uuids' => [$category->uuid],
             'otp' => $code,
-            'legal_document' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
+            'legal_documents' => [$this->sampleLegalDocument()],
         ]);
 
         $response->assertSessionHasErrors('otp');
         $this->assertSame(0, Vendor::count());
     }
 
-    public function test_guest_can_register_as_vendor_candidate_with_multiple_categories_user_and_file_upload(): void
+    public function test_guest_can_register_as_vendor_candidate_with_multiple_categories_user_and_multiple_pdfs(): void
     {
         Storage::fake('local');
         Mail::fake();
@@ -175,12 +193,6 @@ class VendorRegistrationTest extends TestCase
 
         $initialUserCount = User::count();
         $initialVendorCount = Vendor::count();
-
-        $file = UploadedFile::fake()->create(
-            'dokumen_legalitas_nib.pdf',
-            3072, // 3 MB <= 5 MB
-            'application/pdf'
-        );
 
         $payload = [
             'name' => 'Andi Wijaya',
@@ -193,10 +205,11 @@ class VendorRegistrationTest extends TestCase
             'phone' => '081234567890',
             'address' => 'Kawasan Industri Cikarang Blok C-12, Bekasi',
             'commodity_category_uuids' => $categories->pluck('uuid')->all(),
-            'document_type' => 'nib',
-            'document_number' => 'NIB-2026-0091',
             'otp' => $otp,
-            'legal_document' => $file,
+            'legal_documents' => [
+                $this->sampleLegalDocument('dokumen_nib.pdf', 'nib', 'NIB-2026-0091', 4096),
+                $this->sampleLegalDocument('dokumen_npwp.pdf', 'npwp', '01.234.567.8-901.000', 4096),
+            ],
         ];
 
         $response = $this->from('/register/vendor')
@@ -248,20 +261,27 @@ class VendorRegistrationTest extends TestCase
         $user = User::where('email', 'andi@agropangan.co.id')->firstOrFail();
         $this->assertTrue(Hash::check('password123', $user->password));
 
-        // Memastikan data dokumen legalitas masuk ke tabel khusus.
-        $document = DokumenLegalitasVendor::where('vendor_id', $vendor->getKey())->firstOrFail();
+        // Memastikan seluruh dokumen legalitas masuk ke tabel khusus dan penyimpanan privat.
+        $documents = DokumenLegalitasVendor::where('vendor_id', $vendor->getKey())->get();
+        $this->assertCount(2, $documents);
 
-        // Memastikan dokumen tersimpan di penyimpanan privat.
-        Storage::disk('local')->assertExists($document->file_path);
+        foreach ($documents as $document) {
+            Storage::disk('local')->assertExists($document->file_path);
+            $this->assertSame('pending', $document->verification_status->value);
+            $this->assertNull($document->verified_by);
+            $this->assertNull($document->rejection_reason);
+        }
 
         $this->assertDatabaseHas('vendor_legal_documents', [
             'vendor_id' => $vendor->getKey(),
             'document_type' => 'nib',
             'document_number' => 'NIB-2026-0091',
-            'file_path' => $document->file_path,
-            'verification_status' => 'pending',
-            'verified_by' => null,
-            'rejection_reason' => null,
+        ]);
+
+        $this->assertDatabaseHas('vendor_legal_documents', [
+            'vendor_id' => $vendor->getKey(),
+            'document_type' => 'npwp',
+            'document_number' => '01.234.567.8-901.000',
         ]);
 
         $this->assertSame($initialUserCount + 1, User::count());
@@ -285,7 +305,7 @@ class VendorRegistrationTest extends TestCase
             'address',
             'commodity_category_uuids',
             'otp',
-            'legal_document',
+            'legal_documents',
         ]);
 
         $this->assertSame(0, Vendor::count());
@@ -310,7 +330,7 @@ class VendorRegistrationTest extends TestCase
             'address' => 'Jakarta',
             'commodity_category_uuids' => [$category->uuid],
             'otp' => $otp,
-            'legal_document' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
+            'legal_documents' => [$this->sampleLegalDocument()],
         ]);
 
         $response->assertRedirect('/register/vendor');
@@ -334,11 +354,6 @@ class VendorRegistrationTest extends TestCase
         ]);
 
         $category = CommodityCategory::firstOrFail();
-        $file = UploadedFile::fake()->create(
-            'dokumen.pdf',
-            500,
-            'application/pdf'
-        );
 
         $response = $this->from('/register/vendor')->post('/register/vendor', [
             'name' => 'Andi Wijaya',
@@ -351,7 +366,7 @@ class VendorRegistrationTest extends TestCase
             'phone' => '08222222222',
             'address' => 'Jakarta',
             'commodity_category_uuids' => [$category->uuid],
-            'legal_document' => $file,
+            'legal_documents' => [$this->sampleLegalDocument('dokumen.pdf', 'npwp', null, 500)],
         ]);
 
         $response->assertSessionHasErrors(['contact_email']);
@@ -379,10 +394,46 @@ class VendorRegistrationTest extends TestCase
             'phone' => '081234567890',
             'address' => 'Medan',
             'commodity_category_uuids' => [$category->uuid],
-            'legal_document' => $largeFile,
+            'legal_documents' => [
+                $this->sampleLegalDocument('dokumen_aman.pdf', 'npwp', null, 4096),
+                [
+                    'document_type' => 'nib',
+                    'file' => $largeFile,
+                ],
+            ],
         ]);
 
-        $response->assertSessionHasErrors(['legal_document']);
+        $response->assertSessionHasErrors(['legal_documents.1.file']);
+        $response->assertSessionDoesntHaveErrors(['legal_documents.0.file']);
+    }
+
+    public function test_registration_fails_when_uploaded_document_is_not_pdf(): void
+    {
+        Storage::fake('local');
+        $category = CommodityCategory::firstOrFail();
+
+        $imageFile = UploadedFile::fake()->image('scan_npwp.jpg');
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Andi Wijaya',
+            'email' => 'gambar@perusahaan.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'company_name' => 'PT Dokumen Gambar',
+            'tax_number' => '01.234.567.8-901.000',
+            'contact_email' => 'gambar@perusahaan.com',
+            'phone' => '081234567890',
+            'address' => 'Medan',
+            'commodity_category_uuids' => [$category->uuid],
+            'legal_documents' => [
+                [
+                    'document_type' => 'npwp',
+                    'file' => $imageFile,
+                ],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors(['legal_documents.0.file']);
     }
 
     public function test_phone_number_is_stored_in_e164_format(): void
@@ -404,7 +455,7 @@ class VendorRegistrationTest extends TestCase
             'address' => 'Bandung',
             'commodity_category_uuids' => [$category->uuid],
             'otp' => $code,
-            'legal_document' => UploadedFile::fake()->create('dok.pdf', 100, 'application/pdf'),
+            'legal_documents' => [$this->sampleLegalDocument()],
         ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('vendors', [

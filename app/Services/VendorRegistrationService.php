@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class VendorRegistrationService
 {
@@ -146,27 +147,19 @@ class VendorRegistrationService
         $accountEmail = strtolower(trim((string) $data['email']));
         $accountPassword = (string) $data['password'];
         $invitationToken = $data['invitation_token'] ?? null;
-        $documentType = (string) ($data['document_type'] ?? 'npwp');
-        $documentNumber = isset($data['document_number']) && trim((string) $data['document_number']) !== ''
-            ? trim((string) $data['document_number'])
-            : null;
-        $file = $data['legal_document'] ?? null;
 
-        // Stored before the transaction so the file can be removed if any database write fails.
-        $documentPath = $file instanceof UploadedFile
-            ? $this->fileStorage->store($file, self::DOCUMENT_DIRECTORY, self::DOCUMENT_DISK, uuidName: true)
-            : null;
+        // Stored before the transaction so every uploaded file is removed if any database write fails.
+        $storedDocuments = $this->storeLegalDocuments((array) ($data['legal_documents'] ?? []));
+        $storedPaths = array_column($storedDocuments, 'file_path');
 
-        return $this->fileStorage->rollbackOnFailure(self::DOCUMENT_DISK, $documentPath, function () use (
+        return $this->fileStorage->rollbackOnFailure(self::DOCUMENT_DISK, $storedPaths, function () use (
             $data,
             $categories,
             $accountName,
             $accountEmail,
             $accountPassword,
             $invitationToken,
-            $documentType,
-            $documentNumber,
-            $documentPath
+            $storedDocuments
         ): Vendor {
             return DB::transaction(function () use (
                 $data,
@@ -175,9 +168,7 @@ class VendorRegistrationService
                 $accountEmail,
                 $accountPassword,
                 $invitationToken,
-                $documentType,
-                $documentNumber,
-                $documentPath
+                $storedDocuments
             ): Vendor {
                 $baseSlug = Str::slug((string) $data['company_name']);
 
@@ -206,12 +197,12 @@ class VendorRegistrationService
                     'is_active' => true,
                 ]);
 
-                if ($documentPath !== null) {
+                foreach ($storedDocuments as $document) {
                     $this->dokumenRepository->create([
                         'vendor_id' => $vendor->getKey(),
-                        'document_type' => $documentType,
-                        'document_number' => $documentNumber,
-                        'file_path' => $documentPath,
+                        'document_type' => $document['document_type'],
+                        'document_number' => $document['document_number'],
+                        'file_path' => $document['file_path'],
                         'verification_status' => VerificationStatus::Pending,
                         'verified_by' => null,
                         'verified_at' => null,
@@ -232,5 +223,42 @@ class VendorRegistrationService
                 return $vendor;
             });
         });
+    }
+
+    /**
+     * Store each uploaded legal document PDF before starting the database transaction.
+     *
+     * @param  array<int, array<string, mixed>>  $documents
+     * @return list<array{document_type: string, document_number: ?string, file_path: string}>
+     */
+    private function storeLegalDocuments(array $documents): array
+    {
+        $storedDocuments = [];
+
+        try {
+            foreach ($documents as $document) {
+                $file = $document['file'] ?? null;
+                if (! $file instanceof UploadedFile) {
+                    continue;
+                }
+
+                $documentType = (string) ($document['document_type'] ?? 'npwp');
+                $rawNumber = isset($document['document_number']) ? trim((string) $document['document_number']) : '';
+
+                $storedDocuments[] = [
+                    'document_type' => $documentType,
+                    'document_number' => $rawNumber !== '' ? $rawNumber : null,
+                    'file_path' => $this->fileStorage->store($file, self::DOCUMENT_DIRECTORY, self::DOCUMENT_DISK, uuidName: true),
+                ];
+            }
+        } catch (Throwable $e) {
+            foreach ($storedDocuments as $stored) {
+                $this->fileStorage->delete(self::DOCUMENT_DISK, $stored['file_path']);
+            }
+
+            throw $e;
+        }
+
+        return $storedDocuments;
     }
 }

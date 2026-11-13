@@ -101,6 +101,9 @@ Route::middleware('guest')->group(function () {
 
     Route::redirect('/register-vendor', '/register/vendor');
 
+    Route::get('/register/sukses', [VendorRegistrationController::class, 'success'])
+        ->name('register.success');
+
     Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle'])
         ->name('auth.google.redirect');
 

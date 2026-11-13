@@ -477,7 +477,6 @@ export default function RegisterVendor({
                 reset();
                 setOtpSent(false);
                 resend.start(0);
-                goToStep(1);
             },
         });
     };
@@ -641,7 +640,7 @@ export default function RegisterVendor({
                                             htmlFor="name"
                                             className={cn('text-sm font-medium', errors.name && 'text-destructive')}
                                         >
-                                            Nama Lengkap Penanggung Jawab <span className="text-destructive">*</span>
+                                            Nama Lengkap<span className="text-destructive">*</span>
                                         </Label>
                                         <Input
                                             id="name"
@@ -787,7 +786,7 @@ export default function RegisterVendor({
                                                 className={cn(
                                                     'h-10 w-full',
                                                     errors.company_name &&
-                                                        'border-destructive focus-visible:ring-destructive'
+                                                    'border-destructive focus-visible:ring-destructive'
                                                 )}
                                                 autoFocus
                                             />
@@ -829,7 +828,7 @@ export default function RegisterVendor({
                                                 className={cn(
                                                     'h-10 w-full',
                                                     errors.tax_number &&
-                                                        'border-destructive focus-visible:ring-destructive'
+                                                    'border-destructive focus-visible:ring-destructive'
                                                 )}
                                             />
                                             {errors.tax_number && (
@@ -869,7 +868,7 @@ export default function RegisterVendor({
                                                 className={cn(
                                                     'h-10 w-full',
                                                     errors.contact_email &&
-                                                        'border-destructive focus-visible:ring-destructive'
+                                                    'border-destructive focus-visible:ring-destructive'
                                                 )}
                                             />
                                             {errors.contact_email && (
@@ -1227,7 +1226,7 @@ export default function RegisterVendor({
                                                                             className={cn(
                                                                                 'h-9 w-full text-xs sm:text-sm',
                                                                                 typeError &&
-                                                                                    'border-destructive focus-visible:ring-destructive'
+                                                                                'border-destructive focus-visible:ring-destructive'
                                                                             )}
                                                                         >
                                                                             <SelectValue placeholder="Pilih jenis dokumen" />
@@ -1277,7 +1276,7 @@ export default function RegisterVendor({
                                                                         className={cn(
                                                                             'h-9 w-full text-xs sm:text-sm',
                                                                             numberError &&
-                                                                                'border-destructive focus-visible:ring-destructive'
+                                                                            'border-destructive focus-visible:ring-destructive'
                                                                         )}
                                                                     />
                                                                     {numberError && (

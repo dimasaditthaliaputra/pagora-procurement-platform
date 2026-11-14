@@ -69,6 +69,7 @@ export default function LogSengketaShow({ dispute: rawDispute }) {
 
     const breadcrumbs = [
         { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Inspeksi QC', href: '/inspeksi-qc' },
         { label: 'Log Sengketa', href: '/log-sengketa' },
         { label: `${dispute?.po_number ?? '-'} ${dispute?.short_code ?? ''}`, href: '#' },
     ];

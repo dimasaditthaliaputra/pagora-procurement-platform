@@ -1,23 +1,30 @@
 import { Link } from '@inertiajs/react';
-import { ClipboardCheck, ShieldAlert } from 'lucide-react';
+import { ClipboardCheck, ShieldAlert, Scale } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/Components/ui/badge';
 
-export function InspeksiQcNavTabs({ activeTab = 'inspections', damageCount = null }) {
+export function InspeksiQcNavTabs({ activeTab = 'inspections', damageCount = null, disputeCount = null }) {
     const tabs = [
         {
             id: 'inspections',
-            label: 'Pengecekan & Riwayat Inspeksi',
+            label: 'Pengecekan Barang',
             href: '/inspeksi-qc',
             icon: ClipboardCheck,
             badge: null,
         },
         {
             id: 'damage_reports',
-            label: 'Laporan Kerusakan Barang',
+            label: 'Laporan Kerusakan',
             href: '/inspeksi-qc/laporan-kerusakan',
             icon: ShieldAlert,
             badge: typeof damageCount === 'number' && damageCount > 0 ? damageCount : null,
+        },
+        {
+            id: 'disputes',
+            label: 'Log Sengketa',
+            href: '/log-sengketa',
+            icon: Scale,
+            badge: typeof disputeCount === 'number' && disputeCount > 0 ? disputeCount : null,
         },
     ];
 

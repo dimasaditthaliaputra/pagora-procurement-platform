@@ -444,7 +444,7 @@ export function PegawaiFormModal({
                         )}
                     </div>
 
-                    <DialogFooter className="p-4 px-6 border-t bg-muted/20 flex flex-row items-center justify-end gap-2">
+                    <DialogFooter className="mx-0 mb-0 px-6 py-4 border-t bg-muted/20 flex flex-row items-center justify-end gap-2.5">
                         <Button
                             type="button"
                             variant="outline"

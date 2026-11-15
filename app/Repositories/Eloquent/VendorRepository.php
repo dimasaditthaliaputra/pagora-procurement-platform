@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Eloquent;
 
+use App\Enums\VerificationStatus;
 use App\Models\Vendor;
 use App\Repositories\Contracts\VendorRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -41,8 +42,17 @@ class VendorRepository implements VendorRepositoryInterface
             ? 'asc'
             : 'desc';
 
-        return $this->model->newQuery()
-            ->with(['blockedByUser'])
+        $query = $this->model->newQuery()
+            ->with(['blockedByUser']);
+
+        if (! empty($filters['tenant_id'])) {
+            $tenantId = (int) $filters['tenant_id'];
+            $query->with([
+                'partnerships' => fn ($q) => $q->where('tenant_id', $tenantId),
+            ]);
+        }
+
+        return $query
             ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
                 $trimmed = trim($search);
                 $query->where(function (Builder $subQuery) use ($trimmed): void {
@@ -120,5 +130,20 @@ class VendorRepository implements VendorRepositoryInterface
             ->select(['id', 'uuid', 'company_name', 'is_active'])
             ->orderBy('company_name')
             ->get();
+    }
+
+    /**
+     * Get aggregate statistics of vendors for the superadmin management dashboard.
+     *
+     * @return array{total_vendors: int, active_vendors: int, blocked_vendors: int, pending_review_vendors: int}
+     */
+    public function getStatusCounts(): array
+    {
+        return [
+            'total_vendors' => $this->model->newQuery()->count(),
+            'active_vendors' => $this->model->newQuery()->where('is_active', true)->count(),
+            'blocked_vendors' => $this->model->newQuery()->where('is_active', false)->count(),
+            'pending_review_vendors' => $this->model->newQuery()->where('verification_status', VerificationStatus::Pending)->count(),
+        ];
     }
 }

@@ -13,7 +13,7 @@ import { LoadingButton } from '@/Components/loading-button';
 import { ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { notify } from '@/lib/notify';
 
-export function BukaBlokirDialog({ vendor, open, onOpenChange }) {
+export function BukaBlokirDialog({ vendor, open, onOpenChange, actionUrl }) {
     const [loading, setLoading] = useState(false);
 
     if (!vendor) return null;
@@ -27,7 +27,7 @@ export function BukaBlokirDialog({ vendor, open, onOpenChange }) {
         setLoading(true);
 
         router.post(
-            `/master/vendor/${vendor.uuid}/buka-blokir`,
+            actionUrl || `/master/vendor/${vendor.uuid}/buka-blokir`,
             {},
             {
                 preserveScroll: true,

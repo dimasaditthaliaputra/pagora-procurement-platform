@@ -13,7 +13,7 @@ import { LoadingButton } from '@/Components/loading-button';
 import { ShieldCheck } from 'lucide-react';
 import { notify } from '@/lib/notify';
 
-export function ApprovalDialog({ tenant, open, onOpenChange }) {
+export function ApprovalDialog({ tenant, open, onOpenChange, actionUrl }) {
     const [loading, setLoading] = useState(false);
 
     if (!tenant) return null;
@@ -23,7 +23,7 @@ export function ApprovalDialog({ tenant, open, onOpenChange }) {
     const handleApprove = () => {
         setLoading(true);
         router.post(
-            `/master/tenant/verifikasi-dokumen/${tenant.uuid}/verifikasi`,
+            actionUrl || `/master/tenant/verifikasi-dokumen/${tenant.uuid}/verifikasi`,
             {
                 aksi: 'approve',
             },

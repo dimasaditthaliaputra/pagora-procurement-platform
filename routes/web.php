@@ -9,6 +9,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\KerjaSamaController;
 use App\Http\Controllers\KomoditasController;
+use App\Http\Controllers\MitraIndustriController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\PenerimaanBarangController;
@@ -397,6 +398,38 @@ Route::middleware('auth')->group(function () {
             Route::get('/{uuid}/file', 'download')
                 ->whereUuid('uuid')
                 ->name('download');
+        });
+
+    // Manajemen Mitra Industri (Superadmin: Tenant & Vendor)
+    Route::middleware('superadmin')
+        ->prefix('manajemen/mitra-industri')
+        ->name('manajemen.mitra-industri.')
+        ->controller(MitraIndustriController::class)
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+
+            // Aksi Tenant
+            Route::post('/tenant/{uuid}/verifikasi', 'verifyTenant')
+                ->whereUuid('uuid')
+                ->name('tenant.verify');
+            Route::get('/tenant/{uuid}/file', 'downloadTenantDoc')
+                ->whereUuid('uuid')
+                ->name('tenant.download');
+
+            // Aksi Vendor
+            Route::post('/vendor/{uuid}/verifikasi', 'verifyVendorDoc')
+                ->whereUuid('uuid')
+                ->name('vendor.verify');
+            Route::get('/vendor/{uuid}/file', 'downloadVendorDoc')
+                ->whereUuid('uuid')
+                ->name('vendor.download');
+            Route::post('/vendor/undang', 'undangVendor')->name('vendor.undang');
+            Route::post('/vendor/{uuid}/blokir', 'blokirVendor')
+                ->whereUuid('uuid')
+                ->name('vendor.blokir');
+            Route::post('/vendor/{uuid}/buka-blokir', 'bukaBlokirVendor')
+                ->whereUuid('uuid')
+                ->name('vendor.buka-blokir');
         });
 
     Route::redirect('/superadmin/verifikasi-dokumen', '/master/vendor/verifikasi-dokumen');

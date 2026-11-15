@@ -38,6 +38,7 @@ export default function VendorIndex({
     vendors,
     filters = {},
     can_manage = false,
+    is_tenant = true,
     kategori_options = [],
 }) {
     const data = vendors?.data ?? [];
@@ -212,8 +213,9 @@ export default function VendorIndex({
                 onUnblock: handleOpenUnblock,
                 onViewDetail: handleOpenDetail,
                 canManage: can_manage,
+                isTenant: is_tenant,
             }),
-        [can_manage]
+        [can_manage, is_tenant]
     );
 
     const table = useReactTable({
@@ -228,15 +230,19 @@ export default function VendorIndex({
     const hasActiveFilters =
         Boolean(search) || statusAktif !== 'all' || statusVerifikasi !== 'all';
 
+    const pageTitle = is_tenant
+        ? 'Data Rekanan Vendor (Kemitraan)'
+        : 'Data Rekanan Vendor';
+
     return (
         <DashboardLayout
             breadcrumbs={[
                 { label: 'Dashboard', href: '/dashboard' },
                 { label: 'Master Data', href: '#' },
-                { label: 'Data Rekanan Vendor', href: '/master/vendor' },
+                { label: pageTitle, href: '/master/vendor' },
             ]}
         >
-            <Head title="Manajemen Rekanan & Pemblokiran Vendor" />
+            <Head title={is_tenant ? 'Data Rekanan Vendor (Kemitraan) - PAGORA' : 'Manajemen Rekanan & Pemblokiran Vendor'} />
 
             <div className="flex flex-col gap-6">
                 {/* Header */}
@@ -244,10 +250,12 @@ export default function VendorIndex({
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
                             <Building2 className="size-6 text-emerald-600" />
-                            Data Rekanan Vendor
+                            {pageTitle}
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Kelola status kemitraan rekanan, verifikasi legalitas, serta pengendalian pemblokiran vendor.
+                            {is_tenant
+                                ? 'Kelola data rekanan mitra bisnis, verifikasi legalitas, serta jalinan kerja sama pengadaan.'
+                                : 'Kelola status kemitraan rekanan, verifikasi legalitas, serta pengendalian pemblokiran vendor.'}
                         </p>
                     </div>
                     {can_manage && (

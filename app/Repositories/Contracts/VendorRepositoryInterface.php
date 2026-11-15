@@ -47,4 +47,11 @@ interface VendorRepositoryInterface
      * @return Collection<int, Vendor>
      */
     public function getAllOrdered(): Collection;
+
+    /**
+     * Get aggregate statistics of vendors for the superadmin management dashboard.
+     *
+     * @return array{total_vendors: int, active_vendors: int, blocked_vendors: int, pending_review_vendors: int}
+     */
+    public function getStatusCounts(): array;
 }

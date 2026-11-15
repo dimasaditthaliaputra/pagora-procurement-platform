@@ -38,6 +38,16 @@ class VendorService
     }
 
     /**
+     * Get vendor statistics (total, active, blocked, pending review).
+     *
+     * @return array{total_vendors: int, active_vendors: int, blocked_vendors: int, pending_review_vendors: int}
+     */
+    public function getStatusCounts(): array
+    {
+        return $this->vendorRepository->getStatusCounts();
+    }
+
+    /**
      * Find a vendor by UUID or fail.
      *
      * @throws ModelNotFoundException

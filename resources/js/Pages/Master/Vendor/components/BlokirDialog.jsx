@@ -16,7 +16,7 @@ import { ShieldAlert, AlertTriangle } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 
-export function BlokirDialog({ vendor, open, onOpenChange }) {
+export function BlokirDialog({ vendor, open, onOpenChange, actionUrl }) {
     const [alasan, setAlasan] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -52,7 +52,7 @@ export function BlokirDialog({ vendor, open, onOpenChange }) {
         setLoading(true);
 
         router.post(
-            `/master/vendor/${vendor.uuid}/blokir`,
+            actionUrl || `/master/vendor/${vendor.uuid}/blokir`,
             {
                 block_reason: trimmed,
             },

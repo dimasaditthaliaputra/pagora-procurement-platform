@@ -18,7 +18,7 @@ import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 import { isEmail } from '@/lib/validators';
 
-export function UndangVendorDialog({ open, onOpenChange, kategoriOptions = [] }) {
+export function UndangVendorDialog({ open, onOpenChange, kategoriOptions = [], actionUrl }) {
     const { data, setData, post, processing, errors, setError, clearErrors, reset } = useForm({
         company_name: '',
         email: '',
@@ -64,7 +64,7 @@ export function UndangVendorDialog({ open, onOpenChange, kategoriOptions = [] })
             return;
         }
 
-        post('/master/vendor/undang', {
+        post(actionUrl || '/master/vendor/undang', {
             preserveScroll: true,
             onSuccess: () => {
                 reset();

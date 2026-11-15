@@ -134,7 +134,7 @@ class PurchaseOrderPageTest extends TestCase
     ): PurchaseOrder {
         $po = PurchaseOrder::create([
             'uuid' => (string) Str::uuid(),
-            'nomor_po' => 'PO-2026-'.Str::padLeft((string) rand(1, 9999), 4, '0'),
+            'nomor_po' => 'PO-2026-'.Str::padLeft((string) random_int(10000, 9999999), 7, '0'),
             'vendor_id' => $vendor->id,
             'created_by' => $creator->id,
             'perusahaan_buyer_id' => $tenant->id,

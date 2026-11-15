@@ -86,6 +86,14 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'storeRegister'])
         ->name('register.store');
 
+    Route::post('/register/otp/kirim', [AuthController::class, 'sendRegisterOtp'])
+        ->middleware('throttle:6,1')
+        ->name('register.otp.send');
+
+    Route::post('/register/otp/verifikasi', [AuthController::class, 'verifyRegisterOtp'])
+        ->middleware('throttle:10,1')
+        ->name('register.otp.verify');
+
     // Vendor Candidate Registration
     Route::prefix('register/vendor')
         ->name('register.vendor')

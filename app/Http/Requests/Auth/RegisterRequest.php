@@ -92,6 +92,7 @@ class RegisterRequest extends FormRequest
                 'mimes:pdf,jpg,jpeg,png',
                 'max:5120',
             ],
+            'otp' => ['required', 'digits:6'],
         ];
     }
 
@@ -129,6 +130,8 @@ class RegisterRequest extends FormRequest
             'dokumen_npwp.file' => 'Berkas dokumen legalitas harus berupa file yang valid.',
             'dokumen_npwp.mimes' => 'Format dokumen legalitas harus berupa PDF, JPG, JPEG, atau PNG.',
             'dokumen_npwp.max' => 'Ukuran berkas dokumen legalitas tidak boleh melebihi 5 MB.',
+            'otp.required' => 'Kode OTP verifikasi email wajib diisi.',
+            'otp.digits' => 'Kode OTP harus terdiri dari 6 digit angka.',
         ];
     }
 
@@ -143,6 +146,7 @@ class RegisterRequest extends FormRequest
             'name' => 'nama lengkap',
             'email' => 'alamat email',
             'password' => 'kata sandi',
+            'otp' => 'kode OTP',
             'nama_perusahaan' => 'nama perusahaan',
             'nomor_npwp' => 'nomor NPWP',
             'alamat' => 'alamat lengkap perusahaan',

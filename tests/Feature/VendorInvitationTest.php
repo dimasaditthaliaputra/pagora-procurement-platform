@@ -21,11 +21,17 @@ class VendorInvitationTest extends TestCase
     use RefreshDatabase;
 
     private PerusahaanBuyer $tenant;
+
     private Vendor $vendor;
+
     private Vendor $otherVendor;
+
     private User $vendorUser;
+
     private User $otherVendorUser;
+
     private User $ownerUser;
+
     private User $managementUser;
 
     protected function setUp(): void

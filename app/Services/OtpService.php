@@ -14,6 +14,8 @@ class OtpService
 {
     public const PURPOSE_VENDOR_REGISTRATION = 'vendor_registration';
 
+    public const PURPOSE_TENANT_REGISTRATION = 'tenant_registration';
+
     public const PURPOSE_LOGIN = 'login';
 
     private const TTL_MINUTES = 10;
@@ -27,6 +29,7 @@ class OtpService
      */
     private const PURPOSE_LABELS = [
         self::PURPOSE_VENDOR_REGISTRATION => 'memverifikasi email pendaftaran vendor Anda',
+        self::PURPOSE_TENANT_REGISTRATION => 'memverifikasi email pendaftaran tenant Anda',
         self::PURPOSE_LOGIN => 'mengaktifkan akun dan masuk ke sistem',
     ];
 

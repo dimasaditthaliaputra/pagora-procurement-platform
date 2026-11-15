@@ -47,4 +47,3 @@ class IndexPenerimaanBarangRequest extends FormRequest
         ];
     }
 }
-

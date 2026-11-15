@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, useHttp } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -7,10 +7,12 @@ import { Textarea } from '@/Components/ui/textarea';
 import { PasswordInput } from '@/Components/password-input';
 import { LoadingButton } from '@/Components/loading-button';
 import { FileDropzone } from '@/Components/file-dropzone';
+import { OtpField, OTP_LENGTH } from '@/Components/otp-field';
+import { useCountdown } from '@/hooks/use-countdown';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 import { isEmail, isNpwp, normalizeNpwp } from '@/lib/validators';
-import { Building2, ArrowRight, ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Building2, ArrowRight, ArrowLeft, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
 
 export default function Register() {
     const [step, setStep] = useState(1);
@@ -18,6 +20,7 @@ export default function Register() {
     const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
         name: '',
         email: '',
+        otp: '',
         password: '',
         password_confirmation: '',
         nama_perusahaan: '',
@@ -26,9 +29,119 @@ export default function Register() {
         dokumen_npwp: null,
     });
 
+    const [otpSent, setOtpSent] = useState(false);
+    const [verifiedOtpInfo, setVerifiedOtpInfo] = useState(null);
+    const [verifyingOtp, setVerifyingOtp] = useState(false);
+    const resend = useCountdown();
+    const otpRequest = useHttp({ email: '' });
+
+    const isOtpVerified = Boolean(
+        verifiedOtpInfo &&
+        verifiedOtpInfo.email === data.email.trim().toLowerCase() &&
+        verifiedOtpInfo.otp === data.otp &&
+        data.otp.length === OTP_LENGTH
+    );
+
+    const sendOtp = () => {
+        const trimmedEmail = data.email.trim();
+
+        if (!trimmedEmail) {
+            setError('email', 'Alamat email bisnis wajib diisi.');
+            notify.validationFailed();
+            return;
+        }
+        if (!isEmail(trimmedEmail)) {
+            setError('email', 'Format alamat email tidak valid.');
+            notify.validationFailed();
+            return;
+        }
+
+        clearErrors('email', 'otp');
+        setVerifiedOtpInfo(null);
+        setData('otp', '');
+        otpRequest.transform(() => ({ email: trimmedEmail }));
+        otpRequest.post('/register/otp/kirim', {
+            onSuccess: () => {
+                setOtpSent(true);
+                resend.start(60);
+                notify.success('Kode OTP telah dikirim ke email bisnis Anda.');
+            },
+            onError: (errs) => {
+                setError('email', errs.email ?? 'Gagal mengirim kode OTP.');
+                notify.validationFailed();
+            },
+        });
+    };
+
+    const verifyOtpWithServer = async (email, otp) => {
+        if (!email || otp.length !== OTP_LENGTH) {
+            return false;
+        }
+
+        setVerifyingOtp(true);
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const response = await fetch('/register/otp/verifikasi', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                },
+                body: JSON.stringify({
+                    email,
+                    otp,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                setVerifiedOtpInfo({ email: email.toLowerCase(), otp });
+                clearErrors('otp');
+                notify.success('Kode OTP berhasil diverifikasi.');
+                return true;
+            }
+
+            const errorMsg =
+                result.errors?.otp?.[0] ||
+                result.errors?.otp ||
+                result.errors?.email?.[0] ||
+                result.message ||
+                'Kode OTP salah. Pastikan kode sesuai dengan yang dikirim ke email bisnis Anda.';
+
+            setError('otp', errorMsg);
+            setVerifiedOtpInfo(null);
+            notify.error(errorMsg);
+            return false;
+        } catch {
+            const errorMsg = 'Terjadi kesalahan saat memverifikasi kode OTP. Silakan coba lagi.';
+            setError('otp', errorMsg);
+            setVerifiedOtpInfo(null);
+            notify.error(errorMsg);
+            return false;
+        } finally {
+            setVerifyingOtp(false);
+        }
+    };
+
+    const handleOtpChange = (value) => {
+        setData('otp', value);
+        clearErrors('otp');
+
+        if (verifiedOtpInfo && value !== verifiedOtpInfo.otp) {
+            setVerifiedOtpInfo(null);
+        }
+
+        if (value.length === OTP_LENGTH && data.email.trim() && isEmail(data.email.trim())) {
+            verifyOtpWithServer(data.email.trim(), value);
+        }
+    };
+
     const validateStep1 = () => {
         let hasError = false;
-        clearErrors('name', 'email', 'password', 'password_confirmation');
+        clearErrors('name', 'email', 'otp', 'password', 'password_confirmation');
 
         const trimmedName = data.name.trim();
         if (!trimmedName) {
@@ -45,6 +158,20 @@ export default function Register() {
             hasError = true;
         } else if (!isEmail(trimmedEmail)) {
             setError('email', 'Format alamat email tidak valid.');
+            hasError = true;
+        }
+
+        if (!otpSent) {
+            setError('otp', 'Silakan kirim kode OTP ke email bisnis Anda terlebih dahulu.');
+            hasError = true;
+        } else if (!data.otp) {
+            setError('otp', 'Kode OTP wajib diisi.');
+            hasError = true;
+        } else if (data.otp.length !== OTP_LENGTH) {
+            setError('otp', `Kode OTP harus terdiri dari ${OTP_LENGTH} digit angka.`);
+            hasError = true;
+        } else if (!isOtpVerified) {
+            setError('otp', 'Kode OTP belum diverifikasi atau tidak cocok dengan email saat ini.');
             hasError = true;
         }
 
@@ -141,7 +268,7 @@ export default function Register() {
             forceFormData: true,
             onError: (errs) => {
                 notify.validationFailed();
-                if (errs.name || errs.email || errs.password || errs.password_confirmation) {
+                if (errs.name || errs.email || errs.otp || errs.password || errs.password_confirmation) {
                     setStep(1);
                 }
             },
@@ -291,6 +418,7 @@ export default function Register() {
                                             onChange={(e) => {
                                                 setData('email', e.target.value);
                                                 if (errors.email) clearErrors('email');
+                                                if (verifiedOtpInfo) setVerifiedOtpInfo(null);
                                             }}
                                             placeholder="Contoh: procurement@perusahaan.co.id"
                                             aria-invalid={!!errors.email}
@@ -302,6 +430,67 @@ export default function Register() {
                                         {errors.email && (
                                             <p id="email-error" className="text-xs font-medium text-destructive">
                                                 {errors.email}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Verifikasi OTP Email Bisnis */}
+                                    <div className="rounded-xl border border-border/70 bg-muted/30 p-3.5 space-y-3">
+                                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <Label className="text-xs font-semibold text-foreground">
+                                                        Verifikasi Email Bisnis <span className="text-destructive">*</span>
+                                                    </Label>
+                                                    {isOtpVerified && (
+                                                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full">
+                                                            <CheckCircle2 className="size-3" /> Terverifikasi
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-0.5">
+                                                    {isOtpVerified
+                                                        ? 'Email bisnis Anda telah berhasil diverifikasi.'
+                                                        : 'Kirim kode 6 digit ke email bisnis di atas.'}
+                                                </p>
+                                            </div>
+                                            <LoadingButton
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={sendOtp}
+                                                loading={otpRequest.processing}
+                                                loadingText="Mengirim..."
+                                                disabled={processing || verifyingOtp || resend.seconds > 0}
+                                                className="shrink-0 cursor-pointer text-xs"
+                                            >
+                                                {resend.seconds > 0
+                                                    ? `Kirim ulang (${resend.seconds}d)`
+                                                    : otpSent
+                                                        ? 'Kirim Ulang Kode'
+                                                        : 'Kirim Kode OTP'}
+                                            </LoadingButton>
+                                        </div>
+                                        {otpSent && (
+                                            <div className="space-y-2 pt-1">
+                                                <OtpField
+                                                    value={data.otp}
+                                                    onChange={handleOtpChange}
+                                                    error={errors.otp}
+                                                    disabled={processing || verifyingOtp}
+                                                />
+                                                {verifyingOtp && (
+                                                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                                        <span className="size-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                                        <span>Memverifikasi kode OTP...</span>
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+                                        {!otpSent && errors.otp && (
+                                            <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
+                                                <AlertCircle className="size-3.5 shrink-0" />
+                                                <span>{errors.otp}</span>
                                             </p>
                                         )}
                                     </div>

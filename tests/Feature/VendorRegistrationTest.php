@@ -324,7 +324,7 @@ class VendorRegistrationTest extends TestCase
         /** @var FilesystemAdapter $localDisk */
         $localDisk = Storage::disk('local');
 
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $localDisk */
+        /** @var FilesystemAdapter $localDisk */
         $localDisk = Storage::disk('local');
 
         foreach ($documents as $document) {

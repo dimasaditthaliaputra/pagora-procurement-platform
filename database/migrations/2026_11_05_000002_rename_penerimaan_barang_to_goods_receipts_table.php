@@ -108,4 +108,3 @@ return new class extends Migration
         Schema::rename('goods_receipts', 'penerimaan_barang');
     }
 };
-

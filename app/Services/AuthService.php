@@ -327,6 +327,30 @@ class AuthService
     }
 
     /**
+     * Send a verification OTP to the tenant registration email.
+     */
+    public function sendRegisterOtp(string $email): void
+    {
+        $this->otpService->send(
+            OtpService::PURPOSE_TENANT_REGISTRATION,
+            $email,
+            'email'
+        );
+    }
+
+    /**
+     * Verify the tenant registration email OTP without consuming it immediately.
+     */
+    public function verifyRegisterOtp(string $email, string $otp): void
+    {
+        $this->otpService->check(
+            OtpService::PURPOSE_TENANT_REGISTRATION,
+            $email,
+            $otp
+        );
+    }
+
+    /**
      * Register a new tenant company and its administrator account.
      *
      * @return array{success: bool, code: int, message: string, user: User}
@@ -336,6 +360,13 @@ class AuthService
         $name = (string) ($request->input('name') ?? $request->input('nama_lengkap'));
         $email = strtolower(trim((string) $request->input('email')));
         $password = (string) $request->input('password');
+        $otp = (string) $request->input('otp');
+
+        $this->otpService->verify(
+            OtpService::PURPOSE_TENANT_REGISTRATION,
+            $email,
+            $otp
+        );
 
         $namaPerusahaan = trim((string) ($request->input('nama_perusahaan') ?? $request->input('company_name')));
         $nomorNpwp = $request->filled('nomor_npwp')

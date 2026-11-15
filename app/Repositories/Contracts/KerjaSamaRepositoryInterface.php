@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Contracts;
 
 use App\Models\KerjaSama;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface KerjaSamaRepositoryInterface
 {
@@ -16,22 +17,22 @@ interface KerjaSamaRepositoryInterface
     /**
      * Create a new partnership request.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(array $data): KerjaSama;
 
     public function paginateIncomingForVendor(
-    int $vendorId,
-    int $perPage = 12
-    ): \Illuminate\Contracts\Pagination\LengthAwarePaginator;
+        int $vendorId,
+        int $perPage = 12
+    ): LengthAwarePaginator;
 
     public function findIncomingByUuidForVendor(
         string $uuid,
         int $vendorId
-    ): ?\App\Models\KerjaSama;
+    ): ?KerjaSama;
 
     public function update(
-        \App\Models\KerjaSama $kerjaSama,
+        KerjaSama $kerjaSama,
         array $data
-    ): \App\Models\KerjaSama;
+    ): KerjaSama;
 }

@@ -80,7 +80,7 @@ class InvoiceService
         );
 
         if ($invoice === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 Invoice::class
             );
         }
@@ -98,7 +98,7 @@ class InvoiceService
         );
 
         if ($purchaseOrder === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 PurchaseOrder::class
             );
         }
@@ -335,7 +335,7 @@ class InvoiceService
         );
 
         if ($invoice === null) {
-            throw (new ModelNotFoundException())->setModel(Invoice::class);
+            throw (new ModelNotFoundException)->setModel(Invoice::class);
         }
 
         return $invoice;

@@ -7,17 +7,19 @@ namespace App\Http\Controllers;
 use App\Helpers\ResponseHelper;
 use App\Http\Requests\KerjaSama\IndexCalonMitraRequest;
 use App\Http\Resources\CalonMitraResource;
+use App\Models\KerjaSama;
 use App\Models\User;
 use App\Services\CalonMitraService;
+use App\Services\VendorInvitationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Inertia\Inertia;
-use Inertia\Response;
-use Throwable;
-use App\Services\VendorInvitationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Throwable;
 
 class KerjaSamaController extends Controller
 {
@@ -84,7 +86,7 @@ class KerjaSamaController extends Controller
                 ],
             ]);
         } catch (Throwable $e) {
-            if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpException) {
+            if ($e instanceof HttpException) {
                 throw $e;
             }
 
@@ -116,7 +118,7 @@ class KerjaSamaController extends Controller
             return redirect()
                 ->route('kerja-sama.calon-mitra.index')
                 ->with('success', 'Pengajuan kerja sama berhasil dikirim.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             throw $e;
         } catch (Throwable $e) {
             return ResponseHelper::serverError(
@@ -127,10 +129,10 @@ class KerjaSamaController extends Controller
     }
 
     public function incomingInvitations(
-    Request $request,
-    VendorInvitationService $service
+        Request $request,
+        VendorInvitationService $service
     ) {
-        Gate::authorize('viewAny', \App\Models\KerjaSama::class);
+        Gate::authorize('viewAny', KerjaSama::class);
 
         $vendorId = (int) $request->user()->vendor_id;
 

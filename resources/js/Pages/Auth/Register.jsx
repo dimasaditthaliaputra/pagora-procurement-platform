@@ -32,7 +32,7 @@ const STEPS = [
 export default function Register() {
     const [step, setStep] = useState(1);
 
-    const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
+    const { data, setData, post, processing, errors, setError, clearErrors, progress } = useForm({
         name: '',
         email: '',
         otp: '',
@@ -45,6 +45,7 @@ export default function Register() {
     });
 
     const [otpSent, setOtpSent] = useState(false);
+    const [lastOtpEmail, setLastOtpEmail] = useState('');
     const [verifiedOtpInfo, setVerifiedOtpInfo] = useState(null);
     const [verifyingOtp, setVerifyingOtp] = useState(false);
     const resend = useCountdown();
@@ -78,6 +79,7 @@ export default function Register() {
         otpRequest.post('/register/otp/kirim', {
             onSuccess: () => {
                 setOtpSent(true);
+                setLastOtpEmail(trimmedEmail.toLowerCase());
                 resend.start(60);
                 notify.success('Kode OTP telah dikirim ke email bisnis Anda.');
                 if (onSuccessCallback) {
@@ -85,8 +87,13 @@ export default function Register() {
                 }
             },
             onError: (errs) => {
-                setError('email', errs.email ?? 'Gagal mengirim kode OTP.');
-                notify.validationFailed();
+                const errorMsg = errs.email ?? errs.otp ?? 'Gagal mengirim kode OTP.';
+                if (step === 2) {
+                    setError('otp', errorMsg);
+                } else {
+                    setError('email', errorMsg);
+                }
+                notify.error(errorMsg);
             },
         });
     };
@@ -201,6 +208,10 @@ export default function Register() {
 
         if (hasError) {
             notify.validationFailed();
+            requestAnimationFrame(() => {
+                const firstInvalid = document.querySelector('[aria-invalid="true"]');
+                firstInvalid?.focus();
+            });
             return false;
         }
 
@@ -213,9 +224,9 @@ export default function Register() {
         }
 
         const currentEmail = data.email.trim().toLowerCase();
-        const emailChanged = verifiedOtpInfo && verifiedOtpInfo.email !== currentEmail;
+        const emailNeedsOtp = !otpSent || lastOtpEmail !== currentEmail;
 
-        if (!otpSent || emailChanged) {
+        if (emailNeedsOtp) {
             sendOtp(() => {
                 setStep(2);
             });
@@ -235,6 +246,11 @@ export default function Register() {
         if (data.otp.length !== OTP_LENGTH) {
             setError('otp', `Kode OTP harus terdiri dari ${OTP_LENGTH} digit angka.`);
             notify.validationFailed();
+            return;
+        }
+
+        if (isOtpVerified) {
+            setStep(3);
             return;
         }
 
@@ -284,6 +300,10 @@ export default function Register() {
 
         if (hasError) {
             notify.validationFailed();
+            requestAnimationFrame(() => {
+                const firstInvalid = document.querySelector('[aria-invalid="true"]');
+                firstInvalid?.focus();
+            });
             return false;
         }
 
@@ -316,8 +336,13 @@ export default function Register() {
                 if (errs.name || errs.email || errs.password || errs.password_confirmation) {
                     setStep(1);
                 } else if (errs.otp) {
+                    setVerifiedOtpInfo(null);
                     setStep(2);
                 }
+                requestAnimationFrame(() => {
+                    const firstInvalid = document.querySelector('[aria-invalid="true"]');
+                    firstInvalid?.focus();
+                });
             },
         });
     };
@@ -401,7 +426,14 @@ export default function Register() {
 
                         {/* STEP 1: Profil Akun */}
                         {step === 1 && (
-                            <div className="flex flex-col gap-4">
+                            <form
+                                noValidate
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    handleNextStep1();
+                                }}
+                                className="flex flex-col gap-4"
+                            >
                                 <div className="flex flex-col gap-1 text-center">
                                     <h1 className="text-2xl font-bold tracking-tight">Daftar Akun Tenant</h1>
                                     <p className="text-muted-foreground text-xs text-balance">
@@ -435,7 +467,7 @@ export default function Register() {
                                     {/* Nama Lengkap */}
                                     <div className="grid gap-1">
                                         <Label htmlFor="name" className={errors.name ? 'text-destructive text-xs' : 'text-xs'}>
-                                            Nama Lengkap <span className="text-destructive">*</span>
+                                             Nama Lengkap <span className="text-destructive">*</span>
                                         </Label>
                                         <Input
                                             id="name"
@@ -448,6 +480,7 @@ export default function Register() {
                                             }}
                                             placeholder="Contoh: Budi Pratama"
                                             aria-invalid={!!errors.name}
+                                            disabled={otpRequest.processing}
                                             className={cn(
                                                 'h-9 text-sm',
                                                 errors.name && 'border-destructive focus-visible:ring-destructive'
@@ -476,6 +509,7 @@ export default function Register() {
                                             }}
                                             placeholder="Contoh: procurement@perusahaan.co.id"
                                             aria-invalid={!!errors.email}
+                                            disabled={otpRequest.processing}
                                             className={cn(
                                                 'h-9 text-sm',
                                                 errors.email && 'border-destructive focus-visible:ring-destructive'
@@ -500,7 +534,7 @@ export default function Register() {
                                             }}
                                             placeholder="Minimal 8 karakter"
                                             error={errors.password}
-                                            disabled={processing}
+                                            disabled={otpRequest.processing}
                                         />
                                         {errors.password && (
                                             <p className="text-xs font-medium text-destructive">{errors.password}</p>
@@ -524,7 +558,7 @@ export default function Register() {
                                             }}
                                             placeholder="Ulangi kata sandi"
                                             error={errors.password_confirmation}
-                                            disabled={processing}
+                                            disabled={otpRequest.processing}
                                         />
                                         {errors.password_confirmation && (
                                             <p className="text-xs font-medium text-destructive">
@@ -575,9 +609,8 @@ export default function Register() {
                                             </Button>
 
                                             <Button
-                                                type="button"
+                                                type="submit"
                                                 size="icon"
-                                                onClick={handleNextStep1}
                                                 disabled={otpRequest.processing}
                                                 aria-label="Lanjut ke Verifikasi OTP"
                                                 title="Lanjut ke Verifikasi OTP"
@@ -592,12 +625,19 @@ export default function Register() {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </form>
                         )}
 
                         {/* STEP 2: Verifikasi OTP Email Bisnis (Memakai Halaman/Step OTP) */}
                         {step === 2 && (
-                            <div className="flex flex-col gap-5">
+                            <form
+                                noValidate
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    handleVerifyOtpAndNext();
+                                }}
+                                className="flex flex-col gap-5"
+                            >
                                 <div className="flex flex-col gap-1.5 text-center">
                                     <h1 className="text-2xl font-bold tracking-tight">Verifikasi Email Bisnis</h1>
                                     <p className="text-muted-foreground text-sm text-balance">
@@ -673,9 +713,8 @@ export default function Register() {
                                         </Button>
 
                                         <Button
-                                            type="button"
+                                            type="submit"
                                             size="icon"
-                                            onClick={handleVerifyOtpAndNext}
                                             disabled={processing || verifyingOtp || data.otp.length !== OTP_LENGTH}
                                             aria-label="Verifikasi dan lanjut ke data perusahaan"
                                             title="Verifikasi dan lanjut ke data perusahaan"
@@ -689,7 +728,7 @@ export default function Register() {
                                         </Button>
                                     </div>
                                 </div>
-                            </div>
+                            </form>
                         )}
 
                         {/* STEP 3: Data Perusahaan Tenant */}
@@ -719,6 +758,7 @@ export default function Register() {
                                             }}
                                             placeholder="Contoh: PT Sumber Pangan Makmur"
                                             aria-invalid={!!errors.nama_perusahaan}
+                                            disabled={processing}
                                             className={cn(
                                                 'h-9 text-sm',
                                                 errors.nama_perusahaan && 'border-destructive focus-visible:ring-destructive'
@@ -752,6 +792,7 @@ export default function Register() {
                                             }}
                                             placeholder="Contoh: 01.234.567.8-901.000"
                                             aria-invalid={!!errors.nomor_npwp}
+                                            disabled={processing}
                                             className={cn(
                                                 'h-9 text-sm',
                                                 errors.nomor_npwp && 'border-destructive focus-visible:ring-destructive'
@@ -778,6 +819,7 @@ export default function Register() {
                                             }}
                                             placeholder="Contoh: Jl. Industri Raya No. 45, Kawasan MM2100, Cikarang Barat, Bekasi"
                                             aria-invalid={!!errors.alamat}
+                                            disabled={processing}
                                             className={cn(
                                                 'text-sm',
                                                 errors.alamat && 'border-destructive focus-visible:ring-destructive'
@@ -805,6 +847,8 @@ export default function Register() {
                                             }}
                                             error={errors.dokumen_npwp}
                                             disabled={processing}
+                                            uploading={processing}
+                                            progress={progress?.percentage ?? null}
                                             label="Dokumen Legalitas Perusahaan"
                                             description="Format PDF, JPG, JPEG, atau PNG (Maksimal 5 MB)"
                                             maxSize={5 * 1024 * 1024}

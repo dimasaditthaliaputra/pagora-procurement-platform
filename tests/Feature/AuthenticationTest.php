@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\VerificationStatus;
 use App\Mail\OtpMail;
 use App\Models\PerusahaanBuyer;
 use App\Models\User;
@@ -247,7 +248,7 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_register_creates_new_user_and_redirects_to_dashboard(): void
+    public function test_register_creates_new_user_and_redirects_to_register_success(): void
     {
         Storage::fake('local');
 
@@ -266,7 +267,9 @@ class AuthenticationTest extends TestCase
             'dokumen_npwp' => $file,
         ]);
 
-        $response->assertRedirect('/dashboard');
+        $response->assertRedirect(route('register.success'));
+        $response->assertSessionHas('registered_email', 'budi@perusahaan.co.id');
+        $this->assertGuest();
 
         $this->assertDatabaseHas('tenants', [
             'company_name' => 'PT Sumber Pangan Makmur',
@@ -293,7 +296,7 @@ class AuthenticationTest extends TestCase
         $this->assertNotNull($user);
         assert($user instanceof User);
         $this->assertSame($perusahaan->id, $user->tenant_id);
-        $this->assertAuthenticatedAs($user);
+        $this->assertNotNull($user->email_verified_at);
     }
 
     public function test_register_validation_errors(): void
@@ -384,7 +387,8 @@ class AuthenticationTest extends TestCase
             'dokumen_npwp' => $file,
         ]);
 
-        $response->assertRedirect('/dashboard');
+        $response->assertRedirect(route('register.success'));
+        $this->assertGuest();
 
         $this->assertDatabaseHas('tenants', [
             'company_name' => 'PT Inovasi Pangan Nusantara',
@@ -396,6 +400,95 @@ class AuthenticationTest extends TestCase
             'email' => 'ahmad@perusahaan16.co.id',
             'is_active' => true,
         ]);
+    }
+
+    public function test_pending_tenant_cannot_login(): void
+    {
+        $tenant = PerusahaanBuyer::factory()->create([
+            'verification_status' => VerificationStatus::Pending,
+            'is_active' => true,
+        ]);
+
+        $user = User::factory()->create([
+            'email' => 'pending.tenant@pagora.id',
+            'password' => Hash::make('password123'),
+            'tenant_id' => $tenant->id,
+            'is_active' => true,
+        ]);
+
+        $response = $this->from('/login')->post('/login', [
+            'email' => 'pending.tenant@pagora.id',
+            'password' => 'password123',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors(['email']);
+        $this->assertGuest();
+
+        // Also test JSON endpoint returns 403
+        $jsonResponse = $this->postJson('/login', [
+            'email' => 'pending.tenant@pagora.id',
+            'password' => 'password123',
+        ]);
+
+        $jsonResponse->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+            ]);
+    }
+
+    public function test_rejected_tenant_cannot_login(): void
+    {
+        $tenant = PerusahaanBuyer::factory()->create([
+            'verification_status' => VerificationStatus::Rejected,
+            'is_active' => true,
+        ]);
+
+        User::factory()->create([
+            'email' => 'rejected.tenant@pagora.id',
+            'password' => Hash::make('password123'),
+            'tenant_id' => $tenant->id,
+            'is_active' => true,
+        ]);
+
+        $response = $this->from('/login')->post('/login', [
+            'email' => 'rejected.tenant@pagora.id',
+            'password' => 'password123',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors(['email']);
+        $this->assertGuest();
+
+        $jsonResponse = $this->postJson('/login', [
+            'email' => 'rejected.tenant@pagora.id',
+            'password' => 'password123',
+        ]);
+
+        $jsonResponse->assertStatus(403);
+    }
+
+    public function test_approved_tenant_can_login_successfully(): void
+    {
+        $tenant = PerusahaanBuyer::factory()->create([
+            'verification_status' => VerificationStatus::Approved,
+            'is_active' => true,
+        ]);
+
+        $user = User::factory()->create([
+            'email' => 'approved.tenant@pagora.id',
+            'password' => Hash::make('password123'),
+            'tenant_id' => $tenant->id,
+            'is_active' => true,
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => 'approved.tenant@pagora.id',
+            'password' => 'password123',
+        ]);
+
+        $response->assertRedirect('/dashboard');
+        $this->assertAuthenticatedAs($user);
     }
 
     public function test_register_fails_when_npwp_already_registered_even_with_different_email(): void

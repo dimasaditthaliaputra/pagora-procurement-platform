@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\LoginRateLimiter;
@@ -107,6 +108,12 @@ class AuthService
             ];
         }
 
+        if ($companyBlock = $this->checkCompanyVerificationAndStatus($user, 'email')) {
+            $this->limiter->increment($request);
+
+            return $companyBlock;
+        }
+
         $remember = $request->boolean('remember');
 
         if (! $user->is_active) {
@@ -160,6 +167,10 @@ class AuthService
         ]);
 
         $this->otpService->verify(OtpService::PURPOSE_LOGIN, $user->email, $code);
+
+        if ($companyBlock = $this->checkCompanyVerificationAndStatus($user, 'otp')) {
+            throw ValidationException::withMessages($companyBlock['errors']);
+        }
 
         $this->userRepository->update($user, [
             'is_active' => true,
@@ -417,9 +428,14 @@ class AuthService
                     'role_id' => $roleId,
                     'tenant_id' => (int) $perusahaan->getKey(),
                     'is_active' => true,
+                    'email_verified_at' => now(),
                 ]);
             });
         } catch (QueryException $e) {
+            if ($documentPath !== null) {
+                Storage::disk('local')->delete($documentPath);
+            }
+
             $message = $e->getMessage();
 
             if (
@@ -441,15 +457,18 @@ class AuthService
             }
 
             throw $e;
-        }
+        } catch (Throwable $e) {
+            if ($documentPath !== null) {
+                Storage::disk('local')->delete($documentPath);
+            }
 
-        Auth::login($user);
-        $request->session()->regenerate();
+            throw $e;
+        }
 
         return [
             'success' => true,
             'code' => 201,
-            'message' => 'Pendaftaran akun tenant berhasil.',
+            'message' => 'Pendaftaran akun tenant berhasil. Akun dan dokumen legalitas Anda sedang menunggu verifikasi administrator.',
             'user' => $user,
         ];
     }
@@ -525,6 +544,10 @@ class AuthService
             ];
         }
 
+        if ($companyBlock = $this->checkCompanyVerificationAndStatus($user, 'google')) {
+            return $companyBlock;
+        }
+
         Auth::login($user, true);
         request()->session()->regenerate();
 
@@ -552,5 +575,75 @@ class AuthService
             'code' => 200,
             'message' => 'Berhasil keluar.',
         ];
+    }
+
+    /**
+     * Ensure the user's tenant or vendor company is active and approved (PRD BR-21).
+     *
+     * @return array{success: bool, code: int, message: string, errors: array<string, string>}|null
+     */
+    private function checkCompanyVerificationAndStatus(User $user, string $errorField = 'email'): ?array
+    {
+        if ($user->tenant_id !== null) {
+            $tenant = $user->perusahaanBuyer;
+
+            if ($tenant && $tenant->verification_status !== VerificationStatus::Approved) {
+                $message = $tenant->verification_status === VerificationStatus::Rejected
+                    ? 'Pendaftaran perusahaan Anda ditolak oleh administrator.'
+                    : 'Akun perusahaan Anda sedang menunggu verifikasi oleh administrator.';
+
+                return [
+                    'success' => false,
+                    'code' => 403,
+                    'message' => 'Akun ditangguhkan.',
+                    'errors' => [
+                        $errorField => $message,
+                    ],
+                ];
+            }
+
+            if ($tenant && ! $tenant->is_active) {
+                return [
+                    'success' => false,
+                    'code' => 403,
+                    'message' => 'Akun ditangguhkan.',
+                    'errors' => [
+                        $errorField => 'Perusahaan Anda telah dinonaktifkan. Silakan hubungi administrator.',
+                    ],
+                ];
+            }
+        }
+
+        if ($user->vendor_id !== null) {
+            $vendor = $user->vendor;
+
+            if ($vendor && $vendor->verification_status !== VerificationStatus::Approved) {
+                $message = $vendor->verification_status === VerificationStatus::Rejected
+                    ? 'Pendaftaran vendor Anda ditolak oleh administrator.'
+                    : 'Akun vendor Anda sedang menunggu verifikasi oleh administrator.';
+
+                return [
+                    'success' => false,
+                    'code' => 403,
+                    'message' => 'Akun ditangguhkan.',
+                    'errors' => [
+                        $errorField => $message,
+                    ],
+                ];
+            }
+
+            if ($vendor && ! $vendor->is_active) {
+                return [
+                    'success' => false,
+                    'code' => 403,
+                    'message' => 'Akun ditangguhkan.',
+                    'errors' => [
+                        $errorField => 'Akun vendor Anda telah ditangguhkan secara global.',
+                    ],
+                ];
+            }
+        }
+
+        return null;
     }
 }

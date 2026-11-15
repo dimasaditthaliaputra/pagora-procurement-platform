@@ -68,6 +68,14 @@ class AuthController extends Controller
                 );
             }
 
+            if (($result['code'] ?? $result['status'] ?? null) === 403) {
+                return ResponseHelper::forbidden(
+                    $result['message'],
+                    $result['errors'] ?? null,
+                    $request
+                );
+            }
+
             return ResponseHelper::unauthorized(
                 $result['message'],
                 $result['errors'] ?? null,
@@ -236,11 +244,13 @@ class AuthController extends Controller
         try {
             $result = $this->authService->register($request);
 
+            session()->flash('registered_email', (string) $request->validated('email'));
+
             if ($result['success']) {
-                return ResponseHelper::created(
+                return ResponseHelper::success(
                     $result['message'],
                     $result['user'] ?? null,
-                    config('fortify.home', '/dashboard'),
+                    route('register.success'),
                     $request
                 );
             }
@@ -278,6 +288,14 @@ class AuthController extends Controller
                     $result['message'],
                     $result['user'] ?? null,
                     config('fortify.home', '/dashboard'),
+                    $request
+                );
+            }
+
+            if (($result['code'] ?? $result['status'] ?? null) === 403) {
+                return ResponseHelper::forbidden(
+                    $result['message'],
+                    $result['errors'] ?? null,
                     $request
                 );
             }

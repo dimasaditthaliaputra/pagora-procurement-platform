@@ -1,8 +1,27 @@
 import { useLayoutEffect, useRef } from 'react';
-import { PanelLeft, Search, Signal, Wifi } from 'lucide-react';
+import {
+    ClipboardCheck,
+    FileText,
+    LayoutDashboard,
+    Package,
+    PanelLeft,
+    Receipt,
+    Search,
+    Signal,
+    Truck,
+    Wifi,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { mainNavItems } from '@/Components/AppSidebar';
 import DashboardOverview from '@/Components/DashboardOverview';
+
+const previewNavItems = [
+    { title: 'Dashboard', icon: LayoutDashboard },
+    { title: 'Pengadaan', icon: FileText },
+    { title: 'Katalog & Pagu', icon: Package, badge: 'Segera' },
+    { title: 'Pengiriman', icon: Truck },
+    { title: 'Inspeksi QC', icon: ClipboardCheck },
+    { title: 'Verifikasi Tagihan', icon: Receipt },
+];
 
 const LAPTOP_SCREEN = { width: 1280, viewportClassName: 'aspect-[1280/800]', canvasClassName: 'h-[800px] w-[1280px]' };
 const PHONE_SCREEN = { width: 390, viewportClassName: 'aspect-[390/844]', canvasClassName: 'h-[844px] w-[390px]' };
@@ -70,7 +89,7 @@ function AppSidebarPreview({ appName, logoUrl }) {
             <div className="px-3 py-3">
                 <p className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">Menu Utama</p>
                 <ul className="mt-2 flex flex-col gap-1">
-                    {mainNavItems.map((item, index) => (
+                    {previewNavItems.map((item, index) => (
                         <li
                             key={item.title}
                             className={cn(

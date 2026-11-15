@@ -17,6 +17,21 @@ class VerifyVendorOtpRequest extends FormRequest
     }
 
     /**
+     * Normalisasi email bisnis sebelum validasi kode OTP.
+     */
+    protected function prepareForValidation(): void
+    {
+        $email = $this->input('contact_email') ?? $this->input('email');
+        if (is_string($email)) {
+            $email = strtolower(trim($email));
+            $this->merge([
+                'contact_email' => $email,
+                'email' => $email,
+            ]);
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function rules(): array
@@ -33,7 +48,7 @@ class VerifyVendorOtpRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'contact_email.required' => 'Email bisnis perusahaan wajib diisi.',
+            'contact_email.required' => 'Email bisnis wajib diisi.',
             'contact_email.email' => 'Format email bisnis tidak valid.',
             'contact_email.max' => 'Email bisnis tidak boleh lebih dari 150 karakter.',
             'otp.required' => 'Kode OTP verifikasi email bisnis wajib diisi.',

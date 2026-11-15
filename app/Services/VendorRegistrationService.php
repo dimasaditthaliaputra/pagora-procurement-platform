@@ -205,6 +205,7 @@ class VendorRegistrationService
                 $this->userRepository->create([
                     'name' => $accountName,
                     'email' => $accountEmail,
+                    'email_verified_at' => now(),
                     'password' => Hash::make($accountPassword),
                     'role_id' => (int) $vendorRole->getKey(),
                     'vendor_id' => (int) $vendor->getKey(),

@@ -18,6 +18,21 @@ class SendVendorOtpRequest extends FormRequest
     }
 
     /**
+     * Normalisasi email bisnis sebelum validasi.
+     */
+    protected function prepareForValidation(): void
+    {
+        $email = $this->input('contact_email') ?? $this->input('email');
+        if (is_string($email)) {
+            $email = strtolower(trim($email));
+            $this->merge([
+                'contact_email' => $email,
+                'email' => $email,
+            ]);
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function rules(): array
@@ -29,6 +44,7 @@ class SendVendorOtpRequest extends FormRequest
                 'email',
                 'max:150',
                 Rule::unique('vendors', 'contact_email')->whereNull('deleted_at'),
+                Rule::unique('users', 'email')->whereNull('deleted_at'),
             ],
         ];
     }
@@ -42,7 +58,7 @@ class SendVendorOtpRequest extends FormRequest
             'contact_email.required' => 'Email bisnis wajib diisi.',
             'contact_email.email' => 'Format email bisnis tidak valid.',
             'contact_email.max' => 'Email bisnis tidak boleh lebih dari 150 karakter.',
-            'contact_email.unique' => 'Email bisnis ini sudah terdaftar sebagai vendor.',
+            'contact_email.unique' => 'Email bisnis ini sudah terdaftar dalam sistem.',
         ];
     }
 }

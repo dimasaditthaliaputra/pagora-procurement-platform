@@ -589,4 +589,82 @@ class VendorRegistrationTest extends TestCase
             ->where('invitation_error', 'Tautan undangan pendaftaran vendor tidak valid atau sudah kedaluwarsa.')
         );
     }
+
+    public function test_otp_can_be_requested_and_verified_using_email_parameter(): void
+    {
+        Mail::fake();
+
+        $this->postJson('/register/vendor/otp', ['email' => 'bisnis@mitra.co.id'])
+            ->assertOk();
+
+        $code = null;
+        Mail::assertQueued(OtpMail::class, function (OtpMail $mail) use (&$code) {
+            $code = $mail->code;
+
+            return $mail->hasTo('bisnis@mitra.co.id');
+        });
+
+        $response = $this->postJson('/register/vendor/otp/verify', [
+            'email' => 'bisnis@mitra.co.id',
+            'otp' => (string) $code,
+        ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'message' => 'Kode OTP berhasil diverifikasi.',
+        ]);
+    }
+
+    public function test_otp_cannot_be_requested_if_email_already_exists_in_users_table(): void
+    {
+        Mail::fake();
+
+        User::factory()->create([
+            'email' => 'sudahada@mitra.co.id',
+        ]);
+
+        $this->postJson('/register/vendor/otp', ['email' => 'sudahada@mitra.co.id'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('contact_email');
+
+        Mail::assertNothingOutgoing();
+    }
+
+    public function test_registration_auto_fills_contact_email_from_email_and_marks_email_verified(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $otp = $this->requestOtp('bisnis@agronusantara.co.id');
+        $category = CommodityCategory::firstOrFail();
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Budi Santoso',
+            'email' => 'bisnis@agronusantara.co.id',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'company_name' => 'PT Agro Nusantara Bersama',
+            'tax_number' => '02.345.678.9-012.000',
+            'phone' => '081398765432',
+            'address' => 'Surabaya, Jawa Timur',
+            'commodity_category_uuids' => [$category->uuid],
+            'otp' => $otp,
+            'legal_documents' => [
+                $this->sampleLegalDocument('dokumen_npwp.pdf', 'npwp', '02.345.678.9-012.000'),
+            ],
+        ]);
+
+        $response->assertRedirect(route('register.success'));
+
+        $this->assertDatabaseHas('vendors', [
+            'company_name' => 'PT Agro Nusantara Bersama',
+            'tax_number' => '02.345.678.9-012.000',
+            'contact_email' => 'bisnis@agronusantara.co.id',
+            'phone' => '+6281398765432',
+        ]);
+
+        $user = User::where('email', 'bisnis@agronusantara.co.id')->firstOrFail();
+        $this->assertNotNull($user->email_verified_at);
+        $this->assertSame('Budi Santoso', $user->name);
+    }
 }

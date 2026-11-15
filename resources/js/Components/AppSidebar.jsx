@@ -48,46 +48,6 @@ import {
 } from 'lucide-react';
 import Logo from '../../assets/logo/logo.webp';
 
-export const mainNavItems = [
-    { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', routeName: 'dashboard' },
-    { title: 'Pengadaan', icon: FileText, href: '/purchase-order', routeName: 'purchase-order', ability: 'purchase_order.view_any' },
-    { title: 'Katalog & Pagu', icon: Package, href: '#', badge: 'Segera' },
-    { title: 'Pengiriman', icon: Truck, href: '/pengiriman', routeName: 'pengiriman', ability: 'pengiriman.view_any' },
-    { title: 'Inspeksi QC', icon: ClipboardCheck, href: '/inspeksi-qc', routeName: 'inspeksi-qc', ability: 'penerimaan_barang.view_any' },
-    { title: 'Verifikasi Tagihan', icon: Receipt, href: '/verifikasi-tagihan', routeName: 'verifikasi-tagihan.index', ability: 'invoice.verify_any' },
-];
-
-const masterNavItems = [
-    { title: 'Komoditas', icon: Boxes, href: '/master/komoditas', routeName: 'master.komoditas.index', ability: 'komoditas.view_any' },
-    { title: 'Rekanan Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index', exact: true, ability: 'vendor.view_any', tenantOnly: true },
-];
-
-const managementNavItems = [
-    { title: 'Mitra Industri', icon: Handshake, href: '/manajemen/mitra-industri', routeName: 'manajemen.mitra-industri.index', ability: 'tenant.view_any' },
-    { title: 'Profil Perusahaan', icon: Building2, href: '/manajemen/perusahaan', routeName: 'manajemen.perusahaan.index', ability: 'perusahaan.view' },
-    { title: 'Pengguna', icon: Users, href: '/manajemen/pengguna', routeName: 'manajemen.pengguna.index', ability: 'pengguna.view_any' },
-    { title: 'Role & Akses', icon: ShieldCheck, href: '/manajemen/role-akses', routeName: 'manajemen.role-akses.index', ability: 'role.view_any' },
-    { title: 'Pengaturan', icon: Settings, href: '/pengaturan/profil', routeName: 'pengaturan', ability: 'pengaturan.view_any' },
-];
-
-// Menu khusus Vendor
-const vendorNavItems = [
-    {
-        title: 'Invoice',
-        icon: Receipt,
-        href: '/invoice',
-        routeName: 'invoice.index',
-        exact: true,
-    },
-    {
-        title: 'Calon Mitra',
-        icon: Handshake,
-        href: '/kerja-sama/calon-mitra',
-        routeName: 'kerja-sama.calon-mitra.index',
-        ability: 'kerja-sama.calon-mitra.view',
-    },
-];
-
 function getInitials(name) {
     if (!name) return 'U';
     return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
@@ -104,49 +64,68 @@ export function AppSidebar({ className, ...props }) {
         router.post('/logout');
     };
 
-    // Filter menu berdasarkan izin dari backend (Policy) lalu query pencarian
-    const filterItems = (items) => {
+    // Navigasi dinamis berdasarkan role, abilities (Policy), dan pencarian
+    const navGroups = useMemo(() => {
         const isSuperadmin = auth?.role?.name === 'superadmin';
-        const allowed = items.filter((item) => {
-            if (item.tenantOnly && isSuperadmin) return false;
-            return !item.ability || permissions[item.ability];
-        });
+        const isVendor = auth?.role?.name === 'vendor';
+        const query = searchQuery.trim().toLowerCase();
 
-        if (!searchQuery.trim()) return allowed;
+        const groups = [
+            {
+                label: 'Menu Utama',
+                items: [
+                    { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', routeName: 'dashboard' },
+                    { title: 'Pengadaan', icon: FileText, href: '/purchase-order', routeName: 'purchase-order', ability: 'purchase_order.view_any' },
+                    { title: 'Katalog & Pagu', icon: Package, href: '#', badge: 'Segera' },
+                    { title: 'Pengiriman', icon: Truck, href: '/pengiriman', routeName: 'pengiriman', ability: 'pengiriman.view_any' },
+                    { title: 'Inspeksi QC', icon: ClipboardCheck, href: '/inspeksi-qc', routeName: 'inspeksi-qc', ability: 'penerimaan_barang.view_any' },
+                    { title: 'Verifikasi Tagihan', icon: Receipt, href: '/verifikasi-tagihan', routeName: 'verifikasi-tagihan.index', ability: 'invoice.verify_any' },
+                ],
+            },
+            {
+                label: 'Master Data',
+                items: [
+                    { title: 'Komoditas', icon: Boxes, href: '/master/komoditas', routeName: 'master.komoditas.index', ability: 'komoditas.view_any' },
+                    { title: 'Rekanan Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index', exact: true, ability: 'vendor.view_any', tenantOnly: true },
+                ],
+            },
+            {
+                label: 'Manajemen',
+                items: [
+                    { title: 'Mitra Industri', icon: Handshake, href: '/manajemen/mitra-industri', routeName: 'manajemen.mitra-industri.index', ability: 'tenant.view_any' },
+                    { title: 'Profil Perusahaan', icon: Building2, href: '/manajemen/perusahaan', routeName: 'manajemen.perusahaan.index', ability: 'perusahaan.view' },
+                    { title: 'Pengguna', icon: Users, href: '/manajemen/pengguna', routeName: 'manajemen.pengguna.index', ability: 'pengguna.view_any' },
+                    { title: 'Role & Akses', icon: ShieldCheck, href: '/manajemen/role-akses', routeName: 'manajemen.role-akses.index', ability: 'role.view_any' },
+                    { title: 'Pengaturan', icon: Settings, href: '/pengaturan/profil', routeName: 'pengaturan', ability: 'pengaturan.view_any' },
+                ],
+            },
+            ...(isVendor
+                ? [
+                      {
+                          label: 'Vendor',
+                          items: [
+                              { title: 'Invoice', icon: Receipt, href: '/invoice', routeName: 'invoice.index', exact: true },
+                              { title: 'Calon Mitra', icon: Handshake, href: '/kerja-sama/calon-mitra', routeName: 'kerja-sama.calon-mitra.index', ability: 'kerja-sama.calon-mitra.view' },
+                          ],
+                      },
+                  ]
+                : []),
+        ];
 
-        return allowed.filter((item) =>
-            item.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
-        );
-    };
+        return groups
+            .map((group) => ({
+                ...group,
+                items: group.items.filter((item) => {
+                    if (item.tenantOnly && isSuperadmin) return false;
+                    if (item.ability && !permissions[item.ability]) return false;
+                    if (query && !item.title.toLowerCase().includes(query)) return false;
+                    return true;
+                }),
+            }))
+            .filter((group) => group.items.length > 0);
+    }, [auth?.role?.name, permissions, searchQuery]);
 
-    const filteredMain = useMemo(
-        () => filterItems(mainNavItems),
-        [searchQuery, permissions]
-    );
-
-    const filteredMaster = useMemo(
-        () => filterItems(masterNavItems),
-        [searchQuery, permissions]
-    );
-
-    const filteredManagement = useMemo(
-        () => filterItems(managementNavItems),
-        [searchQuery, permissions]
-    );
-
-    // Menu khusus Vendor
-    const filteredVendor = useMemo(
-        () => auth?.role?.name === 'vendor'
-            ? filterItems(vendorNavItems)
-            : [],
-        [searchQuery, permissions, auth?.role?.name]
-    );
-
-    const hasResults =
-        filteredMain.length > 0 ||
-        filteredMaster.length > 0 ||
-        filteredManagement.length > 0 ||
-        filteredVendor.length > 0;
+    const hasResults = navGroups.length > 0;
 
     return (
         <Sidebar
@@ -226,104 +205,29 @@ export function AppSidebar({ className, ...props }) {
                         </p>
                     </div>
                 ) : (
-                    <>
-                        {filteredMain.length > 0 && (
-                            <SidebarGroup>
-                                <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
-                                    Menu Utama
-                                </SidebarGroupLabel>
+                    navGroups.map((group, index) => (
+                        <SidebarGroup key={group.label} className={index > 0 ? 'mt-2' : ''}>
+                            <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
+                                {group.label}
+                            </SidebarGroupLabel>
 
-                                <SidebarGroupContent className="mt-1">
-                                    <SidebarMenu className="gap-1">
-                                        {filteredMain.map((item) => (
-                                            <SidebarItem
-                                                key={item.title}
-                                                title={item.title}
-                                                icon={item.icon}
-                                                href={item.href}
-                                                routeName={item.routeName}
-                                                exact={item.exact}
-                                                badge={item.badge}
-                                            />
-                                        ))}
-                                    </SidebarMenu>
-                                </SidebarGroupContent>
-                            </SidebarGroup>
-                        )}
-
-                        {filteredMaster.length > 0 && (
-                            <SidebarGroup className="mt-2">
-                                <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
-                                    Master Data
-                                </SidebarGroupLabel>
-
-                                <SidebarGroupContent className="mt-1">
-                                    <SidebarMenu className="gap-1">
-                                        {filteredMaster.map((item) => (
-                                            <SidebarItem
-                                                key={item.title}
-                                                title={item.title}
-                                                icon={item.icon}
-                                                href={item.href}
-                                                routeName={item.routeName}
-                                                exact={item.exact}
-                                                badge={item.badge}
-                                            />
-                                        ))}
-                                    </SidebarMenu>
-                                </SidebarGroupContent>
-                            </SidebarGroup>
-                        )}
-
-                        {filteredManagement.length > 0 && (
-                            <SidebarGroup className="mt-2">
-                                <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
-                                    Manajemen
-                                </SidebarGroupLabel>
-
-                                <SidebarGroupContent className="mt-1">
-                                    <SidebarMenu className="gap-1">
-                                        {filteredManagement.map((item) => (
-                                            <SidebarItem
-                                                key={item.title}
-                                                title={item.title}
-                                                icon={item.icon}
-                                                href={item.href}
-                                                routeName={item.routeName}
-                                                exact={item.exact}
-                                                badge={item.badge}
-                                            />
-                                        ))}
-                                    </SidebarMenu>
-                                </SidebarGroupContent>
-                            </SidebarGroup>
-                        )}
-
-                        {/* Menu khusus Vendor */}
-                        {filteredVendor.length > 0 && (
-                            <SidebarGroup className="mt-2">
-                                <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
-                                    Vendor
-                                </SidebarGroupLabel>
-
-                                <SidebarGroupContent className="mt-1">
-                                    <SidebarMenu className="gap-1">
-                                        {filteredVendor.map((item) => (
-                                            <SidebarItem
-                                                key={item.title}
-                                                title={item.title}
-                                                icon={item.icon}
-                                                href={item.href}
-                                                routeName={item.routeName}
-                                                exact={item.exact}
-                                                badge={item.badge}
-                                            />
-                                        ))}
-                                    </SidebarMenu>
-                                </SidebarGroupContent>
-                            </SidebarGroup>
-                        )}
-                    </>
+                            <SidebarGroupContent className="mt-1">
+                                <SidebarMenu className="gap-1">
+                                    {group.items.map((item) => (
+                                        <SidebarItem
+                                            key={item.title}
+                                            title={item.title}
+                                            icon={item.icon}
+                                            href={item.href}
+                                            routeName={item.routeName}
+                                            exact={item.exact}
+                                            badge={item.badge}
+                                        />
+                                    ))}
+                                </SidebarMenu>
+                            </SidebarGroupContent>
+                        </SidebarGroup>
+                    ))
                 )}
             </SidebarContent>
 

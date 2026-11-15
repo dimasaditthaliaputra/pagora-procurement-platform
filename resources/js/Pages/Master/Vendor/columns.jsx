@@ -19,8 +19,8 @@ import {
     Tag,
 } from 'lucide-react';
 
-export function getColumns({ onBlock, onUnblock, onViewDetail, canManage }) {
-    return [
+export function getColumns({ onBlock, onUnblock, onViewDetail, canManage, isTenant = false }) {
+    const cols = [
         {
             accessorKey: 'company_name',
             header: 'Vendor & Kontak',
@@ -124,6 +124,65 @@ export function getColumns({ onBlock, onUnblock, onViewDetail, canManage }) {
                 );
             },
         },
+        ...(isTenant
+            ? [
+                  {
+                      accessorKey: 'partnership',
+                      header: 'Kemitraan',
+                      cell: ({ row }) => {
+                          const p = row.original.partnership;
+                          if (!p) {
+                              return (
+                                  <Badge
+                                      variant="outline"
+                                      className="text-zinc-500 border-zinc-300 dark:border-zinc-700"
+                                  >
+                                      Belum Bermitra
+                                  </Badge>
+                              );
+                          }
+
+                          if (p.status === 'agreed') {
+                              return (
+                                  <Badge className="bg-emerald-600 text-white flex items-center gap-1 w-fit">
+                                      <CheckCircle2 className="size-3" />
+                                      Mitra Aktif
+                                  </Badge>
+                              );
+                          }
+
+                          if (p.status === 'blocked') {
+                              return (
+                                  <Badge
+                                      variant="destructive"
+                                      className="flex items-center gap-1 w-fit font-semibold"
+                                  >
+                                      <ShieldAlert className="size-3" />
+                                      Diblokir
+                                  </Badge>
+                              );
+                          }
+
+                          if (p.status === 'pending') {
+                              return (
+                                  <Badge
+                                      variant="outline"
+                                      className="text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/40"
+                                  >
+                                      Menunggu
+                                  </Badge>
+                              );
+                          }
+
+                          return (
+                              <Badge variant="secondary">
+                                  {p.status_label || p.status}
+                              </Badge>
+                          );
+                      },
+                  },
+              ]
+            : []),
         {
             accessorKey: 'created_at',
             header: 'Terdaftar',
@@ -201,4 +260,6 @@ export function getColumns({ onBlock, onUnblock, onViewDetail, canManage }) {
             },
         },
     ];
+
+    return cols;
 }

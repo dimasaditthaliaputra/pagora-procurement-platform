@@ -137,6 +137,14 @@ class Vendor extends Model
     }
 
     /**
+     * Partnerships (kemitraan) established with buyer tenants.
+     */
+    public function partnerships(): HasMany
+    {
+        return $this->hasMany(KerjaSama::class, 'vendor_id');
+    }
+
+    /**
      * Commodity categories provided by this vendor.
      */
     public function commodityCategories(): BelongsToMany

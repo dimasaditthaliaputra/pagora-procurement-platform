@@ -16,7 +16,7 @@ import { ShieldAlert } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 
-export function RejectionDialog({ document, open, onOpenChange }) {
+export function RejectionDialog({ document, open, onOpenChange, actionUrl }) {
     const [reason, setReason] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -53,7 +53,7 @@ export function RejectionDialog({ document, open, onOpenChange }) {
         setLoading(true);
 
         router.post(
-            `/master/vendor/verifikasi-dokumen/${document.uuid}/verifikasi`,
+            actionUrl || `/master/vendor/verifikasi-dokumen/${document.uuid}/verifikasi`,
             {
                 aksi: 'reject',
                 rejection_reason: trimmed,

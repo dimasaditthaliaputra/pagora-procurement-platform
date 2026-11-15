@@ -58,13 +58,12 @@ export const mainNavItems = [
 ];
 
 const masterNavItems = [
-    { title: 'Komoditas', icon: Boxes, href: '/master/komoditas', routeName: 'master.komoditas.index', badge: 'Utama', ability: 'komoditas.view_any' },
-    { title: 'Rekanan Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index', exact: true, ability: 'vendor.view_any' },
-    { title: 'Verifikasi Vendor', icon: ShieldCheck, href: '/master/vendor/verifikasi-dokumen', routeName: 'master.vendor.verifikasi-dokumen.index', ability: 'dokumen_legalitas.view_any' },
-    { title: 'Verifikasi Tenant', icon: Building2, href: '/master/tenant/verifikasi-dokumen', routeName: 'master.tenant.verifikasi-dokumen.index', ability: 'tenant.view_any' },
+    { title: 'Komoditas', icon: Boxes, href: '/master/komoditas', routeName: 'master.komoditas.index', ability: 'komoditas.view_any' },
+    { title: 'Rekanan Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index', exact: true, ability: 'vendor.view_any', tenantOnly: true },
 ];
 
 const managementNavItems = [
+    { title: 'Mitra Industri', icon: Handshake, href: '/manajemen/mitra-industri', routeName: 'manajemen.mitra-industri.index', ability: 'tenant.view_any' },
     { title: 'Profil Perusahaan', icon: Building2, href: '/manajemen/perusahaan', routeName: 'manajemen.perusahaan.index', ability: 'perusahaan.view' },
     { title: 'Pengguna', icon: Users, href: '/manajemen/pengguna', routeName: 'manajemen.pengguna.index', ability: 'pengguna.view_any' },
     { title: 'Role & Akses', icon: ShieldCheck, href: '/manajemen/role-akses', routeName: 'manajemen.role-akses.index', ability: 'role.view_any' },
@@ -107,7 +106,11 @@ export function AppSidebar({ className, ...props }) {
 
     // Filter menu berdasarkan izin dari backend (Policy) lalu query pencarian
     const filterItems = (items) => {
-        const allowed = items.filter((item) => !item.ability || permissions[item.ability]);
+        const isSuperadmin = auth?.role?.name === 'superadmin';
+        const allowed = items.filter((item) => {
+            if (item.tenantOnly && isSuperadmin) return false;
+            return !item.ability || permissions[item.ability];
+        });
 
         if (!searchQuery.trim()) return allowed;
 

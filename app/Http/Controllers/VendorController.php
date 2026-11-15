@@ -35,8 +35,14 @@ class VendorController extends Controller
     public function index(IndexVendorRequest $request): Response|JsonResponse|RedirectResponse
     {
         try {
+            /** @var User|null $user */
+            $user = $request->user();
             $filters = $request->validated();
             $perPage = (int) ($filters['per_page'] ?? 10);
+
+            if ($user?->tenant_id !== null) {
+                $filters['tenant_id'] = $user->tenant_id;
+            }
 
             $vendors = $this->vendorService->paginate($filters, $perPage);
 
@@ -46,9 +52,6 @@ class VendorController extends Controller
                     VendorResource::collection($vendors)
                 );
             }
-
-            /** @var User $user */
-            $user = $request->user();
 
             return Inertia::render('Master/Vendor/Index', [
                 'vendors' => VendorResource::collection($vendors),
@@ -60,7 +63,8 @@ class VendorController extends Controller
                     'direction' => $filters['direction'] ?? 'desc',
                     'per_page' => $perPage,
                 ],
-                'can_manage' => $user->can('invite', Vendor::class),
+                'can_manage' => $user?->can('invite', Vendor::class) ?? false,
+                'is_tenant' => $user?->tenant_id !== null || ! ($user?->isSuperadmin() ?? false),
                 'kategori_options' => VendorRegistrationService::KATEGORI_OPTIONS,
             ]);
         } catch (Throwable $e) {

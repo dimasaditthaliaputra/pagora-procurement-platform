@@ -39,6 +39,12 @@ class VendorResource extends JsonResource
             ] : null,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
+            'partnership' => $this->relationLoaded('partnerships') && $this->partnerships->isNotEmpty() ? [
+                'uuid' => $this->partnerships->first()->uuid,
+                'status' => $this->partnerships->first()->status->value,
+                'status_label' => $this->partnerships->first()->status->label(),
+                'requested_by' => $this->partnerships->first()->requested_by,
+            ] : null,
         ];
     }
 }

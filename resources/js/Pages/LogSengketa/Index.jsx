@@ -219,7 +219,7 @@ export default function LogSengketaIndex({
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                         <Scale className="size-6 text-primary shrink-0" />
-                        Log Sengketa — Kendala Pengadaan
+                        Log Sengketa - Kendala Pengadaan
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
                         Tinjau seluruh kendala pengadaan beserta bukti pemeriksaan QC, riwayat negosiasi,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Contracts;
 
 use App\Models\Invoice;
+use App\Models\PoItem;
 use App\Models\PurchaseOrder;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -14,7 +15,7 @@ interface InvoiceRepositoryInterface
     /**
      * Paginate invoices belonging to a vendor.
      *
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     public function paginateForVendor(
         int $vendorId,
@@ -33,7 +34,7 @@ interface InvoiceRepositoryInterface
     /**
      * Get PO items with accepted QC quantities and invoiced quantities.
      *
-     * @return Collection<int, \App\Models\PoItem>
+     * @return Collection<int, PoItem>
      */
     public function getAvailableItems(PurchaseOrder $purchaseOrder): Collection;
 
@@ -48,13 +49,14 @@ interface InvoiceRepositoryInterface
     /**
      * Create an invoice with its invoice items.
      *
-     * @param array<string, mixed> $attributes
-     * @param list<array<string, mixed>> $items
+     * @param  array<string, mixed>  $attributes
+     * @param  list<array<string, mixed>>  $items
      */
     public function createWithItems(
         array $attributes,
         array $items
     ): Invoice;
+
     /**
      * Mengambil daftar PO vendor yang memiliki barang lolos QC.
      */

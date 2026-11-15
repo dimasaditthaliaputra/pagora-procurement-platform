@@ -427,7 +427,7 @@ export default function LogSengketaShow({ dispute: rawDispute }) {
                                                 Pengiriman Terakhir
                                             </p>
                                             <p className="text-xs text-foreground">
-                                                {po.latest_shipment.route} — {po.latest_shipment.carrier_name}
+                                                {po.latest_shipment.route} - {po.latest_shipment.carrier_name}
                                             </p>
                                             <p className="text-xs font-mono font-semibold text-foreground">
                                                 {po.latest_shipment.vehicle_plate_number}

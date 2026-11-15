@@ -89,7 +89,7 @@ export function PengirimanForm({
         () =>
             purchaseOrderOptions.map((po) => ({
                 value: po.uuid,
-                label: `${po.po_number} — ${po.tenant_name} (${po.status_label})`,
+                label: `${po.po_number} - ${po.tenant_name} (${po.status_label})`,
             })),
         [purchaseOrderOptions]
     );

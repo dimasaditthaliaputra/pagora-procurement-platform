@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Mail\OtpMail;
 use App\Models\PerusahaanBuyer;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -12,6 +13,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Socialite\Contracts\User as SocialiteUserContract;
 use Laravel\Socialite\Facades\Socialite;
@@ -125,6 +127,25 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    /**
+     * Request an OTP for the tenant registration email and return the code.
+     */
+    private function requestOtp(string $email): string
+    {
+        Mail::fake();
+
+        $this->postJson('/register/otp/kirim', ['email' => $email])->assertOk();
+
+        $code = null;
+        Mail::assertQueued(OtpMail::class, function (OtpMail $mail) use ($email, &$code) {
+            $code = $mail->code;
+
+            return $mail->hasTo($email);
+        });
+
+        return (string) $code;
+    }
+
     public function test_register_page_can_be_rendered(): void
     {
         $response = $this->get('/register');
@@ -132,15 +153,111 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_tenant_otp_is_sent_to_email(): void
+    {
+        Mail::fake();
+
+        $response = $this->postJson('/register/otp/kirim', [
+            'email' => 'calon.tenant@perusahaan.co.id',
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'Kode OTP telah dikirim ke email bisnis Anda.',
+            ]);
+
+        Mail::assertQueued(OtpMail::class, function (OtpMail $mail) {
+            return $mail->hasTo('calon.tenant@perusahaan.co.id');
+        });
+    }
+
+    public function test_tenant_otp_cannot_be_requested_for_registered_email(): void
+    {
+        User::factory()->create(['email' => 'terdaftar@pagora.id']);
+
+        $response = $this->postJson('/register/otp/kirim', [
+            'email' => 'terdaftar@pagora.id',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_tenant_otp_cannot_be_resent_during_cooldown(): void
+    {
+        Mail::fake();
+
+        $this->postJson('/register/otp/kirim', ['email' => 'tenant.cooldown@perusahaan.co.id'])->assertOk();
+
+        $response = $this->postJson('/register/otp/kirim', ['email' => 'tenant.cooldown@perusahaan.co.id']);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_tenant_otp_can_be_verified_successfully(): void
+    {
+        $code = $this->requestOtp('tenant.verif@perusahaan.co.id');
+
+        $response = $this->postJson('/register/otp/verifikasi', [
+            'email' => 'tenant.verif@perusahaan.co.id',
+            'otp' => $code,
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'Kode OTP berhasil diverifikasi.',
+            ]);
+    }
+
+    public function test_tenant_otp_verification_fails_with_invalid_otp(): void
+    {
+        $this->requestOtp('tenant.invalid@perusahaan.co.id');
+
+        $response = $this->postJson('/register/otp/verifikasi', [
+            'email' => 'tenant.invalid@perusahaan.co.id',
+            'otp' => '999999',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['otp']);
+    }
+
+    public function test_tenant_registration_fails_with_invalid_otp(): void
+    {
+        Storage::fake('local');
+        $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
+
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Budi Santoso',
+            'email' => 'budi.wrong.otp@perusahaan.co.id',
+            'otp' => '123456',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Sumber Pangan Makmur',
+            'nomor_npwp' => '01.234.567.8-901.000',
+            'alamat' => 'Jl. Industri No. 10, Cikarang',
+            'dokumen_npwp' => $file,
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors(['otp']);
+        $this->assertGuest();
+    }
+
     public function test_register_creates_new_user_and_redirects_to_dashboard(): void
     {
         Storage::fake('local');
 
+        $otp = $this->requestOtp('budi@perusahaan.co.id');
         $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
 
         $response = $this->post('/register', [
             'name' => 'Budi Santoso',
             'email' => 'budi@perusahaan.co.id',
+            'otp' => $otp,
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Sumber Pangan Makmur',
@@ -197,6 +314,7 @@ class AuthenticationTest extends TestCase
         $response->assertSessionHasErrors([
             'name',
             'email',
+            'otp',
             'password',
             'nama_perusahaan',
             'nomor_npwp',
@@ -251,11 +369,13 @@ class AuthenticationTest extends TestCase
     public function test_register_succeeds_with_sixteen_digit_npwp(): void
     {
         Storage::fake('local');
+        $otp = $this->requestOtp('ahmad@perusahaan16.co.id');
         $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
 
         $response = $this->post('/register', [
             'name' => 'Ahmad Dahlan',
             'email' => 'ahmad@perusahaan16.co.id',
+            'otp' => $otp,
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Inovasi Pangan Nusantara',

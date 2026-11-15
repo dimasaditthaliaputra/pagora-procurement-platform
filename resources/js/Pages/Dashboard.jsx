@@ -5,7 +5,7 @@ import DashboardOverview from '@/Components/DashboardOverview';
 export default function Dashboard({ user }) {
     return (
         <DashboardLayout>
-            <Head title="Dashboard — PAGORA" />
+            <Head title="Dashboard - PAGORA" />
 
             <DashboardOverview userName={user?.name} />
         </DashboardLayout>

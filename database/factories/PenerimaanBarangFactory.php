@@ -36,4 +36,3 @@ class PenerimaanBarangFactory extends Factory
         ];
     }
 }
-

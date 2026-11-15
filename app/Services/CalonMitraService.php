@@ -23,7 +23,7 @@ class CalonMitraService
     /**
      * Return paginated list of eligible partner companies.
      *
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     public function paginate(int $vendorId, array $filters, int $perPage = 12): LengthAwarePaginator
     {

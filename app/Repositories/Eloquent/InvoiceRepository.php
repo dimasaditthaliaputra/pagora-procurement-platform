@@ -23,7 +23,7 @@ class InvoiceRepository implements InvoiceRepositoryInterface
     /**
      * Paginate invoices belonging to a vendor.
      *
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     public function paginateForVendor(
         int $vendorId,
@@ -141,8 +141,7 @@ class InvoiceRepository implements InvoiceRepositoryInterface
 
             return $item;
         })->filter(
-            fn (PoItem $item): bool =>
-                (float) $item->getAttribute('jumlah_tersedia_ditagihkan') > 0
+            fn (PoItem $item): bool => (float) $item->getAttribute('jumlah_tersedia_ditagihkan') > 0
         )->values();
     }
 
@@ -167,8 +166,8 @@ class InvoiceRepository implements InvoiceRepositoryInterface
     /**
      * Create an invoice with its invoice items.
      *
-     * @param array<string, mixed> $attributes
-     * @param list<array<string, mixed>> $items
+     * @param  array<string, mixed>  $attributes
+     * @param  list<array<string, mixed>>  $items
      */
     public function createWithItems(
         array $attributes,
@@ -221,8 +220,7 @@ class InvoiceRepository implements InvoiceRepositoryInterface
             ->orderByDesc('created_at')
             ->get()
             ->filter(
-                fn (PurchaseOrder $purchaseOrder): bool =>
-                    $this->getAvailableItems($purchaseOrder)->isNotEmpty()
+                fn (PurchaseOrder $purchaseOrder): bool => $this->getAvailableItems($purchaseOrder)->isNotEmpty()
             )
             ->values();
     }

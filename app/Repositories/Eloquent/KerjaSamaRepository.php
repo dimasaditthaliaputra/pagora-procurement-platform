@@ -31,7 +31,7 @@ class KerjaSamaRepository implements KerjaSamaRepositoryInterface
     /**
      * Create a new partnership request.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(array $data): KerjaSama
     {
@@ -76,7 +76,7 @@ class KerjaSamaRepository implements KerjaSamaRepositoryInterface
     /**
      * Update a partnership.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(
         KerjaSama $kerjaSama,

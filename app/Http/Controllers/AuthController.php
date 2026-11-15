@@ -9,7 +9,9 @@ use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
+use App\Http\Requests\Auth\SendTenantOtpRequest;
 use App\Http\Requests\Auth\VerifyLoginOtpRequest;
+use App\Http\Requests\Auth\VerifyTenantOtpRequest;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -184,6 +186,46 @@ class AuthController extends Controller
     public function register(): Response
     {
         return Inertia::render('Auth/Register');
+    }
+
+    /**
+     * Send an OTP code to the tenant registration email.
+     */
+    public function sendRegisterOtp(SendTenantOtpRequest $request): JsonResponse|RedirectResponse
+    {
+        try {
+            $this->authService->sendRegisterOtp((string) $request->validated('email'));
+
+            return ResponseHelper::success('Kode OTP telah dikirim ke email bisnis Anda.');
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors());
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Gagal mengirim kode OTP.', $e);
+        }
+    }
+
+    /**
+     * Verify the tenant registration email OTP code before proceeding.
+     */
+    public function verifyRegisterOtp(VerifyTenantOtpRequest $request): JsonResponse|RedirectResponse
+    {
+        try {
+            $this->authService->verifyRegisterOtp(
+                (string) $request->validated('email'),
+                (string) $request->validated('otp')
+            );
+
+            return ResponseHelper::success(
+                'Kode OTP berhasil diverifikasi.',
+                null,
+                url()->previous() ?: route('register'),
+                $request
+            );
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors(), request: $request);
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Gagal memverifikasi kode OTP.', $e, $request);
+        }
     }
 
     /**

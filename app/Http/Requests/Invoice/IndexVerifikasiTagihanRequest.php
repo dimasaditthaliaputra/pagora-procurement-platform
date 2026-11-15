@@ -52,4 +52,3 @@ class IndexVerifikasiTagihanRequest extends FormRequest
         ];
     }
 }
-

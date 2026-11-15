@@ -232,7 +232,7 @@ class InvoiceController extends Controller
             ])->setPaper('a4', 'portrait');
 
             return $pdf->download(
-                'invoice-' . $invoice->nomor_invoice_vendor . '.pdf'
+                'invoice-'.$invoice->nomor_invoice_vendor.'.pdf'
             );
         } catch (ModelNotFoundException) {
             abort(404, 'Invoice tidak ditemukan.');

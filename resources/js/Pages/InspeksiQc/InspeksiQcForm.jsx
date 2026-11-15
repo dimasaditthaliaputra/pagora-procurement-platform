@@ -107,7 +107,7 @@ export function InspeksiQcForm({
         () =>
             purchaseOrderOptions.map((po) => ({
                 value: po.uuid,
-                label: `${po.po_number} — ${po.vendor_name}${
+                label: `${po.po_number} - ${po.vendor_name}${
                     po.shipment?.vehicle_plate_number ? ` (${po.shipment.vehicle_plate_number})` : ''
                 }`,
             })),
@@ -1113,7 +1113,7 @@ export function InspeksiQcForm({
                                                             Jalur &amp; Armada Pengiriman
                                                         </span>
                                                         <span className="font-medium text-foreground block mt-0.5">
-                                                            {selectedPo.shipment.route} —{' '}
+                                                            {selectedPo.shipment.route} -{' '}
                                                             {selectedPo.shipment.carrier_name}
                                                         </span>
                                                     </div>

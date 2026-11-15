@@ -60,7 +60,7 @@ export default function ResetPassword({ token, email }) {
 
     return (
         <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-6 md:p-10">
-            <Head title="Atur Ulang Kata Sandi — PAGORA" />
+            <Head title="Atur Ulang Kata Sandi - PAGORA" />
             <FlashHandler />
             <Toaster />
 

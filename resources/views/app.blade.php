@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <title inertia>{{ config('app.name', 'PAGORA') }}</title>
-        <meta name="description" content="PAGORA — Ekosistem Pengadaan Bahan Baku B2B Bebas Mark-Up, Transparan, dan Terkendali berbasis Harga Referensi BI dan 3-Way Matching.">
+        <meta name="description" content="PAGORA - Ekosistem Pengadaan Bahan Baku B2B Bebas Mark-Up, Transparan, dan Terkendali berbasis Harga Referensi BI dan 3-Way Matching.">
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700" rel="stylesheet" />
     <link rel="icon" type="image/svg+xml" href="{{ Vite::asset('resources/assets/logo/logo.webp') }}">

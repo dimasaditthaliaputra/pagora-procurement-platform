@@ -361,7 +361,7 @@ export function AppSidebar({ className, ...props }) {
                             </DropdownMenuTrigger>
 
                             <DropdownMenuContent
-                                className="w-56 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 p-1.5 shadow-xl"
+                                className="dark w-56 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 p-1.5 shadow-xl"
                                 side="top"
                                 align="end"
                                 sideOffset={8}
@@ -395,9 +395,9 @@ export function AppSidebar({ className, ...props }) {
                                     asChild
                                     className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white"
                                 >
-                                    <Link href="/profil">
-                                        <UserCircle className="size-4 text-zinc-400" />
-                                        Profil Saya
+                                    <Link href="/profil" className="flex items-center gap-2 w-full">
+                                        <UserCircle className="size-4 shrink-0 text-zinc-400 group-hover/dropdown-menu-item:text-white group-focus/dropdown-menu-item:text-white transition-colors" />
+                                        <span>Profil Saya</span>
                                     </Link>
                                 </DropdownMenuItem>
 
@@ -406,9 +406,9 @@ export function AppSidebar({ className, ...props }) {
                                         asChild
                                         className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-zinc-300 hover:text-white hover:bg-zinc-900 focus:bg-zinc-900 focus:text-white"
                                     >
-                                        <Link href="/manajemen/perusahaan">
-                                            <Building2 className="size-4 text-zinc-400" />
-                                            Profil Perusahaan
+                                        <Link href="/manajemen/perusahaan" className="flex items-center gap-2 w-full">
+                                            <Building2 className="size-4 shrink-0 text-zinc-400 group-hover/dropdown-menu-item:text-white group-focus/dropdown-menu-item:text-white transition-colors" />
+                                            <span>Profil Perusahaan</span>
                                         </Link>
                                     </DropdownMenuItem>
                                 )}
@@ -416,11 +416,12 @@ export function AppSidebar({ className, ...props }) {
                                 <DropdownMenuSeparator className="my-1 bg-zinc-800" />
 
                                 <DropdownMenuItem
+                                    variant="destructive"
                                     onClick={handleLogout}
                                     className="rounded-lg cursor-pointer text-xs py-2 gap-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 focus:bg-rose-500/10 focus:text-rose-300"
                                 >
-                                    <LogOut className="size-4" />
-                                    Keluar
+                                    <LogOut className="size-4 shrink-0 text-rose-400 group-hover/dropdown-menu-item:text-rose-300 group-focus/dropdown-menu-item:text-rose-300 transition-colors" />
+                                    <span>Keluar</span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>

@@ -45,7 +45,7 @@ export default function ForgotPassword() {
 
     return (
         <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-6 md:p-10">
-            <Head title="Lupa Kata Sandi — PAGORA" />
+            <Head title="Lupa Kata Sandi - PAGORA" />
             <FlashHandler />
             <Toaster />
 

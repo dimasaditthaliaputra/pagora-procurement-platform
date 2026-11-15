@@ -267,7 +267,7 @@ export default function InspeksiQcDamageReportShow({ damage_report: rawReport })
                     <CardHeader className="py-3.5 px-5 border-b bg-destructive/[0.03]">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
                             <Camera className="size-4 text-destructive" />
-                            Catatan &amp; Dokumentasi Foto Kerusakan Awal ({photos.length} Foto —
+                            Catatan &amp; Dokumentasi Foto Kerusakan Awal ({photos.length} Foto -
                             Immutable)
                         </CardTitle>
                     </CardHeader>
@@ -290,7 +290,7 @@ export default function InspeksiQcDamageReportShow({ damage_report: rawReport })
                                         onClick={() =>
                                             setPreviewPhoto({
                                                 url: photo.url,
-                                                title: `${report.commodity_name} — Bukti Awal #${photo.index + 1}`,
+                                                title: `${report.commodity_name} - Bukti Awal #${photo.index + 1}`,
                                             })
                                         }
                                         className="group relative aspect-video overflow-hidden rounded-lg border bg-muted cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -364,7 +364,7 @@ export default function InspeksiQcDamageReportShow({ damage_report: rawReport })
                                                         onClick={() =>
                                                             setPreviewPhoto({
                                                                 url: log.attachment_url,
-                                                                title: `Lampiran Log Sengketa #${idx + 1} — ${log.author_name}`,
+                                                                title: `Lampiran Log Sengketa #${idx + 1} - ${log.author_name}`,
                                                             })
                                                         }
                                                         className="h-8 gap-1.5 text-xs cursor-pointer"
@@ -386,7 +386,7 @@ export default function InspeksiQcDamageReportShow({ damage_report: rawReport })
                     </Card>
                 )}
 
-                {/* Form Tambah Bukti Kerusakan Lanjutan (Append-Only — QC Gudang / Owner) */}
+                {/* Form Tambah Bukti Kerusakan Lanjutan (Append-Only - QC Gudang / Owner) */}
                 <div id="tambah-bukti">
                     {report?.can?.report_additional_evidence ? (
                         <TambahBuktiKerusakanForm

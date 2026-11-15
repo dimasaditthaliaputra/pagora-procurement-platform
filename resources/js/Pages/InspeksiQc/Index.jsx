@@ -285,7 +285,7 @@ export default function InspeksiQcIndex({
                                 <div>
                                     <CardTitle className="text-base font-semibold flex items-center gap-2">
                                         <Truck className="size-4 text-sky-600 dark:text-sky-400 shrink-0" />
-                                        Daftar Pesanan Dalam Pengiriman (In Transit) — Siap Diinspeksi
+                                        Daftar Pesanan Dalam Pengiriman (In Transit) - Siap Diinspeksi
                                     </CardTitle>
                                     <CardDescription className="text-xs mt-0.5">
                                         {stats.in_transit_orders > inspectable_orders.length

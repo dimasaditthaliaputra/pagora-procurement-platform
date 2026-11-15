@@ -9,7 +9,7 @@ import { useCountdown } from '@/hooks/use-countdown';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { isEmail } from '@/lib/validators';
 
 function OtpStep({ otp, status }) {
@@ -142,10 +142,20 @@ export default function Login({ status, otp = null }) {
 
     return (
         <div className="grid min-h-screen lg:grid-cols-2 bg-background text-foreground">
-            <Head title="Masuk Portal Pengadaan — PAGORA" />
+            <Head title="Masuk Portal Pengadaan - PAGORA" />
 
-            {/* Left — Form */}
+            {/* Left - Form */}
             <div className="flex flex-col justify-between p-6 md:p-10">
+                <div className="flex items-center justify-between">
+                    <Link
+                        href="/"
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group"
+                    >
+                        <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
+                        <span>Kembali ke Beranda</span>
+                    </Link>
+                </div>
+
                 <div className="flex flex-1 items-center justify-center py-8">
                     <div className="w-full max-w-sm">
                         {otp ? (
@@ -312,7 +322,7 @@ export default function Login({ status, otp = null }) {
                 </div>
             </div>
 
-            {/* Right — Cover Image */}
+            {/* Right - Cover Image */}
             <div className="relative hidden lg:block bg-muted">
                 <img
                     src="/images/login-cover.jpg"
@@ -326,7 +336,7 @@ export default function Login({ status, otp = null }) {
                             "PAGORA menyederhanakan seluruh proses pengadaan bahan baku kami. Dari pencarian vendor hingga manajemen kontrak, semuanya dalam satu platform."
                         </p>
                         <footer className="text-sm text-white/70">
-                            — Tim Procurement, Perusahaan Manufaktur
+                            - Tim Procurement, Perusahaan Manufaktur
                         </footer>
                     </blockquote>
                 </div>

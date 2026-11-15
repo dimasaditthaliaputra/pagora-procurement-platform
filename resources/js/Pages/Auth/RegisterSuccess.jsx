@@ -7,7 +7,7 @@ import SuccessAnimation from '../../../assets/Success.svg';
 export default function RegisterSuccess({ email = null }) {
     return (
         <div className="h-dvh max-h-dvh w-full overflow-hidden flex flex-col justify-between items-center bg-background sm:bg-muted/20 p-4 sm:p-6 lg:p-8 font-inter select-none">
-            <Head title="Pendaftaran Berhasil — PAGORA" />
+            <Head title="Pendaftaran Berhasil - PAGORA" />
 
             {/* Pinned Top: Logo Brand */}
             <header className="shrink-0 pt-2">

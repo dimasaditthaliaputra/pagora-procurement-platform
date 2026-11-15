@@ -54,7 +54,7 @@ export default function Error({ status, request_id: requestId = null }) {
 
     return (
         <>
-            <Head title={`${status} — ${error.title}`} />
+            <Head title={`${status} - ${error.title}`} />
             <ErrorState code={status} {...error} description={description} />
         </>
     );

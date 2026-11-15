@@ -115,7 +115,7 @@ export default function InspeksiQcShow({ receipt: rawReceipt }) {
                     <Alert variant="destructive">
                         <AlertTriangle className="size-4" />
                         <AlertTitle>
-                            Terdapat Item Tidak Sesuai — Tercatat ke Log Sengketa
+                            Terdapat Item Tidak Sesuai - Tercatat ke Log Sengketa
                         </AlertTitle>
                         <AlertDescription>
                             Sebanyak <strong>{receipt?.rejected_count ?? 0} item</strong> ditolak oleh QC Gudang disertai catatan dan foto bukti yang bersifat permanen (immutable). Status Purchase Order diperbarui menjadi{' '}
@@ -313,7 +313,7 @@ export default function InspeksiQcShow({ receipt: rawReceipt }) {
                                                     <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                                                         <Camera className="size-3.5 text-muted-foreground" />
                                                         Foto Bukti Ketidaksesuaian ({photos.length}{' '}
-                                                        Foto — Immutable)
+                                                        Foto - Immutable)
                                                     </span>
                                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                                         {photos.map((photo) => (
@@ -323,7 +323,7 @@ export default function InspeksiQcShow({ receipt: rawReceipt }) {
                                                                 onClick={() =>
                                                                     setPreviewPhoto({
                                                                         url: photo.url,
-                                                                        title: `${item.commodity_name} — Bukti #${photo.index + 1}`,
+                                                                        title: `${item.commodity_name} - Bukti #${photo.index + 1}`,
                                                                     })
                                                                 }
                                                                 className="group relative aspect-video overflow-hidden rounded-lg border bg-muted cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"

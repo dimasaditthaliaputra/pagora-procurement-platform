@@ -240,64 +240,63 @@ export default function PerusahaanIndex({ perusahaan }) {
                                         )}
                                     </div>
 
-                                    {/* Vendor Specific: Contact Email & Phone */}
+                                    {/* Contact Email (Vendor Only) */}
                                     {isVendor && (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div className="space-y-1.5">
-                                                <Label htmlFor="contact_email" className={cn('text-sm font-medium', errors.contact_email && 'text-destructive')}>
-                                                    Email Kontak Vendor <span className="text-destructive">*</span>
-                                                </Label>
-                                                <div className="relative">
-                                                    <Mail className="absolute left-3 top-2.5 size-4 text-muted-foreground pointer-events-none" />
-                                                    <Input
-                                                        id="contact_email"
-                                                        type="email"
-                                                        value={data.contact_email}
-                                                        onChange={(e) => {
-                                                            setData('contact_email', e.target.value);
-                                                            clearErrors('contact_email');
-                                                        }}
-                                                        aria-invalid={!!errors.contact_email}
-                                                        placeholder="kontak@perusahaan.com"
-                                                        className={cn(
-                                                            'pl-9 h-10',
-                                                            errors.contact_email && 'border-destructive focus-visible:ring-destructive'
-                                                        )}
-                                                    />
-                                                </div>
-                                                {errors.contact_email && (
-                                                    <p className="text-xs text-destructive">{errors.contact_email}</p>
-                                                )}
+                                        <div className="space-y-1.5">
+                                            <Label htmlFor="contact_email" className={cn('text-sm font-medium', errors.contact_email && 'text-destructive')}>
+                                                Email Kontak Vendor <span className="text-destructive">*</span>
+                                            </Label>
+                                            <div className="relative">
+                                                <Mail className="absolute left-3 top-2.5 size-4 text-muted-foreground pointer-events-none" />
+                                                <Input
+                                                    id="contact_email"
+                                                    type="email"
+                                                    value={data.contact_email}
+                                                    onChange={(e) => {
+                                                        setData('contact_email', e.target.value);
+                                                        clearErrors('contact_email');
+                                                    }}
+                                                    aria-invalid={!!errors.contact_email}
+                                                    placeholder="kontak@perusahaan.com"
+                                                    className={cn(
+                                                        'pl-9 h-10',
+                                                        errors.contact_email && 'border-destructive focus-visible:ring-destructive'
+                                                    )}
+                                                />
                                             </div>
-
-                                            <div className="space-y-1.5">
-                                                <Label htmlFor="phone" className={cn('text-sm font-medium', errors.phone && 'text-destructive')}>
-                                                    Nomor Telepon Kantor
-                                                </Label>
-                                                <div className="relative">
-                                                    <Phone className="absolute left-3 top-2.5 size-4 text-muted-foreground pointer-events-none" />
-                                                    <Input
-                                                        id="phone"
-                                                        type="tel"
-                                                        value={data.phone}
-                                                        onChange={(e) => {
-                                                            setData('phone', e.target.value);
-                                                            clearErrors('phone');
-                                                        }}
-                                                        aria-invalid={!!errors.phone}
-                                                        placeholder="081234567890"
-                                                        className={cn(
-                                                            'pl-9 h-10',
-                                                            errors.phone && 'border-destructive focus-visible:ring-destructive'
-                                                        )}
-                                                    />
-                                                </div>
-                                                {errors.phone && (
-                                                    <p className="text-xs text-destructive">{errors.phone}</p>
-                                                )}
-                                            </div>
+                                            {errors.contact_email && (
+                                                <p className="text-xs text-destructive">{errors.contact_email}</p>
+                                            )}
                                         </div>
                                     )}
+
+                                    {/* Nomor Telepon Kantor */}
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="phone" className={cn('text-sm font-medium', errors.phone && 'text-destructive')}>
+                                            Nomor Telepon Kantor
+                                        </Label>
+                                        <div className="relative">
+                                            <Phone className="absolute left-3 top-2.5 size-4 text-muted-foreground pointer-events-none" />
+                                            <Input
+                                                id="phone"
+                                                type="tel"
+                                                value={data.phone}
+                                                onChange={(e) => {
+                                                    setData('phone', e.target.value);
+                                                    clearErrors('phone');
+                                                }}
+                                                aria-invalid={!!errors.phone}
+                                                placeholder="081234567890"
+                                                className={cn(
+                                                    'pl-9 h-10',
+                                                    errors.phone && 'border-destructive focus-visible:ring-destructive'
+                                                )}
+                                            />
+                                        </div>
+                                        {errors.phone && (
+                                            <p className="text-xs text-destructive">{errors.phone}</p>
+                                        )}
+                                    </div>
 
                                     {/* Address */}
                                     <div className="space-y-1.5">

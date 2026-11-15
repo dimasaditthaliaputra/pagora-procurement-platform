@@ -11,7 +11,7 @@ import { OtpField, OTP_LENGTH } from '@/Components/otp-field';
 import { useCountdown } from '@/hooks/use-countdown';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
-import { isEmail, isNpwp, normalizeNpwp } from '@/lib/validators';
+import { isEmail, isNpwp, isPhoneNumber, normalizeNpwp, normalizePhoneNumber } from '@/lib/validators';
 import {
     Building2,
     ArrowRight,
@@ -40,6 +40,7 @@ export default function Register() {
         password_confirmation: '',
         nama_perusahaan: '',
         nomor_npwp: '',
+        telepon: '',
         alamat: '',
         dokumen_npwp: null,
     });
@@ -262,7 +263,7 @@ export default function Register() {
 
     const validateStep3 = () => {
         let hasError = false;
-        clearErrors('nama_perusahaan', 'nomor_npwp', 'alamat', 'dokumen_npwp');
+        clearErrors('nama_perusahaan', 'nomor_npwp', 'telepon', 'alamat', 'dokumen_npwp');
 
         const trimmedPerusahaan = data.nama_perusahaan.trim();
         if (!trimmedPerusahaan) {
@@ -285,6 +286,20 @@ export default function Register() {
             hasError = true;
         } else if (normalizedNpwp !== data.nomor_npwp) {
             setData('nomor_npwp', normalizedNpwp);
+        }
+
+        const normalizedTelepon = normalizePhoneNumber(data.telepon);
+        if (!normalizedTelepon) {
+            setError('telepon', 'Nomor telepon perusahaan wajib diisi.');
+            hasError = true;
+        } else if (!isPhoneNumber(normalizedTelepon)) {
+            setError(
+                'telepon',
+                'Format nomor telepon tidak valid. Gunakan 8–15 digit angka, contoh: 081234567890.'
+            );
+            hasError = true;
+        } else if (normalizedTelepon !== data.telepon) {
+            setData('telepon', normalizedTelepon);
         }
 
         const trimmedAlamat = data.alamat.trim();
@@ -800,6 +815,39 @@ export default function Register() {
                                         />
                                         {errors.nomor_npwp && (
                                             <p className="text-xs font-medium text-destructive">{errors.nomor_npwp}</p>
+                                        )}
+                                    </div>
+
+                                    {/* Nomor Telepon Perusahaan */}
+                                    <div className="grid gap-1">
+                                        <Label htmlFor="telepon" className={errors.telepon ? 'text-destructive text-xs' : 'text-xs'}>
+                                            Nomor Telepon Perusahaan <span className="text-destructive">*</span>
+                                        </Label>
+                                        <Input
+                                            id="telepon"
+                                            type="tel"
+                                            name="telepon"
+                                            value={data.telepon}
+                                            onChange={(e) => {
+                                                setData('telepon', e.target.value);
+                                                if (errors.telepon) clearErrors('telepon');
+                                            }}
+                                            onBlur={(e) => {
+                                                const formatted = normalizePhoneNumber(e.target.value);
+                                                if (formatted && formatted !== e.target.value) {
+                                                    setData('telepon', formatted);
+                                                }
+                                            }}
+                                            placeholder="Contoh: 081234567890 atau (021) 5551234"
+                                            aria-invalid={!!errors.telepon}
+                                            disabled={processing}
+                                            className={cn(
+                                                'h-9 text-sm',
+                                                errors.telepon && 'border-destructive focus-visible:ring-destructive'
+                                            )}
+                                        />
+                                        {errors.telepon && (
+                                            <p className="text-xs font-medium text-destructive">{errors.telepon}</p>
                                         )}
                                     </div>
 

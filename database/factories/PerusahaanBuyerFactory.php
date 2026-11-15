@@ -26,6 +26,7 @@ class PerusahaanBuyerFactory extends Factory
         return [
             'uuid' => (string) Str::uuid(),
             'company_name' => 'PT '.fake()->unique()->company(),
+            'phone' => '+628'.fake()->numerify('##########'),
             'address' => fake()->address(),
             'verification_status' => VerificationStatus::Approved,
             'is_active' => true,

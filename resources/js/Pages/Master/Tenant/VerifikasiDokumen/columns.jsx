@@ -74,6 +74,9 @@ export function getColumns({ onViewDetail, onApprove, onReject }) {
                             {tenant.tax_number && (
                                 <span className="font-mono">NPWP: {tenant.tax_number}</span>
                             )}
+                            {tenant.phone && (
+                                <span>Telp: {tenant.phone}</span>
+                            )}
                             {tenant.address && (
                                 <span className="truncate max-w-xs">{tenant.address}</span>
                             )}

@@ -239,6 +239,7 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Sumber Pangan Makmur',
             'nomor_npwp' => '01.234.567.8-901.000',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Industri No. 10, Cikarang',
             'dokumen_npwp' => $file,
         ]);
@@ -263,6 +264,7 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Sumber Pangan Makmur',
             'nomor_npwp' => '01.234.567.8-901.000',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Industri No. 10, Cikarang, Jawa Barat',
             'dokumen_npwp' => $file,
         ]);
@@ -274,6 +276,7 @@ class AuthenticationTest extends TestCase
         $this->assertDatabaseHas('tenants', [
             'company_name' => 'PT Sumber Pangan Makmur',
             'tax_number' => '01.234.567.8-901.000',
+            'phone' => '+6281234567890',
             'address' => 'Jl. Industri No. 10, Cikarang, Jawa Barat',
             'verification_status' => 'pending',
             'is_active' => true,
@@ -310,6 +313,7 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'mismatch',
             'nama_perusahaan' => '',
             'nomor_npwp' => '',
+            'telepon' => '',
             'alamat' => '',
         ]);
 
@@ -321,6 +325,7 @@ class AuthenticationTest extends TestCase
             'password',
             'nama_perusahaan',
             'nomor_npwp',
+            'telepon',
             'alamat',
             'dokumen_npwp',
         ]);
@@ -339,12 +344,35 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Sumber Pangan Makmur',
             'nomor_npwp' => '12345-invalid',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Industri No. 10, Cikarang',
             'dokumen_npwp' => $file,
         ]);
 
         $response->assertRedirect('/register');
         $response->assertSessionHasErrors(['nomor_npwp']);
+        $this->assertGuest();
+    }
+
+    public function test_register_fails_with_invalid_phone_number_format(): void
+    {
+        Storage::fake('local');
+        $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
+
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Budi Santoso',
+            'email' => 'budi.invalid.phone@perusahaan.co.id',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Sumber Pangan Makmur',
+            'nomor_npwp' => '01.234.567.8-901.000',
+            'telepon' => '1234', // too short (< 8 digits)
+            'alamat' => 'Jl. Industri No. 10, Cikarang',
+            'dokumen_npwp' => $file,
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors(['telepon']);
         $this->assertGuest();
     }
 
@@ -360,6 +388,7 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Sumber Pangan Makmur',
             'nomor_npwp' => '01.234.567.8-901.000',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Industri No. 10, Cikarang',
             'dokumen_npwp' => $file,
         ]);
@@ -383,6 +412,7 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Inovasi Pangan Nusantara',
             'nomor_npwp' => '0123456789010001',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Merdeka No. 45, Jakarta Pusat',
             'dokumen_npwp' => $file,
         ]);
@@ -393,6 +423,7 @@ class AuthenticationTest extends TestCase
         $this->assertDatabaseHas('tenants', [
             'company_name' => 'PT Inovasi Pangan Nusantara',
             'tax_number' => '0123456789010001',
+            'phone' => '+6281234567890',
             'verification_status' => 'pending',
             'is_active' => true,
         ]);
@@ -510,6 +541,7 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Perusahaan Kedua',
             'nomor_npwp' => '01.234.567.8-901.000',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Lain No. 20, Jakarta',
             'dokumen_npwp' => $file,
         ]);
@@ -540,6 +572,7 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Perusahaan Duplikat',
             'nomor_npwp' => '012345678901000',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Terusan No. 5, Surabaya',
             'dokumen_npwp' => $file,
         ]);

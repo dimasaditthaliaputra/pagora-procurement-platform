@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property string $uuid
  * @property string $company_name
  * @property string|null $tax_number
+ * @property string|null $phone
  * @property string|null $legal_document_path
  * @property string|null $address
  * @property VerificationStatus $verification_status
@@ -36,6 +37,7 @@ use Illuminate\Support\Carbon;
     'uuid',
     'company_name',
     'tax_number',
+    'phone',
     'legal_document_path',
     'address',
     'verification_status',

@@ -72,6 +72,7 @@ class UpdatePerusahaanRequest extends FormRequest
                     ->ignore($user->tenant_id)
                     ->whereNull('deleted_at'),
             ];
+            $rules['phone'] = ['nullable', 'string', 'max:30'];
         }
 
         if ($user->isVendor() && $user->vendor_id !== null) {

@@ -110,6 +110,7 @@ class ManajemenPerusahaanTest extends TestCase
                 ->where('perusahaan.uuid', $this->tenant->uuid)
                 ->where('perusahaan.company_name', 'PT Pagora Sumber Makmur')
                 ->where('perusahaan.tax_number', '01.234.567.8-111.000')
+                ->where('perusahaan.phone', $this->tenant->phone)
                 ->where('perusahaan.address', 'Jl. Sudirman No. 10 Jakarta Pusat')
                 ->where('perusahaan.verification_status', 'approved')
                 ->missing('perusahaan.id')
@@ -121,6 +122,7 @@ class ManajemenPerusahaanTest extends TestCase
         $response = $this->actingAs($this->ownerUser)->put('/manajemen/perusahaan', [
             'company_name' => 'PT Pagora Agro Mandiri',
             'tax_number' => '01.999.888.7-666.000',
+            'phone' => '081299887766',
             'address' => 'Jl. Gatot Subroto Kav. 55 Jakarta Selatan',
         ]);
 
@@ -131,6 +133,7 @@ class ManajemenPerusahaanTest extends TestCase
             'id' => $this->tenant->id,
             'company_name' => 'PT Pagora Agro Mandiri',
             'tax_number' => '01.999.888.7-666.000',
+            'phone' => '081299887766',
             'address' => 'Jl. Gatot Subroto Kav. 55 Jakarta Selatan',
         ]);
     }

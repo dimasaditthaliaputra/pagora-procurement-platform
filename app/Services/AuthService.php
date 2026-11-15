@@ -383,6 +383,9 @@ class AuthService
         $nomorNpwp = $request->filled('nomor_npwp')
             ? trim((string) $request->input('nomor_npwp'))
             : ($request->filled('tax_number') ? trim((string) $request->input('tax_number')) : null);
+        $telepon = $request->filled('telepon')
+            ? trim((string) $request->input('telepon'))
+            : ($request->filled('phone') ? trim((string) $request->input('phone')) : null);
         $alamat = $request->filled('alamat')
             ? trim((string) $request->input('alamat'))
             : ($request->filled('address') ? trim((string) $request->input('address')) : null);
@@ -406,10 +409,11 @@ class AuthService
         }
 
         try {
-            $user = DB::transaction(function () use ($name, $email, $password, $namaPerusahaan, $nomorNpwp, $alamat, $documentPath): User {
+            $user = DB::transaction(function () use ($name, $email, $password, $namaPerusahaan, $nomorNpwp, $telepon, $alamat, $documentPath): User {
                 $perusahaan = $this->perusahaanBuyerRepository->create([
                     'company_name' => $namaPerusahaan,
                     'tax_number' => $nomorNpwp,
+                    'phone' => $telepon,
                     'legal_document_path' => $documentPath,
                     'address' => $alamat,
                     'verification_status' => VerificationStatus::Pending,

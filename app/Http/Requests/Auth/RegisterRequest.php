@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Requests\Auth;
 
 use App\Helpers\NpwpHelper;
+use App\Helpers\PhoneHelper;
 use App\Rules\Npwp;
+use App\Rules\PhoneNumber;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -55,6 +57,26 @@ class RegisterRequest extends FormRequest
             ]);
         }
 
+        if ($this->has('phone') && ! $this->filled('telepon')) {
+            $this->merge([
+                'telepon' => $this->input('phone'),
+            ]);
+        }
+
+        if ($this->has('nomor_telepon') && ! $this->filled('telepon')) {
+            $this->merge([
+                'telepon' => $this->input('nomor_telepon'),
+            ]);
+        }
+
+        if ($this->has('telepon')) {
+            $normalizedPhone = PhoneHelper::normalize($this->string('telepon')->toString());
+            $this->merge([
+                'telepon' => $normalizedPhone,
+                'phone' => $normalizedPhone,
+            ]);
+        }
+
         if ($this->has('nomor_npwp')) {
             $normalizedNpwp = NpwpHelper::normalize($this->input('nomor_npwp'));
             $this->merge([
@@ -91,6 +113,7 @@ class RegisterRequest extends FormRequest
                 new Npwp,
                 Rule::unique('tenants', 'tax_number')->whereNull('deleted_at'),
             ],
+            'telepon' => ['required', 'string', 'max:30', new PhoneNumber],
             'alamat' => ['required', 'string', 'max:1000'],
             'dokumen_npwp' => [
                 'required',
@@ -129,6 +152,9 @@ class RegisterRequest extends FormRequest
             'nomor_npwp.string' => 'Nomor NPWP harus berupa teks.',
             'nomor_npwp.max' => 'Nomor NPWP tidak boleh lebih dari :max karakter.',
             'nomor_npwp.unique' => 'Nomor NPWP ini sudah terdaftar dalam sistem.',
+            'telepon.required' => 'Nomor telepon perusahaan wajib diisi.',
+            'telepon.string' => 'Nomor telepon perusahaan harus berupa teks.',
+            'telepon.max' => 'Nomor telepon perusahaan tidak boleh lebih dari :max karakter.',
             'alamat.required' => 'Alamat lengkap perusahaan wajib diisi.',
             'alamat.string' => 'Alamat lengkap perusahaan harus berupa teks.',
             'alamat.max' => 'Alamat perusahaan tidak boleh lebih dari :max karakter.',
@@ -155,6 +181,7 @@ class RegisterRequest extends FormRequest
             'otp' => 'kode OTP',
             'nama_perusahaan' => 'nama perusahaan',
             'nomor_npwp' => 'nomor NPWP',
+            'telepon' => 'nomor telepon perusahaan',
             'alamat' => 'alamat lengkap perusahaan',
             'dokumen_npwp' => 'dokumen legalitas perusahaan',
         ];

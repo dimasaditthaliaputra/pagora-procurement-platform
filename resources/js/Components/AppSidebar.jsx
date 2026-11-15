@@ -29,7 +29,6 @@ import { ThemeToggle } from '@/Components/ThemeToggle';
 import { NotificationBell } from '@/Components/NotificationBell';
 import {
     LayoutDashboard,
-    ShoppingCart,
     Package,
     Users,
     FileText,
@@ -38,51 +37,38 @@ import {
     UserCircle,
     Building2,
     ClipboardCheck,
-    BarChart3,
-    Bell,
     Truck,
     Boxes,
-    TrendingUp,
     ShieldCheck,
     Search,
     ChevronsUpDown,
     X,
     Handshake,
-    Scale,
     Receipt,
 } from 'lucide-react';
 import Logo from '../../assets/logo/logo.webp';
 
 export const mainNavItems = [
     { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', routeName: 'dashboard' },
-    { title: 'Pengadaan', icon: ShoppingCart, href: '#', badge: 'Baru' },
-    { title: 'Katalog Produk', icon: Package, href: '#' },
-    { title: 'Purchase Order', icon: FileText, href: '/purchase-order', routeName: 'purchase-order', ability: 'purchase_order.view_any' },
+    { title: 'Pengadaan', icon: FileText, href: '/purchase-order', routeName: 'purchase-order', ability: 'purchase_order.view_any' },
+    { title: 'Katalog & Pagu', icon: Package, href: '#', badge: 'Segera' },
     { title: 'Pengiriman', icon: Truck, href: '/pengiriman', routeName: 'pengiriman', ability: 'pengiriman.view_any' },
     { title: 'Inspeksi QC', icon: ClipboardCheck, href: '/inspeksi-qc', routeName: 'inspeksi-qc', ability: 'penerimaan_barang.view_any' },
     { title: 'Verifikasi Tagihan', icon: Receipt, href: '/verifikasi-tagihan', routeName: 'verifikasi-tagihan.index', ability: 'invoice.verify_any' },
-    { title: 'Log Sengketa', icon: Scale, href: '/log-sengketa', routeName: 'log-sengketa', ability: 'sengketa.view_any' },
 ];
 
 const masterNavItems = [
     { title: 'Komoditas', icon: Boxes, href: '/master/komoditas', routeName: 'master.komoditas.index', badge: 'Utama', ability: 'komoditas.view_any' },
-    { title: 'Harga Referensi & Pagu', icon: TrendingUp, href: '#' },
-    { title: 'Data Rekanan Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index', exact: true, ability: 'vendor.view_any' },
+    { title: 'Rekanan Vendor', icon: Building2, href: '/master/vendor', routeName: 'master.vendor.index', exact: true, ability: 'vendor.view_any' },
     { title: 'Verifikasi Vendor', icon: ShieldCheck, href: '/master/vendor/verifikasi-dokumen', routeName: 'master.vendor.verifikasi-dokumen.index', ability: 'dokumen_legalitas.view_any' },
     { title: 'Verifikasi Tenant', icon: Building2, href: '/master/tenant/verifikasi-dokumen', routeName: 'master.tenant.verifikasi-dokumen.index', ability: 'tenant.view_any' },
 ];
 
 const managementNavItems = [
-    { title: 'Laporan', icon: BarChart3, href: '#' },
-    { title: 'Notifikasi', icon: Bell, href: '/notifikasi', routeName: 'notifications.index' },
     { title: 'Profil Perusahaan', icon: Building2, href: '/manajemen/perusahaan', routeName: 'manajemen.perusahaan.index', ability: 'perusahaan.view' },
     { title: 'Pengguna', icon: Users, href: '/manajemen/pengguna', routeName: 'manajemen.pengguna.index', ability: 'pengguna.view_any' },
-    { title: 'Role & Hak Akses', icon: ShieldCheck, href: '/manajemen/role-akses', routeName: 'manajemen.role-akses.index', ability: 'role.view_any' },
+    { title: 'Role & Akses', icon: ShieldCheck, href: '/manajemen/role-akses', routeName: 'manajemen.role-akses.index', ability: 'role.view_any' },
     { title: 'Pengaturan', icon: Settings, href: '/pengaturan/profil', routeName: 'pengaturan', ability: 'pengaturan.view_any' },
-];
-
-const kerjaSamaNavItems = [
-    { title: 'Calon Mitra', icon: Handshake, href: '/kerja-sama/calon-mitra', routeName: 'kerja-sama.calon-mitra.index', ability: 'kerja-sama.calon-mitra.view' },
 ];
 
 // Menu khusus Vendor
@@ -93,6 +79,13 @@ const vendorNavItems = [
         href: '/invoice',
         routeName: 'invoice.index',
         exact: true,
+    },
+    {
+        title: 'Calon Mitra',
+        icon: Handshake,
+        href: '/kerja-sama/calon-mitra',
+        routeName: 'kerja-sama.calon-mitra.index',
+        ability: 'kerja-sama.calon-mitra.view',
     },
 ];
 
@@ -138,12 +131,7 @@ export function AppSidebar({ className, ...props }) {
         [searchQuery, permissions]
     );
 
-    const filteredKerjaSama = useMemo(
-        () => filterItems(kerjaSamaNavItems),
-        [searchQuery, permissions]
-    );
-
-    // Invoice hanya ditampilkan untuk akun dengan role Vendor
+    // Menu khusus Vendor
     const filteredVendor = useMemo(
         () => auth?.role?.name === 'vendor'
             ? filterItems(vendorNavItems)
@@ -155,7 +143,6 @@ export function AppSidebar({ className, ...props }) {
         filteredMain.length > 0 ||
         filteredMaster.length > 0 ||
         filteredManagement.length > 0 ||
-        filteredKerjaSama.length > 0 ||
         filteredVendor.length > 0;
 
     return (
@@ -309,35 +296,11 @@ export function AppSidebar({ className, ...props }) {
                             </SidebarGroup>
                         )}
 
-                        {filteredKerjaSama.length > 0 && (
-                            <SidebarGroup className="mt-2">
-                                <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
-                                    Kerja Sama
-                                </SidebarGroupLabel>
-
-                                <SidebarGroupContent className="mt-1">
-                                    <SidebarMenu className="gap-1">
-                                        {filteredKerjaSama.map((item) => (
-                                            <SidebarItem
-                                                key={item.title}
-                                                title={item.title}
-                                                icon={item.icon}
-                                                href={item.href}
-                                                routeName={item.routeName}
-                                                exact={item.exact}
-                                                badge={item.badge}
-                                            />
-                                        ))}
-                                    </SidebarMenu>
-                                </SidebarGroupContent>
-                            </SidebarGroup>
-                        )}
-
                         {/* Menu khusus Vendor */}
                         {filteredVendor.length > 0 && (
                             <SidebarGroup className="mt-2">
                                 <SidebarGroupLabel className="px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
-                                    Transaksi Vendor
+                                    Vendor
                                 </SidebarGroupLabel>
 
                                 <SidebarGroupContent className="mt-1">

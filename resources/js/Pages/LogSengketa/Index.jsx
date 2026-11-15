@@ -23,6 +23,7 @@ import {
     SelectValue,
 } from '@/Components/ui/select';
 import { getSengketaColumns } from '@/Pages/LogSengketa/columns';
+import { InspeksiQcNavTabs } from '@/Pages/InspeksiQc/components/InspeksiQcNavTabs';
 import { cn } from '@/lib/utils';
 
 function StatCard({ title, value, unit, caption, icon: Icon, tone }) {
@@ -206,6 +207,7 @@ export default function LogSengketaIndex({
 
     const breadcrumbs = [
         { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Inspeksi QC', href: '/inspeksi-qc' },
         { label: 'Log Sengketa', href: '#' },
     ];
 
@@ -225,6 +227,12 @@ export default function LogSengketaIndex({
                         untuk keperluan mediasi.
                     </p>
                 </div>
+
+                {/* Navigasi Sub-Fitur Inspeksi QC */}
+                <InspeksiQcNavTabs
+                    activeTab="disputes"
+                    disputeCount={statistics.open}
+                />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatCard

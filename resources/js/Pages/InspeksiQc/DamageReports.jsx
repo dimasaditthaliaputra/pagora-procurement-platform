@@ -208,6 +208,7 @@ export default function InspeksiQcDamageReports({
                 <InspeksiQcNavTabs
                     activeTab="damage_reports"
                     damageCount={stats.total_damage_reports}
+                    disputeCount={stats.open_disputes_count}
                 />
 
                 {/* 4 Kartu Metrik Ringkasan Laporan Kerusakan */}

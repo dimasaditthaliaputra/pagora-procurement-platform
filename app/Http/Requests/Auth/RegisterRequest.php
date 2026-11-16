@@ -10,6 +10,7 @@ use App\Rules\Npwp;
 use App\Rules\PhoneNumber;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class RegisterRequest extends FormRequest
@@ -92,6 +93,43 @@ class RegisterRequest extends FormRequest
         if ($this->hasFile('legal_document') && ! $this->hasFile('dokumen_npwp')) {
             $this->files->set('dokumen_npwp', $this->file('legal_document'));
         }
+
+        $isGoogleRegistration = $this->boolean('is_google_registration')
+            || session()->has('google_user')
+            || filled($this->input('google_id'));
+
+        if ($isGoogleRegistration) {
+            $googleUser = session('google_user', []);
+            if (! $this->filled('name') && ! empty($googleUser['name'])) {
+                $this->merge(['name' => $googleUser['name']]);
+            }
+            if (! $this->filled('email') && ! empty($googleUser['email'])) {
+                $this->merge(['email' => strtolower(trim((string) $googleUser['email']))]);
+            }
+            if (! $this->filled('google_id') && ! empty($googleUser['google_id'])) {
+                $this->merge(['google_id' => $googleUser['google_id']]);
+            }
+            if (! $this->filled('avatar') && ! empty($googleUser['avatar'])) {
+                $this->merge(['avatar' => $googleUser['avatar']]);
+            }
+
+            if (! $this->filled('password')) {
+                $generatedPassword = 'Pagora#'.Str::random(10);
+                $this->merge([
+                    'password' => $generatedPassword,
+                    'password_confirmation' => $generatedPassword,
+                    'default_password' => $generatedPassword,
+                    'is_google_registration' => true,
+                ]);
+            }
+
+            if (! $this->filled('otp')) {
+                $this->merge([
+                    'otp' => '000000',
+                    'is_google_registration' => true,
+                ]);
+            }
+        }
     }
 
     /**
@@ -101,10 +139,22 @@ class RegisterRequest extends FormRequest
      */
     public function rules(): array
     {
+        $isGoogleRegistration = $this->boolean('is_google_registration')
+            || session()->has('google_user')
+            || filled($this->input('google_id'));
+
         return [
             'name' => ['required', 'string', 'min:3', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->whereNull('deleted_at'),
+            ],
+            'password' => $isGoogleRegistration
+                ? ['nullable', 'string', 'min:8']
+                : ['required', 'string', 'min:8', 'confirmed'],
             'nama_perusahaan' => ['required', 'string', 'min:3', 'max:200'],
             'nomor_npwp' => [
                 'required',
@@ -121,7 +171,13 @@ class RegisterRequest extends FormRequest
                 'mimes:pdf,jpg,jpeg,png',
                 'max:5120',
             ],
-            'otp' => ['required', 'digits:6'],
+            'otp' => $isGoogleRegistration
+                ? ['nullable', 'string']
+                : ['required', 'digits:6'],
+            'google_id' => ['nullable', 'string', 'max:255'],
+            'avatar' => ['nullable', 'string', 'max:500'],
+            'is_google_registration' => ['nullable', 'boolean'],
+            'default_password' => ['nullable', 'string', 'max:100'],
         ];
     }
 

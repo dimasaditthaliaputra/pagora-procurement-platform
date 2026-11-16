@@ -9,6 +9,7 @@ use App\Helpers\PhoneHelper;
 use App\Rules\Npwp;
 use App\Rules\PhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -73,6 +74,47 @@ class StoreVendorRegistrationRequest extends FormRequest
             }
             $this->merge(['legal_documents' => $docs]);
         }
+
+        $isGoogleRegistration = $this->boolean('is_google_registration')
+            || session()->has('google_user')
+            || filled($this->input('google_id'));
+
+        if ($isGoogleRegistration) {
+            $googleUser = session('google_user', []);
+            if (! $this->filled('name') && ! empty($googleUser['name'])) {
+                $this->merge(['name' => $googleUser['name']]);
+            }
+            if (! $this->filled('email') && ! empty($googleUser['email'])) {
+                $email = strtolower(trim((string) $googleUser['email']));
+                $this->merge([
+                    'email' => $email,
+                    'contact_email' => $email,
+                ]);
+            }
+            if (! $this->filled('google_id') && ! empty($googleUser['google_id'])) {
+                $this->merge(['google_id' => $googleUser['google_id']]);
+            }
+            if (! $this->filled('avatar') && ! empty($googleUser['avatar'])) {
+                $this->merge(['avatar' => $googleUser['avatar']]);
+            }
+
+            if (! $this->filled('password')) {
+                $generatedPassword = 'Pagora#'.Str::random(10);
+                $this->merge([
+                    'password' => $generatedPassword,
+                    'password_confirmation' => $generatedPassword,
+                    'default_password' => $generatedPassword,
+                    'is_google_registration' => true,
+                ]);
+            }
+
+            if (! $this->filled('otp')) {
+                $this->merge([
+                    'otp' => '000000',
+                    'is_google_registration' => true,
+                ]);
+            }
+        }
     }
 
     /**
@@ -82,6 +124,10 @@ class StoreVendorRegistrationRequest extends FormRequest
      */
     public function rules(): array
     {
+        $isGoogleRegistration = $this->boolean('is_google_registration')
+            || session()->has('google_user')
+            || filled($this->input('google_id'));
+
         return [
             'name' => ['required', 'string', 'min:3', 'max:255'],
             'email' => [
@@ -92,7 +138,9 @@ class StoreVendorRegistrationRequest extends FormRequest
                 Rule::unique('users', 'email')->whereNull('deleted_at'),
                 Rule::unique('vendors', 'contact_email')->whereNull('deleted_at'),
             ],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => $isGoogleRegistration
+                ? ['nullable', 'string', 'min:8']
+                : ['required', 'string', 'min:8', 'confirmed'],
             'company_name' => ['required', 'string', 'min:3', 'max:200'],
             'tax_number' => [
                 'required',
@@ -111,7 +159,7 @@ class StoreVendorRegistrationRequest extends FormRequest
             ],
             'phone' => ['required', 'string', 'max:30', new PhoneNumber],
             'address' => ['required', 'string', 'max:1000'],
-            'otp' => ['required', 'digits:6'],
+            'otp' => $isGoogleRegistration ? ['nullable', 'string'] : ['required', 'digits:6'],
             'commodity_category_uuids' => ['required', 'array', 'min:1'],
             'commodity_category_uuids.*' => [
                 'required',
@@ -131,6 +179,9 @@ class StoreVendorRegistrationRequest extends FormRequest
                 'max:5120', // Maksimal 5 MB per file sesuai PRD NFR-05 & UC-02
             ],
             'invitation_token' => ['nullable', 'string', 'max:64'],
+            'google_id' => ['nullable', 'string', 'max:255'],
+            'avatar' => ['nullable', 'string', 'max:500'],
+            'is_google_registration' => ['nullable', 'boolean'],
         ];
     }
 

@@ -111,24 +111,25 @@ Seluruh aktivitas selain registrasi, konfirmasi undangan, dan reset kata sandi w
 ### UC-01 Registrasi Akun Tenant
 - **Aktor**: Guest (calon Owner). **Prasyarat**: belum login / belum punya akun.
 - **Alur utama**:
-  1. Guest membuka halaman daftar tenant; sistem memuat form halaman 1 (**Form Owner**).
-  2. Guest mengisi nama, email, kata sandi lalu konfirmasi lanjut.
-  3. Sistem menyimpan data di *state* dan memuat halaman 2 (**Form Perusahaan**).
-  4. Guest mengisi nama perusahaan, NPWP, nomor telepon perusahaan, alamat, dan mengunggah dokumen legalitas (NPWP / Surat Izin Usaha).
-  5. Guest mengonfirmasi pendaftaran; sistem memvalidasi kelengkapan data & berkas.
-  6. Sistem menyimpan profil ke `users` (role `owner`) dan perusahaan ke `tenants` dengan status **menunggu verifikasi**.
-  7. Sistem menampilkan "Pendaftaran sukses".
-- **Alternatif/error**: 5a. Data tidak valid (kolom wajib kosong, email terdaftar, berkas > 5 MB / format salah) → tolak, tampilkan error di kolom terkait, tetap di form.
+  1. Guest membuka halaman daftar tenant; sistem memuat form langkah 1 (**Form Owner / Profil Akun**).
+  2. Guest mengisi nama, email bisnis, kata sandi, dan konfirmasi kata sandi, lalu konfirmasi lanjut (**atau** memilih "Daftar dengan Google").
+  3. Pada alur manual, sistem mengirimkan kode OTP ke email bisnis dan memuat langkah 2 (**Verifikasi OTP**). Setelah kode OTP 6 digit diverifikasi, sistem memuat langkah 3 (**Form Perusahaan**).
+  4. Pada alur **Daftar dengan Google**, identitas dan email pengguna otomatis tervalidasi via Google OAuth sehingga tidak memerlukan input kata sandi manual maupun verifikasi OTP. Sistem membuatkan kata sandi default unik yang dikirimkan ke Gmail pengguna, dan langsung mengarahkan pengguna ke langkah 3 (**Form Perusahaan**).
+  5. Guest mengisi nama perusahaan, NPWP, nomor telepon perusahaan, alamat, dan mengunggah dokumen legalitas (NPWP / Surat Izin Usaha).
+  6. Guest mengonfirmasi pendaftaran; sistem memvalidasi kelengkapan data & berkas.
+  7. Sistem menyimpan profil ke `users` (role `owner`) dan perusahaan ke `tenants` dengan status **menunggu verifikasi**.
+  8. Sistem mengarahkan ke halaman "Pendaftaran sukses".
+- **Alternatif/error**: 6a. Data tidak valid (kolom wajib kosong, email terdaftar, berkas > 5 MB / format salah) → tolak, tampilkan error di kolom terkait, tetap di form.
 - **Hasil**: data Owner & Tenant tersimpan; Tenant aktif setelah diverifikasi Superadmin (UC-21).
 
 ### UC-02 Registrasi Akun Vendor
 - **Aktor**: Guest (calon Vendor), mandiri **atau** lewat tautan undangan (UC-20). **Prasyarat**: belum login / belum punya akun.
 - **Alur utama**:
   1. Guest membuka halaman daftar vendor (bila dari undangan, data awal terisi dari undangan); sistem memuat form tab 1 (**Profil Akun**).
-  2. Guest mengisi nama penanggung jawab, email bisnis, kata sandi, dan konfirmasi kata sandi, lalu klik lanjut.
-  3. Sistem memvalidasi kelayakan akun & mengirimkan kode OTP 6 digit ke email bisnis tersebut, lalu memuat tab 2 (**Verifikasi OTP**).
-  4. Guest memasukkan 6 digit kode OTP verifikasi email bisnis. Setelah OTP terverifikasi, sistem memuat tab 3 (**Data Perusahaan**).
-  5. Guest mengisi nama perusahaan, **NPWP**, nomor telepon perusahaan, dan alamat lengkap. Field email perusahaan tidak perlu diisi manual karena otomatis menggunakan email bisnis yang telah diverifikasi di tab sebelumnya.
+  2. Guest mengisi nama penanggung jawab, email bisnis, kata sandi, dan konfirmasi kata sandi, lalu klik lanjut (**atau** memilih "Daftar dengan Google").
+  3. Pada alur manual, sistem memvalidasi kelayakan akun & mengirimkan kode OTP 6 digit ke email bisnis tersebut, lalu memuat tab 2 (**Verifikasi OTP**). Setelah OTP terverifikasi, sistem memuat tab 3 (**Data Perusahaan**).
+  4. Pada alur **Daftar dengan Google**, identitas dan email bisnis vendor terverifikasi otomatis via Google OAuth tanpa perlu memasukkan kata sandi atau kode OTP manual. Sistem membuatkan kata sandi default unik yang dikirimkan ke akun Gmail vendor, dan langsung mengarahkan vendor ke tab 3 (**Data Perusahaan**).
+  5. Guest mengisi nama perusahaan, **NPWP**, nomor telepon perusahaan, dan alamat lengkap. Field email perusahaan otomatis terisi sesuai email bisnis yang telah tervalidasi.
   6. Guest melanjutkan ke tab 4 (**Komoditas & Legalitas**), memilih **satu atau lebih kategori komoditas**, dan mengunggah dokumen legalitas (NPWP wajib, SIUP/NIB opsional berformat PDF maksimal 5 MB per berkas).
   7. Guest mengonfirmasi pendaftaran; sistem memvalidasi kelengkapan data & berkas.
   8. Sistem menyimpan ke `users` (role `vendor`, `email_verified_at` terisi), `vendors` (status **pending**), `vendor_commodity_categories`, dan `vendor_legal_documents` (status **pending**).
@@ -152,11 +153,15 @@ Seluruh aktivitas selain registrasi, konfirmasi undangan, dan reset kata sandi w
 - **Aktor**: User. **Prasyarat**: akun aktif, belum dalam sesi.
 - **Alur utama**:
   1. User membuka halaman Login; sistem memuat form.
-  2. User memasukkan email + kata sandi (opsional centang **Ingat Saya**) **atau** memilih login dengan Google.
-  3. Sistem memverifikasi akun dan status aktif (user, Tenant/Vendor terkait).
+  2. User memasukkan email + kata sandi (opsional centang **Ingat Saya**) **atau** memilih "Masuk dengan Google".
+  3. Sistem memverifikasi kredensial / identitas Google dan status akun (user aktif, tidak dihapus/soft-deleted, serta verifikasi Tenant/Vendor terkait).
   4. Sistem membuat sesi login.
-  5. Sistem mengarahkan ke dashboard sesuai role.
-- **Alternatif/error**: 3a. Kredensial salah → "Username atau password salah"; akun / vendor diblokir global / belum terverifikasi → "Akun ditangguhkan". User tetap di form login.
+  5. Sistem mengarahkan ke dashboard sesuai role (`/dashboard`).
+- **Alternatif/error**:
+  - 3a. Kredensial salah → "Username atau password salah".
+  - 3b. Akun belum terdaftar saat login via Google → pesan error bahwa akun Google belum terdaftar dan diarahkan untuk melakukan registrasi terlebih dahulu.
+  - 3c. Akun dihapus (soft-deleted) atau dinonaktifkan → ditolak (403): "Akun Anda telah dinonaktifkan atau dihapus. Silakan hubungi administrator."
+  - 3d. Akun / vendor diblokir global / belum terverifikasi → "Akun ditangguhkan". User tetap di form login.
 - **Hasil**: sesi terbentuk, user di dashboard sesuai role.
 
 ### UC-05 Update Akun

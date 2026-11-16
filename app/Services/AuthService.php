@@ -10,6 +10,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Role;
 use App\Models\User;
+use App\Notifications\GoogleRegistrationPasswordNotification;
 use App\Repositories\Contracts\PerusahaanBuyerRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Auth\Events\PasswordReset;
@@ -368,16 +369,30 @@ class AuthService
      */
     public function register(RegisterRequest $request): array
     {
+        $isGoogleRegistration = $request->boolean('is_google_registration')
+            || session()->has('google_user')
+            || filled($request->input('google_id'));
+
         $name = (string) ($request->input('name') ?? $request->input('nama_lengkap'));
         $email = strtolower(trim((string) $request->input('email')));
-        $password = (string) $request->input('password');
-        $otp = (string) $request->input('otp');
+        $googleUser = session('google_user', []);
+        $googleId = (string) ($request->input('google_id') ?? ($googleUser['google_id'] ?? null));
+        $avatar = (string) ($request->input('avatar') ?? ($googleUser['avatar'] ?? null));
 
-        $this->otpService->verify(
-            OtpService::PURPOSE_TENANT_REGISTRATION,
-            $email,
-            $otp
-        );
+        $defaultPassword = null;
+        if ($isGoogleRegistration) {
+            $defaultPassword = (string) ($request->input('default_password') ?? ('Pagora#'.Str::random(10)));
+            $password = $defaultPassword;
+        } else {
+            $password = (string) $request->input('password');
+            $otp = (string) $request->input('otp');
+
+            $this->otpService->verify(
+                OtpService::PURPOSE_TENANT_REGISTRATION,
+                $email,
+                $otp
+            );
+        }
 
         $namaPerusahaan = trim((string) ($request->input('nama_perusahaan') ?? $request->input('company_name')));
         $nomorNpwp = $request->filled('nomor_npwp')
@@ -409,7 +424,7 @@ class AuthService
         }
 
         try {
-            $user = DB::transaction(function () use ($name, $email, $password, $namaPerusahaan, $nomorNpwp, $telepon, $alamat, $documentPath): User {
+            $user = DB::transaction(function () use ($name, $email, $password, $googleId, $avatar, $namaPerusahaan, $nomorNpwp, $telepon, $alamat, $documentPath): User {
                 $perusahaan = $this->perusahaanBuyerRepository->create([
                     'company_name' => $namaPerusahaan,
                     'tax_number' => $nomorNpwp,
@@ -429,6 +444,8 @@ class AuthService
                     'name' => $name,
                     'email' => $email,
                     'password' => Hash::make($password),
+                    'google_id' => $googleId ?: null,
+                    'avatar' => $avatar ?: null,
                     'role_id' => $roleId,
                     'tenant_id' => (int) $perusahaan->getKey(),
                     'is_active' => true,
@@ -467,6 +484,23 @@ class AuthService
             }
 
             throw $e;
+        }
+
+        if ($isGoogleRegistration && $defaultPassword !== null) {
+            try {
+                $user->notify(new GoogleRegistrationPasswordNotification(
+                    $user,
+                    $defaultPassword,
+                    'Tenant (Perusahaan Pembeli)'
+                ));
+            } catch (Throwable $e) {
+                Log::error('Gagal mengirimkan email notifikasi kata sandi Google', [
+                    'email' => $email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            session()->forget(['google_user', 'google_auth_flow']);
         }
 
         return [
@@ -510,56 +544,103 @@ class AuthService
         }
 
         $googleId = (string) $googleUser->getId();
-        $email = (string) $googleUser->getEmail();
+        $email = strtolower(trim((string) $googleUser->getEmail()));
+        $name = (string) ($googleUser->getName() ?: $googleUser->getNickname() ?: 'Pengguna');
+        $avatar = (string) ($googleUser->getAvatar() ?? '');
 
+        // 1. Cek apakah ada akun soft-deleted dengan email atau google_id tersebut
+        $deletedUser = User::onlyTrashed()
+            ->where(function ($query) use ($googleId, $email) {
+                $query->where('google_id', $googleId)
+                    ->orWhere('email', $email);
+            })
+            ->first();
+
+        if ($deletedUser) {
+            return [
+                'success' => false,
+                'code' => 403,
+                'message' => 'Akun dinonaktifkan.',
+                'errors' => [
+                    'google' => 'Akun Anda telah dinonaktifkan atau dihapus. Silakan hubungi administrator.',
+                ],
+            ];
+        }
+
+        // 2. Cari akun aktif
         $user = $this->userRepository->findByGoogleId($googleId);
 
         if (! $user && ! empty($email)) {
             $user = $this->userRepository->findByEmail($email);
             if ($user) {
-                $this->userRepository->updateGoogleId($user->id, $googleId, $googleUser->getAvatar());
+                $this->userRepository->updateGoogleId($user->id, $googleId, $avatar);
                 $user->refresh();
             }
         }
 
-        if (! $user) {
+        // 3. Jika user sudah ada (Login):
+        if ($user) {
+            if ($user->email_verified_at === null) {
+                $user->email_verified_at = now();
+                $user->is_active = true;
+                $user->save();
+            }
+
+            if (! $user->is_active) {
+                return [
+                    'success' => false,
+                    'code' => 403,
+                    'message' => 'Akun dinonaktifkan.',
+                    'errors' => [
+                        'google' => 'Akun Anda dinonaktifkan. Silakan hubungi administrator.',
+                    ],
+                ];
+            }
+
+            if ($companyBlock = $this->checkCompanyVerificationAndStatus($user, 'google')) {
+                return $companyBlock;
+            }
+
+            Auth::login($user, true);
+            request()->session()->regenerate();
+
+            return [
+                'success' => true,
+                'code' => 200,
+                'message' => 'Berhasil masuk dengan akun Google.',
+                'user' => $user,
+            ];
+        }
+
+        // 4. Jika user belum ada:
+        $flow = session('google_auth_flow', 'tenant');
+
+        if ($flow === 'login') {
             return [
                 'success' => false,
-                'code' => 401,
+                'code' => 404,
                 'message' => 'Akun Google belum terdaftar.',
                 'errors' => [
-                    'google' => 'Akun Google Anda belum terdaftar dalam sistem. Silakan mendaftar terlebih dahulu.',
+                    'google' => 'Akun Google ini belum terdaftar dalam sistem PAGORA. Silakan lakukan pendaftaran terlebih dahulu.',
                 ],
             ];
         }
 
-        if (! $user->is_active) {
-            $needsActivation = $user->email_verified_at === null;
-
-            return [
-                'success' => false,
-                'code' => 403,
-                'message' => $needsActivation ? 'Akun belum diaktivasi.' : 'Akun dinonaktifkan.',
-                'errors' => [
-                    'google' => $needsActivation
-                        ? 'Akun Anda belum diaktivasi. Masuk dengan email dan kata sandi untuk verifikasi OTP.'
-                        : 'Akun Anda dinonaktifkan. Silakan hubungi administrator.',
-                ],
-            ];
-        }
-
-        if ($companyBlock = $this->checkCompanyVerificationAndStatus($user, 'google')) {
-            return $companyBlock;
-        }
-
-        Auth::login($user, true);
-        request()->session()->regenerate();
+        $googleData = [
+            'google_id' => $googleId,
+            'email' => $email,
+            'name' => $name,
+            'avatar' => $avatar,
+        ];
+        session(['google_user' => $googleData]);
 
         return [
             'success' => true,
             'code' => 200,
-            'message' => 'Berhasil masuk dengan akun Google.',
-            'user' => $user,
+            'is_new_registration' => true,
+            'registration_flow' => $flow,
+            'message' => 'Akun Google berhasil terhubung. Silakan lengkapi data perusahaan.',
+            'google_user' => $googleData,
         ];
     }
 

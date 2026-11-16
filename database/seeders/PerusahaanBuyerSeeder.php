@@ -23,6 +23,7 @@ class PerusahaanBuyerSeeder extends Seeder
             ['company_name' => 'PT Pagora Nusantara'],
             [
                 'tax_number' => '01.234.567.8-012.000',
+                'phone' => '+6281234567890',
                 'legal_document_path' => null,
                 'address' => 'Jl. Industri Raya No. 1, Surabaya, Jawa Timur',
                 'verification_status' => VerificationStatus::Approved,

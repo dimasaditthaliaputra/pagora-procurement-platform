@@ -172,6 +172,7 @@ Aturan (di Service/Form Request): role `vendor` ⇒ `vendor_id` terisi & `tenant
 |---|---|---|---|
 | company_name | string(200) NN | `nama_perusahaan` | |
 | tax_number | string(30) U null | `nomor_npwp` | NPWP (indeks unik aktif: `ux_tenants_tax_number`) |
+| phone | string(30) null | [baru] | Nomor telepon perusahaan (E.164) |
 | legal_document_path | string(500) null | `file_url` | |
 | address | text null | `alamat` | |
 | verification_status | string(30) NN default `pending`, idx | [baru] | `pending`, `approved`, `rejected` |
@@ -719,6 +720,7 @@ Cocok bila untuk setiap item: `invoice_items.quantity ≤ kuantitas diterima yan
 | 2026-11-03 | Tabel `notifications` [baru] untuk in-app notification bell menu & log notifikasi pengguna (UC-23, FR-43) | — |
 | 2026-11-05 | **Modul 6 (`shipments`) selesai**: `pengiriman` → `shipments` (`route`, `carrier_name`, `vehicle_plate_number`, `estimated_arrival_date`, `reported_by` NOT NULL; kolom baru `dispute_id` FK nullable ke `sengketa`, `updated_at`, index `purchase_order_id` & `status`); nilai status `in_transit` / `arrived` (`StatusPengiriman`); permission `pengiriman.view_any` & `pengiriman.create` (UC-14, FR-22, FR-23) | — |
 | 2026-11-05 | **Modul 7 (`goods_receipts`, `goods_receipt_items`) + kolom sengketa QC selesai**: `penerimaan_barang` → `goods_receipts` (`shipment_id` FK ke `shipments`, `inspected_by`, `matched_plate_number`, `inspected_at`, `notes`); `penerimaan_barang_item` → `goods_receipt_items` (`goods_receipt_id`, `purchase_order_item_id`, `received_quantity`, `status` `accepted`/`rejected`, `notes`, `rejection_photos` JSON array immutable); tambah kolom `purchase_order_id`, `purchase_order_item_id`, `trigger_type`, `reason` di `sengketa` dan `type` di `log_sengketa`; permission `penerimaan_barang.view_any` & `penerimaan_barang.create` (UC-15, FR-24..26, BR-09, BR-10, BR-17) | — |
+| 2026-11-16 | Tambah kolom `phone` di tabel `tenants` (string(30) nullable) untuk nomor telepon perusahaan pembeli (PRD UC-01, FR-01) | — |
 
 ## 12. Keputusan Teknis (2026-10-31)
 

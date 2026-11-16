@@ -114,7 +114,7 @@ Seluruh aktivitas selain registrasi, konfirmasi undangan, dan reset kata sandi w
   1. Guest membuka halaman daftar tenant; sistem memuat form halaman 1 (**Form Owner**).
   2. Guest mengisi nama, email, kata sandi lalu konfirmasi lanjut.
   3. Sistem menyimpan data di *state* dan memuat halaman 2 (**Form Perusahaan**).
-  4. Guest mengisi nama perusahaan, NPWP, alamat, dan mengunggah dokumen legalitas (NPWP / Surat Izin Usaha).
+  4. Guest mengisi nama perusahaan, NPWP, nomor telepon perusahaan, alamat, dan mengunggah dokumen legalitas (NPWP / Surat Izin Usaha).
   5. Guest mengonfirmasi pendaftaran; sistem memvalidasi kelengkapan data & berkas.
   6. Sistem menyimpan profil ke `users` (role `owner`) dan perusahaan ke `tenants` dengan status **menunggu verifikasi**.
   7. Sistem menampilkan "Pendaftaran sukses".
@@ -539,7 +539,7 @@ Semua tabel memakai `id` (PK) + `uuid` (UK) + `created_at`/`updated_at` kecuali 
 |---|---|
 | `roles` | `name` (`superadmin`, `owner`, `manajemen`, `purchasing`, `qc_gudang`, `vendor`), `description` |
 | `users` | `name`, `email` (UK), `password`, `role_id`, `tenant_id` (nullable), `vendor_id` (nullable), `is_active`, `google_id`, `remember_token`, `deleted_at` |
-| `tenants` | `company_name`, `tax_number` (NPWP, UK), `legal_document_path`, `address`, `verification_status` (`pending`/`approved`/`rejected`), `is_active`, `verified_by`, `verified_at` |
+| `tenants` | `company_name`, `tax_number` (NPWP, UK), `phone`, `legal_document_path`, `address`, `verification_status` (`pending`/`approved`/`rejected`), `is_active`, `verified_by`, `verified_at` |
 | `vendors` | `slug` (UK), `company_name`, `tax_number` (NPWP), `contact_email` (UK), `phone`, `address`, `verification_status`, `is_active` (blokir **global**), `block_reason`, `blocked_by`, `blocked_at` |
 | `vendor_commodity_categories` | `vendor_id`, `commodity_category_id` (M:N) |
 | `vendor_legal_documents` | `vendor_id`, `document_type`, `document_number`, `file_path`, `verification_status`, `rejection_reason`, `verified_by` (Superadmin), `verified_at` |
@@ -773,7 +773,7 @@ Ke `resolved` hanya oleh Owner/Manajemen; bila `resolution_type` membutuhkan tin
 ### 9.4 Validasi Input
 | Form | Aturan |
 |---|---|
-| Registrasi Tenant | Semua kolom wajib; email unik & valid; konfirmasi kata sandi cocok; NPWP format valid & unik; dokumen legalitas wajib, format sesuai, ≤ 5 MB |
+| Registrasi Tenant | Semua kolom wajib; email unik & valid; konfirmasi kata sandi cocok; NPWP format valid & unik; telepon format valid (8–15 digit); dokumen legalitas wajib, format sesuai, ≤ 5 MB |
 | Registrasi Vendor | Seperti Tenant + NPWP wajib & valid, minimal 1 kategori komoditas, email perusahaan & telepon valid |
 | Profil perusahaan | Nama, NPWP (format valid), alamat wajib |
 | Tambah pegawai | Nama, email (unik), role ∈ {Manajemen, Purchasing/Finance, QC Gudang} wajib |

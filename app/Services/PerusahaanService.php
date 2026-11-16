@@ -45,6 +45,7 @@ class PerusahaanService
                 'uuid' => $tenant->uuid,
                 'company_name' => $tenant->company_name,
                 'tax_number' => $tenant->tax_number,
+                'phone' => $tenant->phone,
                 'address' => $tenant->address,
                 'verification_status' => $tenant->verification_status?->value ?? (string) $tenant->verification_status,
                 'verification_note' => $tenant->verification_note,
@@ -118,11 +119,19 @@ class PerusahaanService
 
             $normalizedTaxNumber = NpwpHelper::normalize((string) $data['tax_number']);
 
-            $this->perusahaanBuyerRepository->update($tenant, [
+            $tenantPayload = [
                 'company_name' => trim((string) $data['company_name']),
                 'tax_number' => $normalizedTaxNumber,
                 'address' => trim((string) $data['address']),
-            ]);
+            ];
+
+            if (array_key_exists('phone', $data)) {
+                $tenantPayload['phone'] = isset($data['phone']) && trim((string) $data['phone']) !== ''
+                    ? trim((string) $data['phone'])
+                    : null;
+            }
+
+            $this->perusahaanBuyerRepository->update($tenant, $tenantPayload);
 
             return $this->getPerusahaanForUser($user->fresh()) ?? [];
         }

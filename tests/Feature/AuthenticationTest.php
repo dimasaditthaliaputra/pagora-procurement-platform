@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\VerificationStatus;
 use App\Mail\OtpMail;
 use App\Models\PerusahaanBuyer;
 use App\Models\User;
@@ -238,6 +239,7 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Sumber Pangan Makmur',
             'nomor_npwp' => '01.234.567.8-901.000',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Industri No. 10, Cikarang',
             'dokumen_npwp' => $file,
         ]);
@@ -247,7 +249,7 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_register_creates_new_user_and_redirects_to_dashboard(): void
+    public function test_register_creates_new_user_and_redirects_to_register_success(): void
     {
         Storage::fake('local');
 
@@ -262,15 +264,19 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Sumber Pangan Makmur',
             'nomor_npwp' => '01.234.567.8-901.000',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Industri No. 10, Cikarang, Jawa Barat',
             'dokumen_npwp' => $file,
         ]);
 
-        $response->assertRedirect('/dashboard');
+        $response->assertRedirect(route('register.success'));
+        $response->assertSessionHas('registered_email', 'budi@perusahaan.co.id');
+        $this->assertGuest();
 
         $this->assertDatabaseHas('tenants', [
             'company_name' => 'PT Sumber Pangan Makmur',
             'tax_number' => '01.234.567.8-901.000',
+            'phone' => '+6281234567890',
             'address' => 'Jl. Industri No. 10, Cikarang, Jawa Barat',
             'verification_status' => 'pending',
             'is_active' => true,
@@ -293,7 +299,7 @@ class AuthenticationTest extends TestCase
         $this->assertNotNull($user);
         assert($user instanceof User);
         $this->assertSame($perusahaan->id, $user->tenant_id);
-        $this->assertAuthenticatedAs($user);
+        $this->assertNotNull($user->email_verified_at);
     }
 
     public function test_register_validation_errors(): void
@@ -307,6 +313,7 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'mismatch',
             'nama_perusahaan' => '',
             'nomor_npwp' => '',
+            'telepon' => '',
             'alamat' => '',
         ]);
 
@@ -318,6 +325,7 @@ class AuthenticationTest extends TestCase
             'password',
             'nama_perusahaan',
             'nomor_npwp',
+            'telepon',
             'alamat',
             'dokumen_npwp',
         ]);
@@ -336,12 +344,35 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Sumber Pangan Makmur',
             'nomor_npwp' => '12345-invalid',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Industri No. 10, Cikarang',
             'dokumen_npwp' => $file,
         ]);
 
         $response->assertRedirect('/register');
         $response->assertSessionHasErrors(['nomor_npwp']);
+        $this->assertGuest();
+    }
+
+    public function test_register_fails_with_invalid_phone_number_format(): void
+    {
+        Storage::fake('local');
+        $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
+
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Budi Santoso',
+            'email' => 'budi.invalid.phone@perusahaan.co.id',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Sumber Pangan Makmur',
+            'nomor_npwp' => '01.234.567.8-901.000',
+            'telepon' => '1234', // too short (< 8 digits)
+            'alamat' => 'Jl. Industri No. 10, Cikarang',
+            'dokumen_npwp' => $file,
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors(['telepon']);
         $this->assertGuest();
     }
 
@@ -357,6 +388,7 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Sumber Pangan Makmur',
             'nomor_npwp' => '01.234.567.8-901.000',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Industri No. 10, Cikarang',
             'dokumen_npwp' => $file,
         ]);
@@ -380,15 +412,18 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Inovasi Pangan Nusantara',
             'nomor_npwp' => '0123456789010001',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Merdeka No. 45, Jakarta Pusat',
             'dokumen_npwp' => $file,
         ]);
 
-        $response->assertRedirect('/dashboard');
+        $response->assertRedirect(route('register.success'));
+        $this->assertGuest();
 
         $this->assertDatabaseHas('tenants', [
             'company_name' => 'PT Inovasi Pangan Nusantara',
             'tax_number' => '0123456789010001',
+            'phone' => '+6281234567890',
             'verification_status' => 'pending',
             'is_active' => true,
         ]);
@@ -396,6 +431,95 @@ class AuthenticationTest extends TestCase
             'email' => 'ahmad@perusahaan16.co.id',
             'is_active' => true,
         ]);
+    }
+
+    public function test_pending_tenant_cannot_login(): void
+    {
+        $tenant = PerusahaanBuyer::factory()->create([
+            'verification_status' => VerificationStatus::Pending,
+            'is_active' => true,
+        ]);
+
+        $user = User::factory()->create([
+            'email' => 'pending.tenant@pagora.id',
+            'password' => Hash::make('password123'),
+            'tenant_id' => $tenant->id,
+            'is_active' => true,
+        ]);
+
+        $response = $this->from('/login')->post('/login', [
+            'email' => 'pending.tenant@pagora.id',
+            'password' => 'password123',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors(['email']);
+        $this->assertGuest();
+
+        // Also test JSON endpoint returns 403
+        $jsonResponse = $this->postJson('/login', [
+            'email' => 'pending.tenant@pagora.id',
+            'password' => 'password123',
+        ]);
+
+        $jsonResponse->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+            ]);
+    }
+
+    public function test_rejected_tenant_cannot_login(): void
+    {
+        $tenant = PerusahaanBuyer::factory()->create([
+            'verification_status' => VerificationStatus::Rejected,
+            'is_active' => true,
+        ]);
+
+        User::factory()->create([
+            'email' => 'rejected.tenant@pagora.id',
+            'password' => Hash::make('password123'),
+            'tenant_id' => $tenant->id,
+            'is_active' => true,
+        ]);
+
+        $response = $this->from('/login')->post('/login', [
+            'email' => 'rejected.tenant@pagora.id',
+            'password' => 'password123',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors(['email']);
+        $this->assertGuest();
+
+        $jsonResponse = $this->postJson('/login', [
+            'email' => 'rejected.tenant@pagora.id',
+            'password' => 'password123',
+        ]);
+
+        $jsonResponse->assertStatus(403);
+    }
+
+    public function test_approved_tenant_can_login_successfully(): void
+    {
+        $tenant = PerusahaanBuyer::factory()->create([
+            'verification_status' => VerificationStatus::Approved,
+            'is_active' => true,
+        ]);
+
+        $user = User::factory()->create([
+            'email' => 'approved.tenant@pagora.id',
+            'password' => Hash::make('password123'),
+            'tenant_id' => $tenant->id,
+            'is_active' => true,
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => 'approved.tenant@pagora.id',
+            'password' => 'password123',
+        ]);
+
+        $response->assertRedirect('/dashboard');
+        $this->assertAuthenticatedAs($user);
     }
 
     public function test_register_fails_when_npwp_already_registered_even_with_different_email(): void
@@ -417,6 +541,7 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Perusahaan Kedua',
             'nomor_npwp' => '01.234.567.8-901.000',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Lain No. 20, Jakarta',
             'dokumen_npwp' => $file,
         ]);
@@ -447,6 +572,7 @@ class AuthenticationTest extends TestCase
             'password_confirmation' => 'password123',
             'nama_perusahaan' => 'PT Perusahaan Duplikat',
             'nomor_npwp' => '012345678901000',
+            'telepon' => '081234567890',
             'alamat' => 'Jl. Terusan No. 5, Surabaya',
             'dokumen_npwp' => $file,
         ]);

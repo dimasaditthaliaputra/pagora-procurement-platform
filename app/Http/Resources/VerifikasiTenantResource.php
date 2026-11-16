@@ -28,6 +28,7 @@ class VerifikasiTenantResource extends JsonResource
             'uuid' => $this->uuid,
             'company_name' => $this->company_name,
             'tax_number' => $this->tax_number,
+            'phone' => $this->phone,
             'address' => $this->address,
             'verification_status' => $this->verification_status->value,
             'verification_note' => $this->verification_note,

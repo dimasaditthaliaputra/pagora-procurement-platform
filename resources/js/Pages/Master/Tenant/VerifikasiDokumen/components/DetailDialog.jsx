@@ -56,8 +56,14 @@ export function DetailDialog({ tenant, open, onOpenChange, onApprove, onReject }
                                     {tenant.tax_number || '-'}
                                 </span>
                             </div>
+                            <div>
+                                <span className="text-muted-foreground">Telepon Perusahaan: </span>
+                                <span className="font-medium text-foreground">
+                                    {tenant.phone || '-'}
+                                </span>
+                            </div>
                             {tenant.created_at && (
-                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <div className="flex items-center gap-1.5 text-muted-foreground sm:col-span-2">
                                     <Calendar className="size-3.5" />
                                     <span>
                                         Didaftarkan:{' '}

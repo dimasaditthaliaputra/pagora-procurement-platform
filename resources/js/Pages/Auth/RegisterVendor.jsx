@@ -44,8 +44,8 @@ import {
 
 const STEPS = [
     { id: 1, label: 'Akun' },
-    { id: 2, label: 'Perusahaan' },
-    { id: 3, label: 'Verifikasi' },
+    { id: 2, label: 'Verifikasi' },
+    { id: 3, label: 'Perusahaan' },
     { id: 4, label: 'Legalitas' },
 ];
 
@@ -70,15 +70,16 @@ export default function RegisterVendor({
     const initialCategoryUuids = invitation?.commodity_category_uuid
         ? [invitation.commodity_category_uuid]
         : [];
+    const initialEmail = invitation?.contact_email ?? '';
 
     const form = useForm({
         name: '',
-        email: '',
+        email: initialEmail,
         password: '',
         password_confirmation: '',
         company_name: invitation?.company_name ?? '',
         tax_number: '',
-        contact_email: invitation?.contact_email ?? '',
+        contact_email: initialEmail,
         phone: '',
         address: '',
         otp: '',
@@ -94,11 +95,12 @@ export default function RegisterVendor({
     const [verifiedOtpInfo, setVerifiedOtpInfo] = useState(null);
     const [verifyingOtp, setVerifyingOtp] = useState(false);
     const resend = useCountdown();
-    const otpRequest = useHttp({ contact_email: '' });
+    const otpRequest = useHttp({ contact_email: '', email: '' });
 
+    const currentEmail = (data.email || data.contact_email || '').trim().toLowerCase();
     const isOtpVerified = Boolean(
         verifiedOtpInfo &&
-        verifiedOtpInfo.email === data.contact_email.trim().toLowerCase() &&
+        verifiedOtpInfo.email === currentEmail &&
         verifiedOtpInfo.otp === data.otp &&
         data.otp.length === OTP_LENGTH
     );
@@ -123,35 +125,43 @@ export default function RegisterVendor({
         scrollBodyToTop();
     };
 
-    const sendOtp = () => {
-        const email = data.contact_email.trim();
+    const sendOtp = (callback) => {
+        const email = (data.email || data.contact_email || '').trim();
 
         if (!email) {
-            setError('contact_email', 'Email bisnis perusahaan wajib diisi.');
+            setError('email', 'Email bisnis wajib diisi.');
             notify.validationFailed();
             scrollToFirstError();
             return;
         }
         if (!isEmail(email)) {
-            setError('contact_email', 'Format email bisnis perusahaan tidak valid.');
+            setError('email', 'Format email bisnis tidak valid.');
             notify.validationFailed();
             scrollToFirstError();
             return;
         }
 
-        clearErrors('contact_email', 'otp');
+        clearErrors('email', 'contact_email', 'otp');
         setVerifiedOtpInfo(null);
         setData('otp', '');
-        otpRequest.transform(() => ({ contact_email: email }));
+        otpRequest.transform(() => ({
+            contact_email: email,
+            email: email,
+        }));
         otpRequest.post('/register/vendor/otp', {
             onSuccess: () => {
                 setOtpSent(true);
                 resend.start(60);
                 notify.success('Kode OTP telah dikirim ke email bisnis Anda.');
-                goToStep(3);
+                if (typeof callback === 'function') {
+                    callback();
+                } else {
+                    goToStep(2);
+                }
             },
             onError: (errs) => {
-                setError('contact_email', errs.contact_email ?? 'Gagal mengirim kode OTP.');
+                const msg = errs.contact_email ?? errs.email ?? 'Gagal mengirim kode OTP.';
+                setError('email', msg);
                 notify.validationFailed();
                 scrollToFirstError();
             },
@@ -173,10 +183,10 @@ export default function RegisterVendor({
 
         const trimmedEmail = data.email.trim();
         if (!trimmedEmail) {
-            setError('email', 'Email akun wajib diisi.');
+            setError('email', 'Email bisnis wajib diisi.');
             hasError = true;
         } else if (!isEmail(trimmedEmail)) {
-            setError('email', 'Format email akun tidak valid.');
+            setError('email', 'Format email bisnis tidak valid.');
             hasError = true;
         }
 
@@ -223,6 +233,7 @@ export default function RegisterVendor({
                 },
                 body: JSON.stringify({
                     contact_email: email,
+                    email,
                     otp,
                 }),
             });
@@ -240,6 +251,7 @@ export default function RegisterVendor({
                 result.errors?.otp?.[0] ||
                 result.errors?.otp ||
                 result.errors?.contact_email?.[0] ||
+                result.errors?.email?.[0] ||
                 result.message ||
                 'Kode OTP salah. Pastikan kode sesuai dengan yang dikirim ke email bisnis Anda.';
 
@@ -268,14 +280,37 @@ export default function RegisterVendor({
             setVerifiedOtpInfo(null);
         }
 
-        if (value.length === OTP_LENGTH && data.contact_email.trim() && isEmail(data.contact_email.trim())) {
-            verifyOtpWithServer(data.contact_email.trim(), value);
+        const email = (data.email || data.contact_email || '').trim();
+        if (value.length === OTP_LENGTH && email && isEmail(email)) {
+            verifyOtpWithServer(email, value);
         }
     };
 
-    const validateStep2 = () => {
+    const validateStep2 = async () => {
+        clearErrors('otp');
+        const email = (data.email || data.contact_email || '').trim();
+        const otp = data.otp;
+
+        if (!otp || otp.length !== OTP_LENGTH) {
+            setError('otp', `Kode OTP harus terdiri dari ${OTP_LENGTH} digit angka.`);
+            notify.validationFailed();
+            return false;
+        }
+
+        if (
+            verifiedOtpInfo &&
+            verifiedOtpInfo.email === email.toLowerCase() &&
+            verifiedOtpInfo.otp === otp
+        ) {
+            return true;
+        }
+
+        return await verifyOtpWithServer(email, otp);
+    };
+
+    const validateStep3 = () => {
         let hasError = false;
-        clearErrors('company_name', 'tax_number', 'contact_email', 'phone', 'address');
+        clearErrors('company_name', 'tax_number', 'phone', 'address');
 
         const namaTrimmed = data.company_name.trim();
         if (!namaTrimmed) {
@@ -298,15 +333,6 @@ export default function RegisterVendor({
             hasError = true;
         } else if (normalizedNpwp !== data.tax_number) {
             setData('tax_number', normalizedNpwp);
-        }
-
-        const emailTrimmed = data.contact_email.trim();
-        if (!emailTrimmed) {
-            setError('contact_email', 'Email bisnis perusahaan wajib diisi.');
-            hasError = true;
-        } else if (!isEmail(emailTrimmed)) {
-            setError('contact_email', 'Format email bisnis perusahaan tidak valid.');
-            hasError = true;
         }
 
         const telpTrimmed = normalizePhoneNumber(data.phone);
@@ -334,59 +360,6 @@ export default function RegisterVendor({
         }
 
         return true;
-    };
-
-    const handleNextStep2 = () => {
-        if (!validateStep2()) {
-            return;
-        }
-
-        const email = data.contact_email.trim();
-        if (
-            verifiedOtpInfo &&
-            verifiedOtpInfo.email === email.toLowerCase() &&
-            verifiedOtpInfo.otp === data.otp &&
-            data.otp.length === OTP_LENGTH
-        ) {
-            goToStep(4);
-            return;
-        }
-
-        if (otpSent && !resend.seconds) {
-            goToStep(3);
-            return;
-        }
-
-        sendOtp();
-    };
-
-    const validateStep3 = async () => {
-        clearErrors('otp');
-        const email = data.contact_email.trim();
-        const otp = data.otp;
-
-        if (!otp || otp.length !== OTP_LENGTH) {
-            setError('otp', `Kode OTP harus terdiri dari ${OTP_LENGTH} digit angka.`);
-            notify.validationFailed();
-            return false;
-        }
-
-        if (
-            verifiedOtpInfo &&
-            verifiedOtpInfo.email === email.toLowerCase() &&
-            verifiedOtpInfo.otp === otp
-        ) {
-            return true;
-        }
-
-        return await verifyOtpWithServer(email, otp);
-    };
-
-    const handleVerifyOtpAndNext = async () => {
-        const valid = await validateStep3();
-        if (valid) {
-            goToStep(4);
-        }
     };
 
     const clearLegalDocumentErrors = () => {
@@ -570,7 +543,7 @@ export default function RegisterVendor({
     };
 
     const handleStepClick = async (targetStep) => {
-        if (processing || verifyingOtp || targetStep === step) {
+        if (processing || verifyingOtp || otpRequest.processing || targetStep === step) {
             return;
         }
 
@@ -584,7 +557,7 @@ export default function RegisterVendor({
         }
 
         if (targetStep >= 3) {
-            const valid2 = validateStep2();
+            const valid2 = await validateStep2();
             if (!valid2) {
                 goToStep(2);
                 scrollToFirstError();
@@ -593,7 +566,7 @@ export default function RegisterVendor({
         }
 
         if (targetStep === 4) {
-            const valid3 = await validateStep3();
+            const valid3 = validateStep3();
             if (!valid3) {
                 goToStep(3);
                 scrollToFirstError();
@@ -605,18 +578,41 @@ export default function RegisterVendor({
     };
 
     const handleNextStep = async () => {
-        if (processing || verifyingOtp) {
+        if (processing || verifyingOtp || otpRequest.processing) {
             return;
         }
 
         if (step === 1) {
-            if (validateStep1()) {
-                goToStep(2);
+            if (!validateStep1()) {
+                return;
             }
+
+            const email = (data.email || data.contact_email || '').trim().toLowerCase();
+            if (
+                verifiedOtpInfo &&
+                verifiedOtpInfo.email === email &&
+                verifiedOtpInfo.otp === data.otp &&
+                data.otp.length === OTP_LENGTH
+            ) {
+                goToStep(3);
+                return;
+            }
+
+            if (otpSent && !resend.seconds) {
+                goToStep(2);
+                return;
+            }
+
+            sendOtp(() => goToStep(2));
         } else if (step === 2) {
-            handleNextStep2();
+            const valid = await validateStep2();
+            if (valid) {
+                goToStep(3);
+            }
         } else if (step === 3) {
-            await handleVerifyOtpAndNext();
+            if (validateStep3()) {
+                goToStep(4);
+            }
         }
     };
 
@@ -635,7 +631,7 @@ export default function RegisterVendor({
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (processing || verifyingOtp) {
+        if (processing || verifyingOtp || otpRequest.processing) {
             return;
         }
 
@@ -645,14 +641,14 @@ export default function RegisterVendor({
             return;
         }
 
-        const validStep2 = validateStep2();
+        const validStep2 = await validateStep2();
         if (!validStep2) {
             goToStep(2);
             scrollToFirstError();
             return;
         }
 
-        const validStep3 = await validateStep3();
+        const validStep3 = validateStep3();
         if (!validStep3) {
             goToStep(3);
             scrollToFirstError();
@@ -671,6 +667,8 @@ export default function RegisterVendor({
                 notify.validationFailed();
                 if (errs.name || errs.email || errs.password || errs.password_confirmation) {
                     goToStep(1);
+                } else if (errs.otp) {
+                    goToStep(2);
                 } else if (
                     errs.company_name ||
                     errs.tax_number ||
@@ -678,8 +676,6 @@ export default function RegisterVendor({
                     errs.phone ||
                     errs.address
                 ) {
-                    goToStep(2);
-                } else if (errs.otp) {
                     goToStep(3);
                 } else {
                     goToStep(4);
@@ -701,14 +697,14 @@ export default function RegisterVendor({
 
     const stepHasError = {
         1: !!(errors.name || errors.email || errors.password || errors.password_confirmation),
-        2: !!(
+        2: !!errors.otp,
+        3: !!(
             errors.company_name ||
             errors.tax_number ||
             errors.contact_email ||
             errors.phone ||
             errors.address
         ),
-        3: !!errors.otp,
         4: !!(errors.commodity_category_uuids || hasLegalDocumentsError),
     };
 
@@ -836,14 +832,14 @@ export default function RegisterVendor({
                             <div className="flex flex-col gap-1">
                                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                                     {step === 1 && 'Registrasi Akun Vendor'}
-                                    {step === 2 && 'Data Perusahaan Vendor'}
-                                    {step === 3 && 'Verifikasi Email Bisnis'}
+                                    {step === 2 && 'Verifikasi Email Bisnis'}
+                                    {step === 3 && 'Data Perusahaan Vendor'}
                                     {step === 4 && 'Komoditas & Legalitas'}
                                 </h1>
                                 <p className="text-xs sm:text-sm text-muted-foreground">
                                     {step === 1 && 'Langkah 1 dari 4 - Profil akun penanggung jawab'}
-                                    {step === 2 && 'Langkah 2 dari 4 - Data legal & kontak perusahaan'}
-                                    {step === 3 && 'Langkah 3 dari 4 - Masukkan kode verifikasi OTP email bisnis'}
+                                    {step === 2 && 'Langkah 2 dari 4 - Masukkan kode verifikasi OTP email bisnis'}
+                                    {step === 3 && 'Langkah 3 dari 4 - Data legal & kontak perusahaan'}
                                     {step === 4 && 'Langkah 4 dari 4 - Kategori komoditas & dokumen legalitas'}
                                 </p>
                             </div>
@@ -883,22 +879,33 @@ export default function RegisterVendor({
                                         )}
                                     </div>
 
-                                    {/* Email Akun */}
+                                    {/* Email Bisnis */}
                                     <div className="space-y-1.5">
                                         <Label
                                             htmlFor="email"
                                             className={cn('text-sm font-medium', errors.email && 'text-destructive')}
                                         >
-                                            Email Akun Login <span className="text-destructive">*</span>
+                                            Email Bisnis <span className="text-destructive">*</span>
                                         </Label>
                                         <Input
                                             id="email"
                                             type="email"
-                                            placeholder="Contoh: andi@sumberpangan.co.id"
+                                            placeholder="Contoh: procurement@sumberpangan.co.id"
                                             value={data.email}
                                             onChange={(e) => {
-                                                setData('email', e.target.value);
-                                                clearErrors('email');
+                                                const val = e.target.value;
+                                                setData((prev) => ({
+                                                    ...prev,
+                                                    email: val,
+                                                    contact_email: val,
+                                                    otp: '',
+                                                }));
+                                                clearErrors('email', 'contact_email', 'otp');
+                                                setVerifiedOtpInfo(null);
+                                                if (otpSent) {
+                                                    setOtpSent(false);
+                                                    resend.start(0);
+                                                }
                                             }}
                                             aria-invalid={!!errors.email}
                                             className={cn(
@@ -906,10 +913,14 @@ export default function RegisterVendor({
                                                 errors.email && 'border-destructive focus-visible:ring-destructive'
                                             )}
                                         />
-                                        {errors.email && (
+                                        {errors.email ? (
                                             <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
                                                 <AlertCircle className="size-3.5 shrink-0" />
                                                 <span>{errors.email}</span>
+                                            </p>
+                                        ) : (
+                                            <p className="text-[11px] text-muted-foreground">
+                                                Email bisnis digunakan untuk login dan menerima kode OTP verifikasi resmi perusahaan.
                                             </p>
                                         )}
                                     </div>
@@ -975,8 +986,75 @@ export default function RegisterVendor({
                                 </div>
                             )}
 
-                            {/* STEP 2: Data Perusahaan */}
+                            {/* STEP 2: Verifikasi OTP Email Bisnis */}
                             {step === 2 && (
+                                <div className="space-y-6 max-w-lg mx-auto py-4">
+                                    <div className="text-center space-y-1.5">
+                                        <p className="text-sm text-muted-foreground">
+                                            Kode 6 digit telah dikirimkan ke email bisnis Anda:
+                                        </p>
+                                        <p className="text-base font-semibold text-foreground">
+                                            {data.email}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Masukkan kode di bawah untuk memverifikasi kontak email bisnis resmi perusahaan Anda.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <OtpField
+                                            value={data.otp}
+                                            onChange={handleOtpChange}
+                                            error={errors.otp}
+                                            disabled={processing || verifyingOtp}
+                                            autoFocus
+                                        />
+
+                                        {verifyingOtp && (
+                                            <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+                                                <span className="size-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                                <span>Memverifikasi kode OTP...</span>
+                                            </p>
+                                        )}
+
+                                        {isOtpVerified && (
+                                            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5">
+                                                <CheckCircle2 className="size-4 shrink-0" />
+                                                <span>Email bisnis berhasil diverifikasi. Klik tombol panah kanan untuk lanjut.</span>
+                                            </p>
+                                        )}
+
+                                        <div className="flex flex-col items-center gap-2 pt-2">
+                                            <LoadingButton
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => sendOtp()}
+                                                loading={otpRequest.processing}
+                                                loadingText="Mengirim ulang..."
+                                                disabled={processing || verifyingOtp || resend.seconds > 0}
+                                                className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                                            >
+                                                {resend.seconds > 0
+                                                    ? `Kirim ulang kode dalam ${resend.seconds} detik`
+                                                    : 'Tidak menerima kode? Kirim ulang'}
+                                            </LoadingButton>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => goToStep(1)}
+                                                disabled={processing || verifyingOtp}
+                                                className="text-xs text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
+                                            >
+                                                Salah alamat email bisnis? Ubah di Profil Akun
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* STEP 3: Data Perusahaan */}
+                            {step === 3 && (
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                                         {/* Nama Perusahaan */}
@@ -1056,49 +1134,8 @@ export default function RegisterVendor({
                                             )}
                                         </div>
 
-                                        {/* Email Bisnis */}
-                                        <div className="space-y-1.5">
-                                            <Label
-                                                htmlFor="contact_email"
-                                                className={cn(
-                                                    'text-sm font-medium',
-                                                    errors.contact_email && 'text-destructive'
-                                                )}
-                                            >
-                                                Email Bisnis Perusahaan <span className="text-destructive">*</span>
-                                            </Label>
-                                            <Input
-                                                id="contact_email"
-                                                type="email"
-                                                placeholder="Contoh: procurement@sumberpangan.co.id"
-                                                value={data.contact_email}
-                                                onChange={(e) => {
-                                                    setData('contact_email', e.target.value);
-                                                    clearErrors('contact_email');
-                                                    setVerifiedOtpInfo(null);
-                                                    if (otpSent) {
-                                                        setOtpSent(false);
-                                                        setData('otp', '');
-                                                        resend.start(0);
-                                                    }
-                                                }}
-                                                aria-invalid={!!errors.contact_email}
-                                                className={cn(
-                                                    'h-10 w-full',
-                                                    errors.contact_email &&
-                                                    'border-destructive focus-visible:ring-destructive'
-                                                )}
-                                            />
-                                            {errors.contact_email && (
-                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
-                                                    <AlertCircle className="size-3.5 shrink-0" />
-                                                    <span>{errors.contact_email}</span>
-                                                </p>
-                                            )}
-                                        </div>
-
                                         {/* Nomor Telepon */}
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1.5 md:col-span-2">
                                             <Label
                                                 htmlFor="phone"
                                                 className={cn('text-sm font-medium', errors.phone && 'text-destructive')}
@@ -1159,73 +1196,6 @@ export default function RegisterVendor({
                                                 <span>{errors.address}</span>
                                             </p>
                                         )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* STEP 3: Verifikasi OTP Email Bisnis */}
-                            {step === 3 && (
-                                <div className="space-y-6 max-w-lg mx-auto py-4">
-                                    <div className="text-center space-y-1.5">
-                                        <p className="text-sm text-muted-foreground">
-                                            Kode 6 digit telah dikirimkan ke email bisnis resmi perusahaan:
-                                        </p>
-                                        <p className="text-base font-semibold text-foreground">
-                                            {data.contact_email}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Masukkan kode di bawah untuk memverifikasi kontak resmi perusahaan Anda.
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <OtpField
-                                            value={data.otp}
-                                            onChange={handleOtpChange}
-                                            error={errors.otp}
-                                            disabled={processing || verifyingOtp}
-                                            autoFocus
-                                        />
-
-                                        {verifyingOtp && (
-                                            <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
-                                                <span className="size-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                                <span>Memverifikasi kode OTP...</span>
-                                            </p>
-                                        )}
-
-                                        {isOtpVerified && (
-                                            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5">
-                                                <CheckCircle2 className="size-4 shrink-0" />
-                                                <span>Email bisnis berhasil diverifikasi. Klik tombol panah kanan untuk lanjut.</span>
-                                            </p>
-                                        )}
-
-                                        <div className="flex flex-col items-center gap-2 pt-2">
-                                            <LoadingButton
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={sendOtp}
-                                                loading={otpRequest.processing}
-                                                loadingText="Mengirim ulang..."
-                                                disabled={processing || verifyingOtp || resend.seconds > 0}
-                                                className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-                                            >
-                                                {resend.seconds > 0
-                                                    ? `Kirim ulang kode dalam ${resend.seconds} detik`
-                                                    : 'Tidak menerima kode? Kirim ulang'}
-                                            </LoadingButton>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => goToStep(2)}
-                                                disabled={processing || verifyingOtp}
-                                                className="text-xs text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
-                                            >
-                                                Salah alamat email bisnis? Ubah di Data Perusahaan
-                                            </button>
-                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -1552,7 +1522,7 @@ export default function RegisterVendor({
                                 variant="outline"
                                 size="icon"
                                 onClick={() => goToStep(step - 1)}
-                                disabled={processing || verifyingOtp || step === 1}
+                                disabled={processing || verifyingOtp || otpRequest.processing || step === 1}
                                 aria-label="Langkah sebelumnya"
                                 title="Langkah sebelumnya"
                                 className="size-10 rounded-xl cursor-pointer"
@@ -1569,13 +1539,13 @@ export default function RegisterVendor({
                                         processing ||
                                         verifyingOtp ||
                                         otpRequest.processing ||
-                                        (step === 3 && data.otp.length !== OTP_LENGTH)
+                                        (step === 2 && data.otp.length !== OTP_LENGTH)
                                     }
                                     aria-label="Langkah berikutnya"
                                     title="Langkah berikutnya"
                                     className="size-10 rounded-xl cursor-pointer"
                                 >
-                                    {verifyingOtp || (step === 2 && otpRequest.processing) ? (
+                                    {verifyingOtp || ((step === 1 || step === 2) && otpRequest.processing) ? (
                                         <span className="size-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                                     ) : (
                                         <ChevronRight className="size-4" />

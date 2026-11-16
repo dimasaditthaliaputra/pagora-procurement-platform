@@ -46,15 +46,21 @@ class StoreVendorRegistrationRequest extends FormRequest
             ]);
         }
 
-        if ($this->has('email')) {
-            $this->merge([
-                'email' => strtolower(trim($this->string('email')->toString())),
-            ]);
-        }
+        $rawEmail = $this->has('email') && filled($this->input('email'))
+            ? strtolower(trim($this->string('email')->toString()))
+            : null;
 
-        if ($this->has('contact_email')) {
+        $rawContactEmail = $this->has('contact_email') && filled($this->input('contact_email'))
+            ? strtolower(trim($this->string('contact_email')->toString()))
+            : null;
+
+        $resolvedEmail = $rawEmail ?? $rawContactEmail;
+        $resolvedContactEmail = $rawContactEmail ?? $rawEmail;
+
+        if ($resolvedEmail !== null) {
             $this->merge([
-                'contact_email' => strtolower(trim($this->string('contact_email')->toString())),
+                'email' => $resolvedEmail,
+                'contact_email' => $resolvedContactEmail,
             ]);
         }
 
@@ -84,6 +90,7 @@ class StoreVendorRegistrationRequest extends FormRequest
                 'email',
                 'max:255',
                 Rule::unique('users', 'email')->whereNull('deleted_at'),
+                Rule::unique('vendors', 'contact_email')->whereNull('deleted_at'),
             ],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'company_name' => ['required', 'string', 'min:3', 'max:200'],
@@ -100,6 +107,7 @@ class StoreVendorRegistrationRequest extends FormRequest
                 'email',
                 'max:150',
                 Rule::unique('vendors', 'contact_email')->whereNull('deleted_at'),
+                Rule::unique('users', 'email')->whereNull('deleted_at'),
             ],
             'phone' => ['required', 'string', 'max:30', new PhoneNumber],
             'address' => ['required', 'string', 'max:1000'],
@@ -161,10 +169,10 @@ class StoreVendorRegistrationRequest extends FormRequest
             'name.min' => 'Nama lengkap minimal 3 karakter.',
             'name.max' => 'Nama lengkap tidak boleh lebih dari 255 karakter.',
 
-            'email.required' => 'Email akun wajib diisi.',
-            'email.email' => 'Format email akun tidak valid.',
-            'email.max' => 'Email akun tidak boleh lebih dari 255 karakter.',
-            'email.unique' => 'Email akun ini sudah terdaftar dalam sistem.',
+            'email.required' => 'Email bisnis wajib diisi.',
+            'email.email' => 'Format email bisnis tidak valid.',
+            'email.max' => 'Email bisnis tidak boleh lebih dari 255 karakter.',
+            'email.unique' => 'Email bisnis ini sudah terdaftar dalam sistem.',
 
             'password.required' => 'Kata sandi wajib diisi.',
             'password.min' => 'Kata sandi minimal harus 8 karakter.',
@@ -224,11 +232,11 @@ class StoreVendorRegistrationRequest extends FormRequest
     {
         return [
             'name' => 'nama lengkap',
-            'email' => 'email akun',
+            'email' => 'email bisnis',
             'password' => 'kata sandi',
             'company_name' => 'nama perusahaan',
             'tax_number' => 'nomor NPWP',
-            'contact_email' => 'email bisnis',
+            'contact_email' => 'email bisnis perusahaan',
             'phone' => 'nomor telepon',
             'address' => 'alamat lengkap',
             'commodity_category_uuids' => 'kategori komoditas',

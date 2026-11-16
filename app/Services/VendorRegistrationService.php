@@ -11,6 +11,7 @@ use App\Models\CommodityCategory;
 use App\Models\Role;
 use App\Models\UndanganVendor;
 use App\Models\Vendor;
+use App\Notifications\GoogleRegistrationPasswordNotification;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
 use App\Repositories\Contracts\UndanganVendorRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
@@ -131,11 +132,17 @@ class VendorRegistrationService
      */
     public function register(array $data): Vendor
     {
-        $this->otpService->verify(
-            OtpService::PURPOSE_VENDOR_REGISTRATION,
-            strtolower(trim((string) $data['contact_email'])),
-            (string) ($data['otp'] ?? '')
-        );
+        $isGoogleRegistration = ! empty($data['is_google_registration'])
+            || ! empty($data['google_id'])
+            || session()->has('google_user');
+
+        if (! $isGoogleRegistration) {
+            $this->otpService->verify(
+                OtpService::PURPOSE_VENDOR_REGISTRATION,
+                strtolower(trim((string) $data['contact_email'])),
+                (string) ($data['otp'] ?? '')
+            );
+        }
 
         /** @var list<string> $categoryUuids */
         $categoryUuids = array_values(array_unique(array_filter(
@@ -173,7 +180,8 @@ class VendorRegistrationService
             $accountEmail,
             $accountPassword,
             $invitationToken,
-            $storedDocuments
+            $storedDocuments,
+            $isGoogleRegistration
         ): Vendor {
             return DB::transaction(function () use (
                 $data,
@@ -182,7 +190,8 @@ class VendorRegistrationService
                 $accountEmail,
                 $accountPassword,
                 $invitationToken,
-                $storedDocuments
+                $storedDocuments,
+                $isGoogleRegistration
             ): Vendor {
                 $baseSlug = Str::slug((string) $data['company_name']);
 
@@ -202,7 +211,7 @@ class VendorRegistrationService
 
                 $vendorRole = Role::where('name', RoleName::Vendor->value)->firstOrFail();
 
-                $this->userRepository->create([
+                $userData = [
                     'name' => $accountName,
                     'email' => $accountEmail,
                     'email_verified_at' => now(),
@@ -210,7 +219,15 @@ class VendorRegistrationService
                     'role_id' => (int) $vendorRole->getKey(),
                     'vendor_id' => (int) $vendor->getKey(),
                     'is_active' => true,
-                ]);
+                ];
+
+                if ($isGoogleRegistration) {
+                    $googleUser = session('google_user', []);
+                    $userData['google_id'] = $data['google_id'] ?? $googleUser['google_id'] ?? null;
+                    $userData['avatar'] = $data['avatar'] ?? $googleUser['avatar'] ?? null;
+                }
+
+                $user = $this->userRepository->create($userData);
 
                 foreach ($storedDocuments as $document) {
                     $this->dokumenRepository->create([
@@ -233,6 +250,16 @@ class VendorRegistrationService
                             'registered_at' => now(),
                         ]);
                     }
+                }
+
+                if ($isGoogleRegistration) {
+                    try {
+                        $user->notify(new GoogleRegistrationPasswordNotification($user, $accountPassword, 'Vendor (Pemasok)'));
+                    } catch (Throwable) {
+                        // Jangan gagalkan registrasi jika gagal mengirim notifikasi email
+                    }
+
+                    session()->forget(['google_user', 'google_auth_flow']);
                 }
 
                 return $vendor;

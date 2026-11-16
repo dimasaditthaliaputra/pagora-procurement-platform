@@ -122,6 +122,9 @@ Route::middleware('guest')->group(function () {
 
     Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])
         ->name('auth.google.callback');
+
+    Route::post('/auth/google/cancel', [AuthController::class, 'cancelGoogleAuth'])
+        ->name('auth.google.cancel');
 });
 
 // Authenticated Routes

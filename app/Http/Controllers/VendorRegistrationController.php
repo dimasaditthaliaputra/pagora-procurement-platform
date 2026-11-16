@@ -62,6 +62,7 @@ class VendorRegistrationController extends Controller
             'status' => session('status'),
             'invitation' => $invitation,
             'invitation_error' => $invitationError,
+            'google_user' => session('google_user'),
         ]);
     }
 

@@ -11,6 +11,7 @@ use App\Models\DokumenLegalitasVendor;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Notifications\GoogleRegistrationPasswordNotification;
 use Database\Seeders\CommodityCategorySeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -18,6 +19,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -666,5 +668,57 @@ class VendorRegistrationTest extends TestCase
         $user = User::where('email', 'bisnis@agronusantara.co.id')->firstOrFail();
         $this->assertNotNull($user->email_verified_at);
         $this->assertSame('Budi Santoso', $user->name);
+    }
+
+    public function test_vendor_can_register_via_google_without_otp_and_password_and_receives_password_notification(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        $category = CommodityCategory::firstOrFail();
+
+        $googleSessionData = [
+            'name' => 'Vendor Google User',
+            'email' => 'vendor_google@gmail.com',
+            'google_id' => 'google-vendor-unique-999',
+            'avatar' => 'https://lh3.googleusercontent.com/vendor_avatar.jpg',
+        ];
+
+        $response = $this->withSession(['google_user' => $googleSessionData])
+            ->post('/register/vendor', [
+                'company_name' => 'PT Pemasok Mitra Google',
+                'tax_number' => '03.456.789.0-123.000',
+                'phone' => '081288887777',
+                'address' => 'Jl. Industri Agro No. 8, Sidoarjo',
+                'commodity_category_uuids' => [$category->uuid],
+                'legal_documents' => [
+                    $this->sampleLegalDocument('dokumen_npwp.pdf', 'npwp', '03.456.789.0-123.000'),
+                ],
+                'is_google_registration' => true,
+            ]);
+
+        $response->assertRedirect(route('register.success'));
+
+        $this->assertDatabaseHas('vendors', [
+            'company_name' => 'PT Pemasok Mitra Google',
+            'tax_number' => '03.456.789.0-123.000',
+            'contact_email' => 'vendor_google@gmail.com',
+        ]);
+
+        $user = User::where('email', 'vendor_google@gmail.com')->first();
+        $this->assertNotNull($user);
+        $this->assertSame('google-vendor-unique-999', $user->google_id);
+        $this->assertSame('https://lh3.googleusercontent.com/vendor_avatar.jpg', $user->avatar);
+        $this->assertNotNull($user->email_verified_at);
+
+        Notification::assertSentTo(
+            $user,
+            GoogleRegistrationPasswordNotification::class,
+            function (GoogleRegistrationPasswordNotification $notification) {
+                return str_starts_with($notification->defaultPassword, 'Pagora#')
+                    && str_contains(strtolower($notification->accountType), 'vendor');
+            }
+        );
+
+        $this->assertFalse(session()->has('google_user'));
     }
 }

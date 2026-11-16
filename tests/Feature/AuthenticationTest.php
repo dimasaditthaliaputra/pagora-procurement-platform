@@ -8,6 +8,7 @@ use App\Enums\VerificationStatus;
 use App\Mail\OtpMail;
 use App\Models\PerusahaanBuyer;
 use App\Models\User;
+use App\Notifications\GoogleRegistrationPasswordNotification;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,6 +16,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Socialite\Contracts\User as SocialiteUserContract;
 use Laravel\Socialite\Facades\Socialite;
@@ -621,6 +623,7 @@ class AuthenticationTest extends TestCase
         $socialiteUser = Mockery::mock(SocialiteUserContract::class);
         $socialiteUser->shouldReceive('getId')->andReturn('google-unique-id-12345');
         $socialiteUser->shouldReceive('getEmail')->andReturn('partner@pagora.id');
+        $socialiteUser->shouldReceive('getName')->andReturn('Partner User');
         $socialiteUser->shouldReceive('getAvatar')->andReturn('https://lh3.googleusercontent.com/avatar.jpg');
 
         /** @var object&MockInterface $driver */
@@ -639,18 +642,89 @@ class AuthenticationTest extends TestCase
         $this->assertSame('google-unique-id-12345', $user->google_id);
     }
 
-    public function test_google_callback_fails_when_email_not_registered_and_no_user_created(): void
+    public function test_google_callback_redirects_to_login_with_error_when_flow_is_login_and_user_not_found(): void
     {
         $initialUserCount = User::count();
 
         /** @var SocialiteUserContract&MockInterface $socialiteUser */
-        /** @var SocialiteUserContract&MockInterface $socialiteUser */
         $socialiteUser = Mockery::mock(SocialiteUserContract::class);
         $socialiteUser->shouldReceive('getId')->andReturn('google-unregistered-99999');
         $socialiteUser->shouldReceive('getEmail')->andReturn('not_in_system@gmail.com');
+        $socialiteUser->shouldReceive('getName')->andReturn('Unregistered User');
         $socialiteUser->shouldReceive('getAvatar')->andReturn('https://lh3.googleusercontent.com/avatar.jpg');
 
         /** @var object&MockInterface $driver */
+        $driver = Mockery::mock('stdClass');
+        $driver->shouldReceive('user')->andReturn($socialiteUser);
+
+        Socialite::shouldReceive('driver')->with('google')->andReturn($driver);
+
+        $response = $this->withSession(['google_auth_flow' => 'login'])->get('/auth/google/callback');
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors(['google']);
+        $this->assertGuest();
+        $this->assertSame($initialUserCount, User::count());
+    }
+
+    public function test_google_callback_redirects_to_register_tenant_when_user_not_found_on_tenant_flow(): void
+    {
+        /** @var SocialiteUserContract&MockInterface $socialiteUser */
+        $socialiteUser = Mockery::mock(SocialiteUserContract::class);
+        $socialiteUser->shouldReceive('getId')->andReturn('google-tenant-new-123');
+        $socialiteUser->shouldReceive('getEmail')->andReturn('newtenant@gmail.com');
+        $socialiteUser->shouldReceive('getName')->andReturn('Calon Tenant');
+        $socialiteUser->shouldReceive('getAvatar')->andReturn('https://lh3.googleusercontent.com/avatar.jpg');
+
+        /** @var object&MockInterface $driver */
+        $driver = Mockery::mock('stdClass');
+        $driver->shouldReceive('user')->andReturn($socialiteUser);
+
+        Socialite::shouldReceive('driver')->with('google')->andReturn($driver);
+
+        $response = $this->withSession(['google_auth_flow' => 'tenant'])->get('/auth/google/callback');
+
+        $response->assertRedirect(route('register'));
+        $response->assertSessionHas('google_user');
+        $this->assertSame('newtenant@gmail.com', session('google_user.email'));
+    }
+
+    public function test_google_callback_redirects_to_register_vendor_when_user_not_found_on_vendor_flow(): void
+    {
+        /** @var SocialiteUserContract&MockInterface $socialiteUser */
+        $socialiteUser = Mockery::mock(SocialiteUserContract::class);
+        $socialiteUser->shouldReceive('getId')->andReturn('google-vendor-new-456');
+        $socialiteUser->shouldReceive('getEmail')->andReturn('newvendor@gmail.com');
+        $socialiteUser->shouldReceive('getName')->andReturn('Calon Vendor');
+        $socialiteUser->shouldReceive('getAvatar')->andReturn('https://lh3.googleusercontent.com/avatar.jpg');
+
+        /** @var object&MockInterface $driver */
+        $driver = Mockery::mock('stdClass');
+        $driver->shouldReceive('user')->andReturn($socialiteUser);
+
+        Socialite::shouldReceive('driver')->with('google')->andReturn($driver);
+
+        $response = $this->withSession(['google_auth_flow' => 'vendor'])->get('/auth/google/callback');
+
+        $response->assertRedirect(route('register.vendor'));
+        $response->assertSessionHas('google_user');
+        $this->assertSame('newvendor@gmail.com', session('google_user.email'));
+    }
+
+    public function test_google_callback_rejects_soft_deleted_user(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'deleted_user@pagora.id',
+            'deleted_at' => now(),
+        ]);
+
+        /** @var SocialiteUserContract&MockInterface $socialiteUser */
+        $socialiteUser = Mockery::mock(SocialiteUserContract::class);
+        $socialiteUser->shouldReceive('getId')->andReturn('google-deleted-789');
+        $socialiteUser->shouldReceive('getEmail')->andReturn('deleted_user@pagora.id');
+        $socialiteUser->shouldReceive('getName')->andReturn('Deleted User');
+        $socialiteUser->shouldReceive('getAvatar')->andReturn(null);
+
         /** @var object&MockInterface $driver */
         $driver = Mockery::mock('stdClass');
         $driver->shouldReceive('user')->andReturn($socialiteUser);
@@ -659,10 +733,64 @@ class AuthenticationTest extends TestCase
 
         $response = $this->get('/auth/google/callback');
 
-        $response->assertRedirect();
-        $response->assertSessionHasErrors(['google']);
+        $response->assertStatus(403);
         $this->assertGuest();
-        $this->assertSame($initialUserCount, User::count());
+    }
+
+    public function test_register_tenant_via_google_succeeds_without_password_and_otp(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+
+        $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
+
+        $googleSessionData = [
+            'name' => 'Owner Google',
+            'email' => 'owner_google@gmail.com',
+            'google_id' => 'google-owner-999',
+            'avatar' => 'https://lh3.googleusercontent.com/owner.jpg',
+        ];
+
+        $response = $this->withSession(['google_user' => $googleSessionData])
+            ->post('/register', [
+                'nama_perusahaan' => 'PT Google Solusi Tenant',
+                'nomor_npwp' => '01.234.567.8-999.000',
+                'telepon' => '081299998888',
+                'alamat' => 'Jl. Merdeka No. 100, Jakarta Pusat',
+                'dokumen_npwp' => $file,
+                'is_google_registration' => true,
+            ]);
+
+        $response->assertRedirect(route('register.success'));
+
+        $user = User::where('email', 'owner_google@gmail.com')->first();
+        $this->assertNotNull($user);
+        $this->assertSame('google-owner-999', $user->google_id);
+        $this->assertSame('https://lh3.googleusercontent.com/owner.jpg', $user->avatar);
+        $this->assertNotNull($user->email_verified_at);
+
+        Notification::assertSentTo(
+            $user,
+            GoogleRegistrationPasswordNotification::class,
+            function (GoogleRegistrationPasswordNotification $notification) {
+                return str_starts_with($notification->defaultPassword, 'Pagora#')
+                    && str_contains(strtolower($notification->accountType), 'tenant');
+            }
+        );
+
+        $this->assertFalse(session()->has('google_user'));
+    }
+
+    public function test_cancel_google_auth_clears_session_and_redirects(): void
+    {
+        $response = $this->withSession([
+            'google_user' => ['email' => 'test@gmail.com'],
+            'google_auth_flow' => 'tenant',
+        ])->post('/auth/google/cancel');
+
+        $response->assertRedirect(route('register'));
+        $this->assertFalse(session()->has('google_user'));
+        $this->assertFalse(session()->has('google_auth_flow'));
     }
 
     public function test_logout_invalidates_session_and_redirects(): void

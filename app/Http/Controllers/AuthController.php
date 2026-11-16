@@ -193,7 +193,10 @@ class AuthController extends Controller
      */
     public function register(): Response
     {
-        return Inertia::render('Auth/Register');
+        return Inertia::render('Auth/Register', [
+            'google_user' => session('google_user'),
+            'status' => session('status'),
+        ]);
     }
 
     /**
@@ -270,20 +273,33 @@ class AuthController extends Controller
     /**
      * Redirect to Google OAuth provider.
      */
-    public function redirectToGoogle(): SymfonyResponse
+    public function redirectToGoogle(Request $request): SymfonyResponse
     {
+        $flow = (string) $request->query('flow', 'tenant');
+        session(['google_auth_flow' => $flow]);
+
         return $this->authService->getGoogleRedirect();
     }
 
     /**
      * Handle the callback from Google OAuth.
      */
-    public function handleGoogleCallback(Request $request): JsonResponse|RedirectResponse
+    public function handleGoogleCallback(Request $request): JsonResponse|RedirectResponse|SymfonyResponse
     {
         try {
             $result = $this->authService->handleGoogleCallback();
 
             if ($result['success']) {
+                if (! empty($result['is_new_registration'])) {
+                    $flow = $result['registration_flow'] ?? 'tenant';
+                    $targetRoute = $flow === 'vendor' ? 'register.vendor' : 'register';
+
+                    return redirect()->route($targetRoute)->with(
+                        'status',
+                        'Akun Google ('.($result['google_user']['email'] ?? '').') berhasil terhubung. Silakan lengkapi data perusahaan Anda.'
+                    );
+                }
+
                 return ResponseHelper::success(
                     $result['message'],
                     $result['user'] ?? null,
@@ -293,21 +309,42 @@ class AuthController extends Controller
             }
 
             if (($result['code'] ?? $result['status'] ?? null) === 403) {
-                return ResponseHelper::forbidden(
+                if ($request->expectsJson()) {
+                    return ResponseHelper::forbidden(
+                        $result['message'],
+                        $result['errors'] ?? null,
+                        $request
+                    );
+                }
+
+                return response($result['errors']['google'] ?? $result['message'], 403);
+            }
+
+            if ($request->expectsJson()) {
+                return ResponseHelper::unauthorized(
                     $result['message'],
                     $result['errors'] ?? null,
                     $request
                 );
             }
 
-            return ResponseHelper::unauthorized(
-                $result['message'],
-                $result['errors'] ?? null,
-                $request
-            );
+            return redirect()->route('login')->withErrors($result['errors'] ?? ['google' => $result['message']]);
         } catch (Throwable $e) {
             return ResponseHelper::serverError('Terjadi kesalahan saat memproses autentikasi Google.', $e, $request);
         }
+    }
+
+    /**
+     * Cancel Google authentication session and return to registration.
+     */
+    public function cancelGoogleAuth(Request $request): RedirectResponse
+    {
+        $flow = session('google_auth_flow', 'tenant');
+        $request->session()->forget(['google_user', 'google_auth_flow']);
+
+        $targetRoute = $flow === 'vendor' ? 'register.vendor' : 'register';
+
+        return redirect()->route($targetRoute)->with('status', 'Pendaftaran akun Google dibatalkan. Anda dapat mendaftar secara manual.');
     }
 
     /**

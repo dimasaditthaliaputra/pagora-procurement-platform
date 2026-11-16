@@ -282,7 +282,7 @@ export default function Login({ status, otp = null }) {
 
                                 <div>
                                     <a
-                                        href="/auth/google/redirect"
+                                        href="/auth/google/redirect?flow=login"
                                         aria-invalid={errors.google ? 'true' : 'false'}
                                         aria-describedby={errors.google ? 'google-error' : undefined}
                                         className={cn(

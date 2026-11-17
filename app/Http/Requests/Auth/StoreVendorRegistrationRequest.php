@@ -77,6 +77,22 @@ class StoreVendorRegistrationRequest extends FormRequest
             $this->files->set('dokumen_ktp', $this->file('file_ktp'));
         }
 
+        if ($this->hasFile('file_sppkp') && ! $this->hasFile('dokumen_sppkp')) {
+            $this->files->set('dokumen_sppkp', $this->file('file_sppkp'));
+        }
+
+        if ($this->hasFile('file_akta') && ! $this->hasFile('dokumen_akta')) {
+            $this->files->set('dokumen_akta', $this->file('file_akta'));
+        }
+
+        if ($this->has('pkp_status')) {
+            $val = strtolower(trim((string) $this->input('pkp_status')));
+            $isPkp = in_array($val, ['ppn', 'pkp', '1', 'true', 'yes', 'ya'], true);
+            $this->merge(['is_pkp' => $isPkp]);
+        } elseif ($this->has('is_pkp')) {
+            $this->merge(['is_pkp' => filter_var($this->input('is_pkp'), FILTER_VALIDATE_BOOLEAN)]);
+        }
+
         if ($this->has('legal_documents') && is_array($this->input('legal_documents'))) {
             $docs = $this->input('legal_documents');
             foreach ($docs as $idx => $doc) {
@@ -206,13 +222,21 @@ class StoreVendorRegistrationRequest extends FormRequest
             'file_ktp' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
             'nomor_nib' => ['nullable', 'string', 'max:100'],
             'nomor_ktp' => ['nullable', 'string', 'max:100'],
+            'is_pkp' => ['nullable', 'boolean'],
+            'pkp_status' => ['nullable', 'string', Rule::in(['ppn', 'non_ppn', 'pkp', 'non_pkp'])],
+            'dokumen_sppkp' => ['nullable', 'file', 'mimes:pdf', 'min:1', 'max:5120'],
+            'file_sppkp' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'nomor_sppkp' => ['nullable', 'string', 'max:100'],
+            'dokumen_akta' => ['nullable', 'file', 'mimes:pdf', 'min:1', 'max:5120'],
+            'file_akta' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'nomor_akta' => ['nullable', 'string', 'max:100'],
             'legal_documents' => [
                 'required_without_all:dokumen_npwp,file_npwp',
                 'array',
                 'min:1',
                 'max:10',
             ],
-            'legal_documents.*.document_type' => ['required_with:legal_documents', 'string', Rule::in(['npwp', 'siup', 'nib', 'ktp', 'ktp_penanggung_jawab'])],
+            'legal_documents.*.document_type' => ['required_with:legal_documents', 'string', Rule::in(['npwp', 'siup', 'nib', 'ktp', 'ktp_penanggung_jawab', 'sppkp', 'akta', 'akta_pendirian'])],
             'legal_documents.*.document_number' => ['nullable', 'string', 'max:100'],
             'legal_documents.*.file' => [
                 'required_with:legal_documents',
@@ -271,6 +295,21 @@ class StoreVendorRegistrationRequest extends FormRequest
                     $validator->errors()->add(
                         'legal_documents',
                         'Dokumen legalitas NPWP Perusahaan wajib diunggah.'
+                    );
+                }
+            }
+
+            if ($this->boolean('is_pkp')) {
+                $hasSppkp = $this->hasFile('dokumen_sppkp')
+                    || $this->hasFile('file_sppkp')
+                    || (is_array($docs) && collect($docs)->contains(function ($doc): bool {
+                        return is_array($doc) && in_array($doc['document_type'] ?? null, ['sppkp', 'dokumen_sppkp'], true);
+                    }));
+
+                if (! $hasSppkp) {
+                    $validator->errors()->add(
+                        'dokumen_sppkp',
+                        'Dokumen SPPKP (Surat Pengukuhan Pengusaha Kena Pajak) wajib diunggah untuk perusahaan berstatus PKP (PPN).'
                     );
                 }
             }
@@ -356,12 +395,32 @@ class StoreVendorRegistrationRequest extends FormRequest
             'nomor_ktp.string' => 'Nomor KTP / NIK penanggung jawab harus berupa teks.',
             'nomor_ktp.max' => 'Nomor KTP / NIK penanggung jawab tidak boleh lebih dari :max karakter.',
 
+            'is_pkp.boolean' => 'Pilihan status PKP tidak valid.',
+            'pkp_status.in' => 'Pilihan status PKP harus antara PPN atau Non PPN.',
+
+            'dokumen_sppkp.required' => 'Dokumen SPPKP (Surat Pengukuhan Pengusaha Kena Pajak) wajib diunggah untuk perusahaan berstatus PKP (PPN).',
+            'dokumen_sppkp.file' => 'Berkas dokumen SPPKP harus berupa file yang valid.',
+            'dokumen_sppkp.mimes' => 'Format berkas dokumen SPPKP harus berupa PDF (.pdf).',
+            'dokumen_sppkp.min' => 'Berkas dokumen SPPKP tidak boleh kosong (minimal 1 KB).',
+            'dokumen_sppkp.max' => 'Ukuran berkas dokumen SPPKP tidak boleh lebih dari 5 MB.',
+
+            'nomor_sppkp.string' => 'Nomor SPPKP perusahaan harus berupa teks.',
+            'nomor_sppkp.max' => 'Nomor SPPKP perusahaan tidak boleh lebih dari :max karakter.',
+
+            'dokumen_akta.file' => 'Berkas dokumen akta pendirian harus berupa file yang valid.',
+            'dokumen_akta.mimes' => 'Format berkas dokumen akta pendirian harus berupa PDF (.pdf).',
+            'dokumen_akta.min' => 'Berkas dokumen akta pendirian tidak boleh kosong (minimal 1 KB).',
+            'dokumen_akta.max' => 'Ukuran berkas dokumen akta pendirian tidak boleh lebih dari 5 MB.',
+
+            'nomor_akta.string' => 'Nomor akta pendirian harus berupa teks.',
+            'nomor_akta.max' => 'Nomor akta pendirian tidak boleh lebih dari :max karakter.',
+
             'legal_documents.required' => 'Unggah minimal satu dokumen legalitas (NPWP/SIUP/NIB) berformat PDF.',
             'legal_documents.array' => 'Format daftar dokumen legalitas tidak valid.',
             'legal_documents.min' => 'Unggah minimal satu dokumen legalitas (NPWP/SIUP/NIB) berformat PDF.',
             'legal_documents.max' => 'Maksimal 10 dokumen legalitas yang dapat diunggah.',
             'legal_documents.*.document_type.required' => 'Jenis dokumen legalitas wajib dipilih.',
-            'legal_documents.*.document_type.in' => 'Jenis dokumen legalitas harus berupa NPWP, SIUP, NIB, atau KTP.',
+            'legal_documents.*.document_type.in' => 'Jenis dokumen legalitas harus berupa NPWP, SIUP, NIB, KTP, SPPKP, atau Akta Pendirian.',
             'legal_documents.*.document_number.max' => 'Nomor dokumen tidak boleh lebih dari 100 karakter.',
             'legal_documents.*.file.required' => 'File dokumen legalitas wajib diunggah.',
             'legal_documents.*.file.file' => 'Dokumen legalitas harus berupa file yang valid.',
@@ -386,6 +445,12 @@ class StoreVendorRegistrationRequest extends FormRequest
             'tax_number' => 'nomor NPWP',
             'nomor_nib' => 'nomor NIB perusahaan',
             'nomor_ktp' => 'nomor KTP penanggung jawab',
+            'is_pkp' => 'status PKP perusahaan',
+            'pkp_status' => 'status PKP perusahaan',
+            'dokumen_sppkp' => 'dokumen SPPKP perusahaan',
+            'nomor_sppkp' => 'nomor SPPKP perusahaan',
+            'dokumen_akta' => 'dokumen akta pendirian',
+            'nomor_akta' => 'nomor akta pendirian',
             'contact_email' => 'email bisnis perusahaan',
             'phone' => 'nomor telepon',
             'address' => 'alamat lengkap',

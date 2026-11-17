@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useMemo, useRef, useState } from 'react';
 import { Button } from '@/Components/ui/button';
+import { Badge } from '@/Components/ui/badge';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
@@ -137,6 +138,12 @@ export default function RegisterVendor({
         dokumen_ktp: null,
         nomor_nib: '',
         nomor_ktp: '',
+        pkp_status: 'non_ppn',
+        is_pkp: false,
+        nomor_sppkp: '',
+        dokumen_sppkp: null,
+        nomor_akta: '',
+        dokumen_akta: null,
         legal_documents: [],
         invitation_token: invitation?.token ?? '',
         google_id: google_user?.google_id ?? '',
@@ -149,6 +156,8 @@ export default function RegisterVendor({
     const npwpFeedback = useUploadFeedback(form, 'dokumen_npwp');
     const nibFeedback = useUploadFeedback(form, 'dokumen_nib');
     const ktpFeedback = useUploadFeedback(form, 'dokumen_ktp');
+    const sppkpFeedback = useUploadFeedback(form, 'dokumen_sppkp');
+    const aktaFeedback = useUploadFeedback(form, 'dokumen_akta');
     const legalDocumentFeedback = useUploadFeedback(form, 'legal_documents');
 
     const [otpSent, setOtpSent] = useState(false);
@@ -484,7 +493,15 @@ export default function RegisterVendor({
                 key === 'file_ktp' ||
                 key === 'tax_number' ||
                 key === 'nomor_nib' ||
-                key === 'nomor_ktp'
+                key === 'nomor_ktp' ||
+                key === 'pkp_status' ||
+                key === 'is_pkp' ||
+                key === 'nomor_sppkp' ||
+                key === 'dokumen_sppkp' ||
+                key === 'file_sppkp' ||
+                key === 'nomor_akta' ||
+                key === 'dokumen_akta' ||
+                key === 'file_akta'
         );
         if (docErrorKeys.length > 0) {
             clearErrors(...docErrorKeys);
@@ -578,6 +595,18 @@ export default function RegisterVendor({
 
         if (!validateLegalFile(data.dokumen_ktp, 'dokumen_ktp', 'Dokumen KTP Penanggung Jawab')) {
             hasError = true;
+        }
+
+        if (data.pkp_status === 'ppn' || data.is_pkp === true) {
+            if (!validateLegalFile(data.dokumen_sppkp, 'dokumen_sppkp', 'Dokumen SPPKP Perusahaan')) {
+                hasError = true;
+            }
+        }
+
+        if (data.dokumen_akta) {
+            if (!validateLegalFile(data.dokumen_akta, 'dokumen_akta', 'Dokumen Akta Pendirian')) {
+                hasError = true;
+            }
         }
 
         if (hasError) {
@@ -760,6 +789,13 @@ export default function RegisterVendor({
             key === 'dokumen_npwp' ||
             key === 'dokumen_nib' ||
             key === 'dokumen_ktp' ||
+            key === 'dokumen_sppkp' ||
+            key === 'file_sppkp' ||
+            key === 'nomor_sppkp' ||
+            key === 'dokumen_akta' ||
+            key === 'file_akta' ||
+            key === 'pkp_status' ||
+            key === 'is_pkp' ||
             key === 'file_npwp' ||
             key === 'file_nib' ||
             key === 'file_ktp'
@@ -1398,7 +1434,7 @@ export default function RegisterVendor({
                                                 <span className="text-destructive">*</span>
                                             </Label>
                                             <p className="text-xs text-muted-foreground mt-0.5">
-                                                Lengkapi nomor identitas dan unggah 3 berkas dokumen legalitas utama berformat PDF dengan batas maksimal 5 MB per berkas.
+                                                Lengkapi berkas legalitas resmi perusahaan, status PKP, dan dokumen perizinan berformat PDF maksimal 5 MB per berkas.
                                             </p>
                                         </div>
 
@@ -1659,6 +1695,305 @@ export default function RegisterVendor({
                                                     <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
                                                         <AlertCircle className="size-3.5 shrink-0" />
                                                         <span>{errors.dokumen_ktp || errors.file_ktp}</span>
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* 4. Status PKP Perusahaan (PPN vs Non PPN) */}
+                                        <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Label
+                                                    className={cn(
+                                                        'text-xs font-semibold uppercase tracking-wider',
+                                                        (errors.pkp_status || errors.is_pkp)
+                                                            ? 'text-destructive'
+                                                            : 'text-muted-foreground'
+                                                    )}
+                                                >
+                                                    4. Status PKP Perusahaan (Pengusaha Kena Pajak) <span className="text-destructive">*</span>
+                                                </Label>
+                                                <Badge
+                                                    variant={data.is_pkp ? 'default' : 'secondary'}
+                                                    className="text-[11px] font-medium"
+                                                >
+                                                    {data.is_pkp ? 'PPN' : 'Non PPN'}
+                                                </Badge>
+                                            </div>
+
+                                            <p className="text-xs text-muted-foreground">
+                                                Apakah perusahaan Anda berstatus Pengusaha Kena Pajak (PKP)? Pilih salah satu opsi di bawah ini:
+                                            </p>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                                                {/* Opsi 1: PPN / PKP */}
+                                                <label
+                                                    className={cn(
+                                                        'flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none',
+                                                        data.pkp_status === 'ppn' || data.is_pkp === true
+                                                            ? 'border-primary bg-primary/5 shadow-2xs'
+                                                            : 'border-border/80 bg-background hover:bg-muted/30 hover:border-border'
+                                                    )}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="vendor_pkp_status"
+                                                        value="ppn"
+                                                        checked={data.pkp_status === 'ppn' || data.is_pkp === true}
+                                                        onChange={() => {
+                                                            setData((prev) => ({
+                                                                ...prev,
+                                                                pkp_status: 'ppn',
+                                                                is_pkp: true,
+                                                            }));
+                                                            clearErrors('pkp_status', 'is_pkp');
+                                                        }}
+                                                        disabled={processing}
+                                                        className="mt-0.5 text-primary focus:ring-primary size-4 shrink-0"
+                                                    />
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-xs sm:text-sm font-semibold text-foreground">
+                                                                PPN (Pengusaha Kena Pajak)
+                                                            </span>
+                                                            <Badge variant="outline" className="text-[10px] font-medium border-primary/40 text-primary">
+                                                                PKP
+                                                            </Badge>
+                                                        </div>
+                                                        <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                                            Perusahaan berhak menagih PPN dan menerbitkan Faktur Pajak. Wajib melampirkan berkas SPPKP resmi.
+                                                        </p>
+                                                    </div>
+                                                </label>
+
+                                                {/* Opsi 2: Non PPN / Non-PKP */}
+                                                <label
+                                                    className={cn(
+                                                        'flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none',
+                                                        data.pkp_status === 'non_ppn' && data.is_pkp === false
+                                                            ? 'border-primary bg-primary/5 shadow-2xs'
+                                                            : 'border-border/80 bg-background hover:bg-muted/30 hover:border-border'
+                                                    )}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="vendor_pkp_status"
+                                                        value="non_ppn"
+                                                        checked={data.pkp_status === 'non_ppn' && data.is_pkp === false}
+                                                        onChange={() => {
+                                                            setData((prev) => ({
+                                                                ...prev,
+                                                                pkp_status: 'non_ppn',
+                                                                is_pkp: false,
+                                                                dokumen_sppkp: null,
+                                                                nomor_sppkp: '',
+                                                            }));
+                                                            clearErrors('pkp_status', 'is_pkp', 'dokumen_sppkp', 'file_sppkp');
+                                                        }}
+                                                        disabled={processing}
+                                                        className="mt-0.5 text-primary focus:ring-primary size-4 shrink-0"
+                                                    />
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-xs sm:text-sm font-semibold text-foreground">
+                                                                Non PPN (Bukan PKP)
+                                                            </span>
+                                                            <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground">
+                                                                Non-PKP
+                                                            </Badge>
+                                                        </div>
+                                                        <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                                            Perusahaan UMKM/Non-PKP dan tidak memungut komponen PPN pada invoice atau penawaran harga.
+                                                        </p>
+                                                    </div>
+                                                </label>
+                                            </div>
+
+                                            {(errors.pkp_status || errors.is_pkp) && (
+                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
+                                                    <AlertCircle className="size-3.5 shrink-0" />
+                                                    <span>{errors.pkp_status || errors.is_pkp}</span>
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Dokumen Kondisional: SPPKP (Wajib jika PKP / PPN) */}
+                                        {(data.pkp_status === 'ppn' || data.is_pkp === true) && (
+                                            <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-primary/40 bg-primary/5">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <Label
+                                                        htmlFor="vendor_nomor_sppkp"
+                                                        className={cn(
+                                                            'text-xs font-semibold uppercase tracking-wider',
+                                                            (errors.nomor_sppkp || errors.dokumen_sppkp || errors.file_sppkp)
+                                                                ? 'text-destructive'
+                                                                : 'text-primary'
+                                                        )}
+                                                    >
+                                                        Dokumen SPPKP (Surat Pengukuhan Pengusaha Kena Pajak) <span className="text-destructive">*</span>
+                                                    </Label>
+                                                    <Badge variant="default" className="text-[10px] font-medium">
+                                                        Wajib untuk PKP
+                                                    </Badge>
+                                                </div>
+
+                                                <p className="text-xs text-muted-foreground">
+                                                    Unggah berkas SPPKP resmi dari Direktorat Jenderal Pajak (DJP) untuk memverifikasi hak penagihan PPN 11% perusahaan Anda.
+                                                </p>
+
+                                                {/* Nomor SPPKP */}
+                                                <div className="space-y-1">
+                                                    <Label
+                                                        htmlFor="vendor_nomor_sppkp"
+                                                        className={cn(
+                                                            'text-xs text-muted-foreground font-normal',
+                                                            errors.nomor_sppkp && 'text-destructive'
+                                                        )}
+                                                    >
+                                                        Nomor SPPKP Perusahaan <span className="text-muted-foreground">(Opsional)</span>
+                                                    </Label>
+                                                    <Input
+                                                        id="vendor_nomor_sppkp"
+                                                        type="text"
+                                                        placeholder="Contoh: S-123PKP/WPJ.07/KP.0303/2023 atau Nomor Surat Pengukuhan"
+                                                        value={data.nomor_sppkp}
+                                                        onChange={(e) => {
+                                                            setData('nomor_sppkp', e.target.value);
+                                                            if (errors.nomor_sppkp) clearErrors('nomor_sppkp');
+                                                        }}
+                                                        disabled={processing}
+                                                        aria-invalid={!!errors.nomor_sppkp}
+                                                        className={cn(
+                                                            'h-9 text-xs sm:text-sm bg-background',
+                                                            errors.nomor_sppkp && 'border-destructive focus-visible:ring-destructive'
+                                                        )}
+                                                    />
+                                                    {errors.nomor_sppkp && (
+                                                        <p className="text-xs font-medium text-destructive">
+                                                            {errors.nomor_sppkp}
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                {/* Upload Dokumen SPPKP */}
+                                                <div className="space-y-1">
+                                                    <FileDropzone
+                                                        value={data.dokumen_sppkp}
+                                                        onChange={(file) => {
+                                                            setData('dokumen_sppkp', file);
+                                                            if (errors.dokumen_sppkp || errors.file_sppkp) {
+                                                                clearErrors('dokumen_sppkp', 'file_sppkp', 'legal_documents');
+                                                            }
+                                                        }}
+                                                        onError={(msg) => {
+                                                            setError('dokumen_sppkp', msg);
+                                                            notify.error(msg);
+                                                        }}
+                                                        error={errors.dokumen_sppkp || errors.file_sppkp}
+                                                        accept={PDF_ACCEPT}
+                                                        maxSize={MAX_DOCUMENT_SIZE}
+                                                        disabled={processing}
+                                                        uploading={sppkpFeedback.uploading}
+                                                        progress={sppkpFeedback.progress}
+                                                        status={sppkpFeedback.status}
+                                                        label="Unggah Berkas SPPKP"
+                                                        description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
+                                                    />
+                                                    {(errors.dokumen_sppkp || errors.file_sppkp) && (
+                                                        <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                            <AlertCircle className="size-3.5 shrink-0" />
+                                                            <span>{errors.dokumen_sppkp || errors.file_sppkp}</span>
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Dokumen Tambahan: Akta Pendirian & SK Kemenkumham (Opsional) */}
+                                        <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-dashed border-border bg-card/30">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Label
+                                                    htmlFor="vendor_nomor_akta"
+                                                    className={cn(
+                                                        'text-xs font-semibold uppercase tracking-wider',
+                                                        (errors.nomor_akta || errors.dokumen_akta || errors.file_akta)
+                                                            ? 'text-destructive'
+                                                            : 'text-muted-foreground'
+                                                    )}
+                                                >
+                                                    5. Dokumen Akta Pendirian & SK Kemenkumham
+                                                </Label>
+                                                <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground">
+                                                    Opsional
+                                                </Badge>
+                                            </div>
+
+                                            <p className="text-xs text-muted-foreground">
+                                                Lampirkan berkas akta dan pengesahan Kemenkumham bila perusahaan Anda berbentuk badan hukum resmi (PT/CV) untuk memenuhi syarat tender yang mensyaratkan badan hukum.
+                                            </p>
+
+                                            {/* Nomor Akta */}
+                                            <div className="space-y-1">
+                                                <Label
+                                                    htmlFor="vendor_nomor_akta"
+                                                    className={cn(
+                                                        'text-xs text-muted-foreground font-normal',
+                                                        errors.nomor_akta && 'text-destructive'
+                                                    )}
+                                                >
+                                                    Nomor Akta Pendirian / SK Kemenkumham <span className="text-muted-foreground">(Opsional)</span>
+                                                </Label>
+                                                <Input
+                                                    id="vendor_nomor_akta"
+                                                    type="text"
+                                                    placeholder="Contoh: AHU-0012345.AH.01.01.TAHUN 2023 atau Nomor Akta Notaris"
+                                                    value={data.nomor_akta}
+                                                    onChange={(e) => {
+                                                        setData('nomor_akta', e.target.value);
+                                                        if (errors.nomor_akta) clearErrors('nomor_akta');
+                                                    }}
+                                                    disabled={processing}
+                                                    aria-invalid={!!errors.nomor_akta}
+                                                    className={cn(
+                                                        'h-9 text-xs sm:text-sm',
+                                                        errors.nomor_akta && 'border-destructive focus-visible:ring-destructive'
+                                                    )}
+                                                />
+                                                {errors.nomor_akta && (
+                                                    <p className="text-xs font-medium text-destructive">
+                                                        {errors.nomor_akta}
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {/* Upload Dokumen Akta */}
+                                            <div className="space-y-1">
+                                                <FileDropzone
+                                                    value={data.dokumen_akta}
+                                                    onChange={(file) => {
+                                                        setData('dokumen_akta', file);
+                                                        if (errors.dokumen_akta || errors.file_akta) {
+                                                            clearErrors('dokumen_akta', 'file_akta');
+                                                        }
+                                                    }}
+                                                    onError={(msg) => {
+                                                        setError('dokumen_akta', msg);
+                                                        notify.error(msg);
+                                                    }}
+                                                    error={errors.dokumen_akta || errors.file_akta}
+                                                    accept={PDF_ACCEPT}
+                                                    maxSize={MAX_DOCUMENT_SIZE}
+                                                    disabled={processing}
+                                                    uploading={aktaFeedback.uploading}
+                                                    progress={aktaFeedback.progress}
+                                                    status={aktaFeedback.status}
+                                                    label="Unggah Berkas Akta Pendirian / SK Kemenkumham"
+                                                    description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB (Opsional)"
+                                                />
+                                                {(errors.dokumen_akta || errors.file_akta) && (
+                                                    <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                        <AlertCircle className="size-3.5 shrink-0" />
+                                                        <span>{errors.dokumen_akta || errors.file_akta}</span>
                                                     </p>
                                                 )}
                                             </div>

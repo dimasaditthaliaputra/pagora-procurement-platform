@@ -770,4 +770,137 @@ class VendorRegistrationTest extends TestCase
             $this->assertMatchesRegularExpression('/^vendor_\d+_(npwp|nib|ktp)\.pdf$/', $filename);
         }
     }
+
+    public function test_vendor_registration_requires_sppkp_when_pkp_status_is_ppn(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $code = $this->requestOtp('pkp.vendor@test.co.id');
+        $category = CommodityCategory::query()->first();
+
+        $npwpFile = UploadedFile::fake()->create('npwp.pdf', 200, 'application/pdf');
+        $nibFile = UploadedFile::fake()->create('nib.pdf', 200, 'application/pdf');
+        $ktpFile = UploadedFile::fake()->create('ktp.pdf', 200, 'application/pdf');
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Budi Santoso',
+            'email' => 'pkp.vendor@test.co.id',
+            'password' => 'VendorPassword123#',
+            'password_confirmation' => 'VendorPassword123#',
+            'company_name' => 'PT PKP Tanpa SPPKP',
+            'tax_number' => '05.678.901.2-345.000',
+            'nomor_nib' => 'NIB-1234567890',
+            'nomor_ktp' => '3171012345670002',
+            'phone' => '081299997777',
+            'address' => 'Jl. Industri No. 10, Jakarta',
+            'commodity_category_uuids' => [$category->uuid],
+            'otp' => $code,
+            'pkp_status' => 'ppn',
+            'dokumen_npwp' => $npwpFile,
+            'dokumen_nib' => $nibFile,
+            'dokumen_ktp' => $ktpFile,
+        ]);
+
+        $response->assertRedirect('/register/vendor');
+        $response->assertSessionHasErrors(['dokumen_sppkp']);
+        $this->assertNull(Vendor::where('company_name', 'PT PKP Tanpa SPPKP')->first());
+    }
+
+    public function test_vendor_registration_succeeds_with_ppn_and_sppkp_and_optional_akta(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $code = $this->requestOtp('pkp.lengkap@test.co.id');
+        $category = CommodityCategory::query()->first();
+
+        $npwpFile = UploadedFile::fake()->create('npwp.pdf', 200, 'application/pdf');
+        $nibFile = UploadedFile::fake()->create('nib.pdf', 200, 'application/pdf');
+        $ktpFile = UploadedFile::fake()->create('ktp.pdf', 200, 'application/pdf');
+        $sppkpFile = UploadedFile::fake()->create('sppkp.pdf', 300, 'application/pdf');
+        $aktaFile = UploadedFile::fake()->create('akta.pdf', 400, 'application/pdf');
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Budi Santoso',
+            'email' => 'pkp.lengkap@test.co.id',
+            'password' => 'VendorPassword123#',
+            'password_confirmation' => 'VendorPassword123#',
+            'company_name' => 'PT PKP Lengkap Sejahtera',
+            'tax_number' => '06.789.012.3-456.000',
+            'nomor_nib' => 'NIB-8877665544',
+            'nomor_ktp' => '3171012345670003',
+            'phone' => '081299996666',
+            'address' => 'Jl. Pajak No. 1, Jakarta',
+            'commodity_category_uuids' => [$category->uuid],
+            'otp' => $code,
+            'pkp_status' => 'ppn',
+            'nomor_sppkp' => 'S-999PKP/WPJ.07/KP.0303/2026',
+            'nomor_akta' => 'AHU-0099887.AH.01.01.2026',
+            'dokumen_npwp' => $npwpFile,
+            'dokumen_nib' => $nibFile,
+            'dokumen_ktp' => $ktpFile,
+            'dokumen_sppkp' => $sppkpFile,
+            'dokumen_akta' => $aktaFile,
+        ]);
+
+        $response->assertRedirect(route('register.success'));
+        $vendor = Vendor::where('company_name', 'PT PKP Lengkap Sejahtera')->first();
+        $this->assertNotNull($vendor);
+        $this->assertTrue($vendor->is_pkp);
+
+        $documents = $vendor->legalDocuments;
+        $this->assertCount(5, $documents);
+
+        $docTypes = $documents->pluck('document_type')->all();
+        $this->assertContains('npwp', $docTypes);
+        $this->assertContains('nib', $docTypes);
+        $this->assertContains('ktp', $docTypes);
+        $this->assertContains('sppkp', $docTypes);
+        $this->assertContains('akta', $docTypes);
+
+        $sppkpDoc = $documents->firstWhere('document_type', 'sppkp');
+        $this->assertSame('S-999PKP/WPJ.07/KP.0303/2026', $sppkpDoc->document_number);
+
+        $aktaDoc = $documents->firstWhere('document_type', 'akta');
+        $this->assertSame('AHU-0099887.AH.01.01.2026', $aktaDoc->document_number);
+    }
+
+    public function test_vendor_registration_succeeds_as_non_ppn_without_sppkp(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $code = $this->requestOtp('nonppn@test.co.id');
+        $category = CommodityCategory::query()->first();
+
+        $npwpFile = UploadedFile::fake()->create('npwp.pdf', 200, 'application/pdf');
+        $nibFile = UploadedFile::fake()->create('nib.pdf', 200, 'application/pdf');
+        $ktpFile = UploadedFile::fake()->create('ktp.pdf', 200, 'application/pdf');
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Budi Non PKP',
+            'email' => 'nonppn@test.co.id',
+            'password' => 'VendorPassword123#',
+            'password_confirmation' => 'VendorPassword123#',
+            'company_name' => 'CV Usaha Mikro Mandiri',
+            'tax_number' => '07.890.123.4-567.000',
+            'nomor_nib' => 'NIB-5544332211',
+            'nomor_ktp' => '3171012345670004',
+            'phone' => '081299995555',
+            'address' => 'Jl. Desa No. 5, Bogor',
+            'commodity_category_uuids' => [$category->uuid],
+            'otp' => $code,
+            'pkp_status' => 'non_ppn',
+            'dokumen_npwp' => $npwpFile,
+            'dokumen_nib' => $nibFile,
+            'dokumen_ktp' => $ktpFile,
+        ]);
+
+        $response->assertRedirect(route('register.success'));
+        $vendor = Vendor::where('company_name', 'CV Usaha Mikro Mandiri')->first();
+        $this->assertNotNull($vendor);
+        $this->assertFalse($vendor->is_pkp);
+
+        $documents = $vendor->legalDocuments;
+        $this->assertCount(3, $documents);
+        $this->assertNotContains('sppkp', $documents->pluck('document_type')->all());
+    }
 }

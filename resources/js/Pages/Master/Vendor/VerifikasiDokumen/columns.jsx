@@ -95,18 +95,33 @@ export function getColumns({ onViewDetail }) {
 
                 return (
                     <div className="flex flex-col gap-1.5">
-                        {documents.map((doc) => (
-                            <div key={doc.uuid} className="flex items-center gap-2 text-sm">
-                                <FileText className="size-4 shrink-0 text-muted-foreground" />
-                                <span className="font-medium">{doc.document_type}</span>
-                                {doc.document_number && (
-                                    <span className="font-mono text-xs text-muted-foreground">
-                                        {doc.document_number}
-                                    </span>
-                                )}
-                                {DOCUMENT_STATUS_ICON[doc.verification_status] ?? DOCUMENT_STATUS_ICON.pending}
-                            </div>
-                        ))}
+                        {documents.map((doc) => {
+                            const typeLabel =
+                                doc.document_type === 'npwp'
+                                    ? 'NPWP'
+                                    : doc.document_type === 'nib'
+                                        ? 'NIB'
+                                        : doc.document_type === 'ktp'
+                                            ? 'KTP'
+                                            : doc.document_type === 'sppkp'
+                                                ? 'SPPKP'
+                                                : doc.document_type === 'akta' || doc.document_type === 'akta_pendirian'
+                                                    ? 'Akta Pendirian'
+                                                    : (doc.document_type || 'Dokumen');
+
+                            return (
+                                <div key={doc.uuid} className="flex items-center gap-2 text-sm">
+                                    <FileText className="size-4 shrink-0 text-muted-foreground" />
+                                    <span className="font-medium">{typeLabel}</span>
+                                    {doc.document_number && (
+                                        <span className="font-mono text-xs text-muted-foreground">
+                                            {doc.document_number}
+                                        </span>
+                                    )}
+                                    {DOCUMENT_STATUS_ICON[doc.verification_status] ?? DOCUMENT_STATUS_ICON.pending}
+                                </div>
+                            );
+                        })}
                     </div>
                 );
             },

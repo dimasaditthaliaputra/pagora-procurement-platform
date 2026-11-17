@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'slug',
     'company_name',
     'tax_number',
+    'is_pkp',
     'contact_email',
     'phone',
     'address',
@@ -52,6 +53,7 @@ class Vendor extends Model
         'slug',
         'company_name',
         'tax_number',
+        'is_pkp',
         'contact_email',
         'phone',
         'address',
@@ -100,6 +102,7 @@ class Vendor extends Model
         return [
             'verification_status' => VerificationStatus::class,
             'is_active' => 'boolean',
+            'is_pkp' => 'boolean',
             'blocked_at' => 'datetime',
         ];
     }

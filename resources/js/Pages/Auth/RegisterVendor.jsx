@@ -1004,18 +1004,6 @@ export default function RegisterVendor({
                                                 <span>Daftar Cepat dengan Google</span>
                                             </a>
 
-                                            <p className="text-center text-[11px] text-muted-foreground">
-                                                Dengan melanjutkan, Anda menyetujui{' '}
-                                                <a
-                                                    href="/syarat-dan-ketentuan"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="font-semibold text-primary underline underline-offset-4 hover:text-primary/80 transition-colors"
-                                                >
-                                                    Syarat dan Ketentuan
-                                                </a>
-                                            </p>
-
                                             <div className="relative text-center text-xs after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border my-1">
                                                 <span className="relative z-10 px-2.5 bg-card text-muted-foreground font-medium text-[11px]">
                                                     atau lengkapi formulir manual di bawah

@@ -9,6 +9,15 @@ import { useSmoothScroll } from './SmoothScrollProvider';
 const DESKTOP_QUERY = '(min-width: 1092px)';
 const DROPDOWN_CLOSE_DELAY_MS = 150;
 
+function resolveAnchorHref(href) {
+    if (typeof href === 'string' && href.startsWith('#')) {
+        if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+            return `/${href}`;
+        }
+    }
+    return href;
+}
+
 function AuthActions({ isAuthenticated, size = 'small', className }) {
     if (isAuthenticated) {
         return (
@@ -78,7 +87,7 @@ function DesktopDropdown({ group, isOpen, onOpen, onClose, onToggle }) {
                     <ul className="mt-9 grid grid-cols-5 gap-6">
                         {group.items.map((item) => (
                             <li key={item.label}>
-                                <a href={item.href} onClick={onClose} className="group/item block rounded-small">
+                                <a href={resolveAnchorHref(item.href)} onClick={onClose} className="group/item block rounded-small">
                                     <span className="flex items-center gap-2 type-body-xs text-warm-60">
                                         <item.icon className="size-4" />
                                         {item.role}
@@ -92,7 +101,7 @@ function DesktopDropdown({ group, isOpen, onOpen, onClose, onToggle }) {
                         ))}
                     </ul>
                     <a
-                        href="#alur"
+                        href={resolveAnchorHref('#alur')}
                         onClick={onClose}
                         className="group/more mt-9 flex items-center justify-between border-t border-warm-80 pt-5 type-body-xs font-medium"
                     >
@@ -142,7 +151,7 @@ function MobileMenu({ isOpen, onClose, isAuthenticated }) {
                                     <ul className="flex flex-col gap-1 overflow-hidden">
                                         {entry.items.map((item) => (
                                             <li key={item.label}>
-                                                <a href={item.href} onClick={onClose} className="flex items-center gap-3 py-2 type-body-m">
+                                                <a href={resolveAnchorHref(item.href)} onClick={onClose} className="flex items-center gap-3 py-2 type-body-m">
                                                     <item.icon className="size-4 text-warm-60" />
                                                     {item.label}
                                                 </a>
@@ -153,7 +162,7 @@ function MobileMenu({ isOpen, onClose, isAuthenticated }) {
                                 </div>
                             </>
                         ) : (
-                            <a href={entry.href} onClick={onClose} className="block py-4 type-heading-xs">
+                            <a href={resolveAnchorHref(entry.href)} onClick={onClose} className="block py-4 type-heading-xs">
                                 {entry.label}
                             </a>
                         )}
@@ -264,7 +273,7 @@ export default function LandingNavbar({ isAuthenticated, appName, logoUrl }) {
                                     />
                                 ) : (
                                     <a
-                                        href={entry.href}
+                                        href={resolveAnchorHref(entry.href)}
                                         className="block rounded-full px-3 py-2 text-[15px] font-medium transition-colors duration-200 hover:text-warm-60"
                                     >
                                         {entry.label}

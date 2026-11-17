@@ -1033,6 +1033,17 @@ export default function Register({ google_user = null, status = null }) {
                                         />
                                     </div>
 
+                                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                        Dengan melanjutkan pendaftaran, Anda menyatakan telah membaca dan menyetujui{' '}
+                                        <Link
+                                            href="/syarat-dan-ketentuan"
+                                            className="font-semibold text-foreground underline underline-offset-4 hover:text-primary"
+                                        >
+                                            Syarat dan Ketentuan Penggunaan PAGORA
+                                        </Link>
+                                        .
+                                    </p>
+
                                     {/* Navigation Controls on Step 3: [ < ] and Submit Button */}
                                     <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/60">
                                         <Button
@@ -1067,7 +1078,13 @@ export default function Register({ google_user = null, status = null }) {
 
                 {/* Footer Copyright */}
                 <div className="text-center text-xs text-muted-foreground shrink-0 mt-2">
-                    © {new Date().getFullYear()} PAGORA Enterprise E-Procurement
+                    © {new Date().getFullYear()} PAGORA Enterprise E-Procurement ·{' '}
+                    <Link
+                        href="/syarat-dan-ketentuan"
+                        className="underline underline-offset-4 hover:text-foreground transition-colors"
+                    >
+                        Syarat &amp; Ketentuan
+                    </Link>
                 </div>
             </div>
 

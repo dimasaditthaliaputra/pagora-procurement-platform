@@ -21,6 +21,8 @@ Karena Anda mendaftar melalui akun Google, email Anda telah otomatis terverifika
 Masuk ke {{ config('app.name') }}
 </x-mail::button>
 
+Dengan mendaftar atau menggunakan {{ config('app.name') }}, Anda menyetujui [Syarat dan Ketentuan Penggunaan {{ config('app.name') }}]({{ url('/syarat-dan-ketentuan') }}).
+
 Salam hangat,<br>
 Tim {{ config('app.name') }}
 </x-mail::message>

@@ -11,6 +11,8 @@ Akun vendor Anda kini aktif. Silakan masuk untuk mulai mengelola kerja sama dan 
 Masuk ke {{ config('app.name') }}
 </x-mail::button>
 
+Penggunaan layanan tunduk pada [Syarat dan Ketentuan Penggunaan {{ config('app.name') }}]({{ url('/syarat-dan-ketentuan') }}).
+
 Salam,<br>
 {{ config('app.name') }}
 </x-mail::message>

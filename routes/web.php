@@ -39,8 +39,9 @@ use App\Models\User;
 use App\Models\Vendor;
 use Illuminate\Support\Facades\Route;
 
-// Public Home
+// Public Home & Legal Pages
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/syarat-dan-ketentuan', [HomeController::class, 'syaratKetentuan'])->name('syarat-ketentuan');
 
 // Public uploads (avatar, logo) served via the app domain; no session needed for static files.
 Route::get('/files/{path}', PublicFileController::class)

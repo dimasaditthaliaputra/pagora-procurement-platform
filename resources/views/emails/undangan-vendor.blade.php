@@ -21,6 +21,8 @@ Silakan klik tombol berikut untuk melengkapi pendaftaran. Tautan ini berlaku sel
 Daftar sebagai Vendor
 </x-mail::button>
 
+Dengan mendaftar atau menggunakan layanan ini, Anda menyetujui [Syarat dan Ketentuan Penggunaan {{ config('app.name') }}]({{ url('/syarat-dan-ketentuan') }}).
+
 Jika Anda tidak merasa terkait dengan undangan ini, abaikan email ini.
 
 Salam,<br>

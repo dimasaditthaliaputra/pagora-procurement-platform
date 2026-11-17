@@ -6,6 +6,7 @@ import { Checkbox } from '@/Components/ui/checkbox';
 import { LoadingButton } from '@/Components/loading-button';
 import { OtpField, OTP_LENGTH } from '@/Components/otp-field';
 import { useCountdown } from '@/hooks/use-countdown';
+import { FlashHandler } from '@/Components/flash-handler';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -143,6 +144,7 @@ export default function Login({ status, otp = null }) {
     return (
         <div className="grid min-h-screen lg:grid-cols-2 bg-background text-foreground">
             <Head title="Masuk Portal Pengadaan - PAGORA" />
+            <FlashHandler />
 
             {/* Left - Form */}
             <div className="flex flex-col justify-between p-6 md:p-10">

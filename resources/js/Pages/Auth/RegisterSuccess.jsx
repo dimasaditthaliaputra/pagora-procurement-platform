@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Info, ArrowRight } from 'lucide-react';
+import { FlashHandler } from '@/Components/flash-handler';
 import Logo from '../../../assets/logo/logo.webp';
 import SuccessAnimation from '../../../assets/Success.svg';
 
@@ -8,6 +9,7 @@ export default function RegisterSuccess({ email = null }) {
     return (
         <div className="h-dvh max-h-dvh w-full overflow-hidden flex flex-col justify-between items-center bg-background sm:bg-muted/20 p-4 sm:p-6 lg:p-8 font-inter select-none">
             <Head title="Pendaftaran Berhasil - PAGORA" />
+            <FlashHandler />
 
             {/* Pinned Top: Logo Brand */}
             <header className="shrink-0 pt-2">

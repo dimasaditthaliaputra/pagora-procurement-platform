@@ -4,7 +4,6 @@ import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { LoadingButton } from '@/Components/loading-button';
 import { FlashHandler } from '@/Components/flash-handler';
-import { Toaster } from '@/Components/ui/sonner';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 import { isEmail } from '@/lib/validators';
@@ -47,7 +46,6 @@ export default function ForgotPassword() {
         <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-6 md:p-10">
             <Head title="Lupa Kata Sandi - PAGORA" />
             <FlashHandler />
-            <Toaster />
 
             <div className="flex flex-1 items-center justify-center py-8">
                 <div className="w-full max-w-sm">

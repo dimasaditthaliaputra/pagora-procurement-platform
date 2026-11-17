@@ -9,6 +9,7 @@ import { LoadingButton } from '@/Components/loading-button';
 import { FileDropzone } from '@/Components/file-dropzone';
 import { OtpField, OTP_LENGTH } from '@/Components/otp-field';
 import { useCountdown } from '@/hooks/use-countdown';
+import { FlashHandler } from '@/Components/flash-handler';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 import { isEmail, isNpwp, isPhoneNumber, normalizeNpwp, normalizePhoneNumber } from '@/lib/validators';
@@ -425,6 +426,7 @@ export default function Register({ google_user = null, status = null }) {
     return (
         <div className="grid min-h-screen lg:h-screen lg:overflow-hidden lg:grid-cols-2 bg-background text-foreground">
             <Head title="Pendaftaran Akun Tenant - PAGORA" />
+            <FlashHandler />
 
             {/* Left Column - Form */}
             <div className="flex flex-col justify-between h-full p-6 md:p-8 lg:p-10 overflow-y-auto">

@@ -10,7 +10,6 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from '@/Components/ui/breadcrumb';
-import { Toaster } from '@/Components/ui/sonner';
 import { FlashHandler } from '@/Components/flash-handler';
 import { ThemeToggle } from '@/Components/ThemeToggle';
 
@@ -18,7 +17,6 @@ export default function DashboardLayout({ children, breadcrumbs = [] }) {
     return (
         <TooltipProvider>
             <FlashHandler />
-            <Toaster />
             <SidebarProvider>
                 <AppSidebar />
                 <SidebarInset>

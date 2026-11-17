@@ -6,6 +6,7 @@ import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { PasswordInput } from '@/Components/password-input';
 import { LoadingButton } from '@/Components/loading-button';
+import { Checkbox } from '@/Components/ui/checkbox';
 import {
     Select,
     SelectContent,
@@ -54,9 +55,37 @@ const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024;
 const MAX_LEGAL_DOCUMENTS = 10;
 const PDF_ACCEPT = { 'application/pdf': ['.pdf'] };
 
-export default function Register({ google_user = null, status = null }) {
+export default function Register({ google_user = null, status = null, acceptance = null }) {
     const isGoogle = Boolean(google_user?.email);
     const [step, setStep] = useState(() => (isGoogle ? 3 : 1));
+    const [termsAccepted, setTermsAccepted] = useState(false);
+
+    const checkboxLabel =
+        acceptance?.checkbox_label ??
+        'Saya telah membaca dan menyetujui Syarat dan Ketentuan PAGORA.';
+
+    const renderTermsLabel = (text) => {
+        const target = 'Syarat dan Ketentuan';
+        if (!text.includes(target)) {
+            return text;
+        }
+        const [before, after] = text.split(target);
+        return (
+            <span>
+                {before}
+                <a
+                    href="/syarat-dan-ketentuan"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-primary underline underline-offset-4 hover:text-primary/80 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {target}
+                </a>
+                {after}
+            </span>
+        );
+    };
 
     const form = useForm({
         name: google_user?.name ?? '',
@@ -77,6 +106,7 @@ export default function Register({ google_user = null, status = null }) {
         google_id: google_user?.google_id ?? '',
         avatar: google_user?.avatar ?? '',
         is_google_registration: isGoogle,
+        terms_accepted: false,
     });
 
     const { data, setData, post, processing, errors, setError, clearErrors, progress } = form;
@@ -589,6 +619,11 @@ export default function Register({ google_user = null, status = null }) {
             return;
         }
 
+        if (!termsAccepted) {
+            notify.error('Anda harus menyetujui Syarat dan Ketentuan terlebih dahulu.');
+            return;
+        }
+
         post('/register', {
             forceFormData: true,
             onError: (errs) => {
@@ -771,6 +806,18 @@ export default function Register({ google_user = null, status = null }) {
                                             </svg>
                                             <span>Daftar Cepat dengan Google</span>
                                         </a>
+
+                                        <p className="text-center text-[11px] text-muted-foreground">
+                                            Dengan melanjutkan, Anda menyetujui{' '}
+                                            <a
+                                                href="/syarat-dan-ketentuan"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="font-semibold text-primary underline underline-offset-4 hover:text-primary/80 transition-colors"
+                                            >
+                                                Syarat dan Ketentuan
+                                            </a>
+                                        </p>
 
                                         <div className="relative text-center text-xs after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border my-1">
                                             <span className="relative z-10 px-2.5 bg-background text-muted-foreground font-medium text-[11px]">
@@ -1463,16 +1510,26 @@ export default function Register({ google_user = null, status = null }) {
                                         </div>
                                     </div>
 
-                                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                        Dengan melanjutkan pendaftaran, Anda menyatakan telah membaca dan menyetujui{' '}
-                                        <Link
-                                            href="/syarat-dan-ketentuan"
-                                            className="font-semibold text-foreground underline underline-offset-4 hover:text-primary"
+                                    {/* Checkbox Persetujuan Syarat dan Ketentuan */}
+                                    <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-muted/30 p-3.5 transition-colors hover:bg-muted/40">
+                                        <Checkbox
+                                            id="terms-tenant"
+                                            checked={termsAccepted}
+                                            onCheckedChange={(checked) => {
+                                                const val = Boolean(checked);
+                                                setTermsAccepted(val);
+                                                setData('terms_accepted', val);
+                                            }}
+                                            disabled={processing}
+                                            className="mt-0.5 shrink-0"
+                                        />
+                                        <Label
+                                            htmlFor="terms-tenant"
+                                            className="text-xs font-normal leading-relaxed text-muted-foreground cursor-pointer select-none"
                                         >
-                                            Syarat dan Ketentuan Penggunaan PAGORA
-                                        </Link>
-                                        .
-                                    </p>
+                                            {renderTermsLabel(checkboxLabel)}
+                                        </Label>
+                                    </div>
 
                                     {/* Navigation Controls on Step 4: [ < ] and Submit Button */}
                                     <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/60">
@@ -1493,8 +1550,9 @@ export default function Register({ google_user = null, status = null }) {
                                             type="submit"
                                             size="default"
                                             loading={processing}
+                                            disabled={processing || !termsAccepted}
                                             loadingText="Mendaftarkan tenant..."
-                                            className="flex-1 cursor-pointer flex items-center justify-center gap-2"
+                                            className="flex-1 cursor-pointer flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             <ShieldCheck className="size-4" />
                                             <span>Daftarkan Tenant</span>

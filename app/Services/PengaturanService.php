@@ -13,6 +13,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -141,6 +142,31 @@ class PengaturanService
             'nama' => (string) $this->get('nama_aplikasi'),
             'tagline' => $this->get('tagline'),
             'logo_url' => $this->logoUrl($this->get('logo')),
+        ];
+    }
+
+    /**
+     * Get terms and conditions acceptance configuration.
+     *
+     * @return array{checkbox_label: string, applies_to: list<string>}
+     */
+    public function termsAcceptance(): array
+    {
+        $jsonPath = base_path('docs/terms-and-conditions.json');
+        $raw = File::exists($jsonPath)
+            ? json_decode((string) File::get($jsonPath), true)
+            : [];
+
+        $profil = $this->profilPublik();
+        $appName = (string) ($profil['nama'] ?? config('app.name', 'PAGORA'));
+
+        $rawAcceptance = is_array($raw['acceptance'] ?? null) ? $raw['acceptance'] : [];
+        $checkboxLabel = (string) ($rawAcceptance['checkbox_label'] ?? 'Saya telah membaca dan menyetujui Syarat dan Ketentuan PAGORA.');
+        $checkboxLabel = str_replace('{{NAMA_PENYELENGGARA}}', $appName, $checkboxLabel);
+
+        return [
+            'checkbox_label' => $checkboxLabel,
+            'applies_to' => is_array($rawAcceptance['applies_to'] ?? null) ? array_values($rawAcceptance['applies_to']) : [],
         ];
     }
 

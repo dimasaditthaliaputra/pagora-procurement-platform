@@ -13,6 +13,7 @@ use App\Http\Requests\Auth\SendTenantOtpRequest;
 use App\Http\Requests\Auth\VerifyLoginOtpRequest;
 use App\Http\Requests\Auth\VerifyTenantOtpRequest;
 use App\Services\AuthService;
+use App\Services\PengaturanService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -191,11 +192,12 @@ class AuthController extends Controller
     /**
      * Render the registration page.
      */
-    public function register(): Response
+    public function register(PengaturanService $pengaturanService): Response
     {
         return Inertia::render('Auth/Register', [
             'google_user' => session('google_user'),
             'status' => session('status'),
+            'acceptance' => $pengaturanService->termsAcceptance(),
         ]);
     }
 

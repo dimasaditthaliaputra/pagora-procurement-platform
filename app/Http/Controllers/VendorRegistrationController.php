@@ -8,6 +8,7 @@ use App\Helpers\ResponseHelper;
 use App\Http\Requests\Auth\SendVendorOtpRequest;
 use App\Http\Requests\Auth\StoreVendorRegistrationRequest;
 use App\Http\Requests\Auth\VerifyVendorOtpRequest;
+use App\Services\PengaturanService;
 use App\Services\VendorRegistrationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -26,7 +27,7 @@ class VendorRegistrationController extends Controller
     /**
      * Tampilkan formulir pendaftaran calon vendor mitra.
      */
-    public function create(Request $request): Response
+    public function create(Request $request, PengaturanService $pengaturanService): Response
     {
         $commodityCategories = $this->service->getActiveCommodityCategories();
         $invitation = null;
@@ -63,6 +64,7 @@ class VendorRegistrationController extends Controller
             'invitation' => $invitation,
             'invitation_error' => $invitationError,
             'google_user' => session('google_user'),
+            'acceptance' => $pengaturanService->termsAcceptance(),
         ]);
     }
 

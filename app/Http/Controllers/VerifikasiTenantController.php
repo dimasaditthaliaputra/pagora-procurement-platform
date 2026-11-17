@@ -9,6 +9,7 @@ use App\Helpers\ResponseHelper;
 use App\Http\Requests\Verifikasi\IndexVerifikasiTenantRequest;
 use App\Http\Requests\Verifikasi\VerifikasiTenantRequest;
 use App\Http\Resources\VerifikasiTenantResource;
+use App\Models\DokumenLegalitasTenant;
 use App\Models\User;
 use App\Services\VerifikasiTenantService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -137,8 +138,14 @@ class VerifikasiTenantController extends Controller
                 return ResponseHelper::forbidden('Sesi pengguna tidak valid.');
             }
 
-            $tenant = $this->service->findViewableByUuid($user, $uuid);
-            $path = $tenant->legal_document_path;
+            $doc = DokumenLegalitasTenant::where('uuid', $uuid)->first();
+            if ($doc !== null && $doc->tenant !== null) {
+                $this->service->findViewableByUuid($user, $doc->tenant->uuid);
+                $path = $doc->file_path;
+            } else {
+                $tenant = $this->service->findViewableByUuid($user, $uuid);
+                $path = $tenant->legal_document_path;
+            }
 
             /** @var FilesystemAdapter $disk */
             $disk = Storage::disk('local');

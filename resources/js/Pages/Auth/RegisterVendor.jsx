@@ -16,6 +16,7 @@ import {
 import { useDropzone } from 'react-dropzone';
 import { describeRejection, formatBytes, uploadingLabel } from '@/lib/file';
 import { useUploadFeedback } from '@/hooks/use-upload-feedback';
+import { FileDropzone } from '@/Components/file-dropzone';
 import { LoadingButton } from '@/Components/loading-button';
 import { FlashHandler } from '@/Components/flash-handler';
 import { OtpField, OTP_LENGTH } from '@/Components/otp-field';
@@ -55,6 +56,7 @@ const DOCUMENT_TYPES = [
 ];
 
 const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024;
+const MAX_LEGAL_DOCUMENTS = 10;
 const PDF_ACCEPT = { 'application/pdf': ['.pdf'] };
 
 export default function RegisterVendor({
@@ -101,6 +103,11 @@ export default function RegisterVendor({
         address: '',
         otp: isGoogle ? '000000' : '',
         commodity_category_uuids: initialCategoryUuids,
+        dokumen_npwp: null,
+        dokumen_nib: null,
+        dokumen_ktp: null,
+        nomor_nib: '',
+        nomor_ktp: '',
         legal_documents: [],
         invitation_token: invitation?.token ?? '',
         google_id: google_user?.google_id ?? '',
@@ -109,6 +116,9 @@ export default function RegisterVendor({
     });
 
     const { data, setData, post, processing, errors, setError, clearErrors, reset } = form;
+    const npwpFeedback = useUploadFeedback(form, 'dokumen_npwp');
+    const nibFeedback = useUploadFeedback(form, 'dokumen_nib');
+    const ktpFeedback = useUploadFeedback(form, 'dokumen_ktp');
     const legalDocumentFeedback = useUploadFeedback(form, 'legal_documents');
 
     const [otpSent, setOtpSent] = useState(false);
@@ -324,14 +334,14 @@ export default function RegisterVendor({
 
             setError('otp', errorMsg);
             setVerifiedOtpInfo(null);
-            notify.error(errorMsg);
+            notify.validationFailed();
             scrollToFirstError();
             return false;
         } catch {
             const errorMsg = 'Terjadi kesalahan saat memverifikasi kode OTP. Silakan coba lagi.';
             setError('otp', errorMsg);
             setVerifiedOtpInfo(null);
-            notify.error(errorMsg);
+            notify.validationFailed();
             scrollToFirstError();
             return false;
         } finally {
@@ -369,6 +379,7 @@ export default function RegisterVendor({
         if (!otp || otp.length !== OTP_LENGTH) {
             setError('otp', `Kode OTP harus terdiri dari ${OTP_LENGTH} digit angka.`);
             notify.validationFailed();
+            scrollToFirstError();
             return false;
         }
 
@@ -439,102 +450,61 @@ export default function RegisterVendor({
 
     const clearLegalDocumentErrors = () => {
         const docErrorKeys = Object.keys(errors).filter(
-            (key) => key === 'legal_documents' || key.startsWith('legal_documents.')
+            (key) =>
+                key === 'legal_documents' ||
+                key.startsWith('legal_documents.') ||
+                key === 'dokumen_npwp' ||
+                key === 'dokumen_nib' ||
+                key === 'dokumen_ktp' ||
+                key === 'file_npwp' ||
+                key === 'file_nib' ||
+                key === 'file_ktp' ||
+                key === 'nomor_nib' ||
+                key === 'nomor_ktp'
         );
         if (docErrorKeys.length > 0) {
             clearErrors(...docErrorKeys);
         }
     };
 
-    const handleLegalDocumentsDrop = (acceptedFiles, fileRejections) => {
-        const rejectionMessages = [];
-
-        if (Array.isArray(fileRejections) && fileRejections.length > 0) {
-            fileRejections.forEach((rej) => {
-                const desc = describeRejection(rej, { accept: PDF_ACCEPT, maxSize: MAX_DOCUMENT_SIZE });
-                const fileName = rej.file?.name ? `"${rej.file.name}": ` : '';
-                rejectionMessages.push(`${fileName}${desc}`);
-            });
+    const validateLegalFile = (file, fieldKey, fieldLabel) => {
+        if (!file) {
+            setError(fieldKey, `${fieldLabel} wajib diunggah.`);
+            return false;
         }
 
-        const validFiles = [];
-        if (Array.isArray(acceptedFiles) && acceptedFiles.length > 0) {
-            acceptedFiles.forEach((file) => {
-                if (!file || file.size <= 0) {
-                    rejectionMessages.push(`"${file?.name ?? 'Berkas'}": File kosong (0 byte) tidak dapat diunggah.`);
-                } else if (file.size > MAX_DOCUMENT_SIZE) {
-                    rejectionMessages.push(
-                        `"${file.name}": Ukuran file (${formatBytes(file.size)}) melebihi batas maksimal 5 MB.`
-                    );
-                } else if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
-                    rejectionMessages.push(`"${file.name}": Format file tidak didukung. Harap unggah berkas PDF (.pdf).`);
-                } else {
-                    validFiles.push(file);
-                }
-            });
+        if (!(file instanceof File)) {
+            setError(fieldKey, `Berkas ${fieldLabel.toLowerCase()} tidak valid.`);
+            return false;
         }
 
-        if (validFiles.length > 0) {
-            const currentDocs = Array.isArray(data.legal_documents) ? data.legal_documents : [];
-            const usedTypes = new Set(currentDocs.map((doc) => doc.document_type));
-
-            const additions = validFiles
-                .filter(
-                    (file) =>
-                        !currentDocs.some(
-                            (doc) =>
-                                doc.file?.name === file.name &&
-                                doc.file?.size === file.size &&
-                                doc.file?.lastModified === file.lastModified
-                        )
-                )
-                .map((file) => {
-                    const nextType =
-                        DOCUMENT_TYPES.find((type) => !usedTypes.has(type.value))?.value ?? 'npwp';
-                    usedTypes.add(nextType);
-
-                    return {
-                        file,
-                        document_type: nextType,
-                        document_number: nextType === 'npwp' && data.tax_number ? data.tax_number : '',
-                    };
-                });
-
-            if (additions.length > 0) {
-                setData('legal_documents', [...currentDocs, ...additions]);
-            }
-            if (rejectionMessages.length === 0) {
-                clearLegalDocumentErrors();
-            }
+        const isPdf =
+            file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        if (!isPdf) {
+            setError(
+                fieldKey,
+                `Format berkas ${fieldLabel.toLowerCase()} harus berupa PDF (.pdf).`
+            );
+            return false;
         }
 
-        if (rejectionMessages.length > 0) {
-            const fullMessage = rejectionMessages.join(' • ');
-            setError('legal_documents', fullMessage);
-            notify.error(rejectionMessages[0]);
+        if (file.size <= 0) {
+            setError(
+                fieldKey,
+                `Berkas ${fieldLabel.toLowerCase()} kosong (0 byte).`
+            );
+            return false;
         }
-    };
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        multiple: true,
-        accept: PDF_ACCEPT,
-        maxSize: MAX_DOCUMENT_SIZE,
-        disabled: processing,
-        onDrop: handleLegalDocumentsDrop,
-    });
+        if (file.size > MAX_DOCUMENT_SIZE) {
+            setError(
+                fieldKey,
+                `Ukuran berkas ${fieldLabel.toLowerCase()} (${formatBytes(file.size)}) melebihi batas maksimal 5 MB.`
+            );
+            return false;
+        }
 
-    const updateLegalDocument = (index, field, value) => {
-        const updated = (data.legal_documents ?? []).map((doc, idx) =>
-            idx === index ? { ...doc, [field]: value } : doc
-        );
-        setData('legal_documents', updated);
-        clearErrors(`legal_documents.${index}.${field}`, 'legal_documents');
-    };
-
-    const removeLegalDocument = (index) => {
-        const updated = (data.legal_documents ?? []).filter((_, idx) => idx !== index);
-        setData('legal_documents', updated);
-        clearLegalDocumentErrors();
+        return true;
     };
 
     const validateStep4 = () => {
@@ -547,65 +517,16 @@ export default function RegisterVendor({
             hasError = true;
         }
 
-        const docs = Array.isArray(data.legal_documents) ? data.legal_documents : [];
-        if (docs.length === 0) {
-            setError(
-                'legal_documents',
-                'Unggah minimal satu dokumen legalitas (NPWP/SIUP/NIB) berformat PDF.'
-            );
+        if (!validateLegalFile(data.dokumen_npwp, 'dokumen_npwp', 'Dokumen NPWP Perusahaan')) {
             hasError = true;
-        } else {
-            const hasNpwpDoc = docs.some((doc) => doc?.document_type === 'npwp');
-            if (!hasNpwpDoc) {
-                setError(
-                    'legal_documents',
-                    'Dokumen legalitas NPWP Perusahaan wajib diunggah (pilih salah satu jenis dokumen sebagai NPWP).'
-                );
-                hasError = true;
-            }
+        }
 
-            docs.forEach((doc, idx) => {
-                const file = doc?.file;
-                const isPdf =
-                    file instanceof File &&
-                    (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'));
+        if (!validateLegalFile(data.dokumen_nib, 'dokumen_nib', 'Dokumen NIB Perusahaan')) {
+            hasError = true;
+        }
 
-                if (!file) {
-                    setError(`legal_documents.${idx}.file`, 'File dokumen legalitas wajib diunggah.');
-                    hasError = true;
-                } else if (!isPdf) {
-                    setError(
-                        `legal_documents.${idx}.file`,
-                        'Format file dokumen legalitas harus berupa PDF (.pdf).'
-                    );
-                    hasError = true;
-                } else if (file.size <= 0) {
-                    setError(
-                        `legal_documents.${idx}.file`,
-                        'File dokumen legalitas kosong (0 byte).'
-                    );
-                    hasError = true;
-                } else if (file.size > MAX_DOCUMENT_SIZE) {
-                    setError(
-                        `legal_documents.${idx}.file`,
-                        `Ukuran file (${formatBytes(file.size)}) melebihi batas maksimal 5 MB.`
-                    );
-                    hasError = true;
-                }
-
-                if (!doc?.document_type) {
-                    setError(`legal_documents.${idx}.document_type`, 'Jenis dokumen wajib dipilih.');
-                    hasError = true;
-                }
-
-                if (doc?.document_type === 'npwp' && doc?.document_number && !isNpwp(doc.document_number)) {
-                    setError(
-                        `legal_documents.${idx}.document_number`,
-                        'Format nomor NPWP tidak valid (15 atau 16 digit angka).'
-                    );
-                    hasError = true;
-                }
-            });
+        if (!validateLegalFile(data.dokumen_ktp, 'dokumen_ktp', 'Dokumen KTP Penanggung Jawab')) {
+            hasError = true;
         }
 
         if (hasError) {
@@ -777,7 +698,15 @@ export default function RegisterVendor({
     };
 
     const hasLegalDocumentsError = Object.keys(errors).some(
-        (key) => key === 'legal_documents' || key.startsWith('legal_documents.')
+        (key) =>
+            key === 'legal_documents' ||
+            key.startsWith('legal_documents.') ||
+            key === 'dokumen_npwp' ||
+            key === 'dokumen_nib' ||
+            key === 'dokumen_ktp' ||
+            key === 'file_npwp' ||
+            key === 'file_nib' ||
+            key === 'file_ktp'
     );
 
     const stepHasError = {
@@ -1430,234 +1359,227 @@ export default function RegisterVendor({
                                         )}
                                     </div>
 
-                                    {/* Multi-Upload Dokumen Legalitas (PDF Only, Max 5 MB per file) */}
-                                    <div className="space-y-3" data-invalid={hasLegalDocumentsError}>
-                                        <div className="flex items-center justify-between gap-2">
+                                    {/* 3 Field Upload Dokumen Legalitas (NPWP, NIB, KTP Penanggung Jawab) */}
+                                    <div className="space-y-4 pt-1" data-invalid={hasLegalDocumentsError}>
+                                        <div>
                                             <Label
                                                 className={cn(
-                                                    'text-sm font-medium',
+                                                    'text-sm font-semibold',
                                                     hasLegalDocumentsError && 'text-destructive'
                                                 )}
                                             >
-                                                Unggah Dokumen Legalitas (NPWP / SIUP / NIB){' '}
+                                                Dokumen Legalitas Perusahaan{' '}
                                                 <span className="text-destructive">*</span>
                                             </Label>
-                                            <span className="text-xs text-muted-foreground">
-                                                Terunggah: {data.legal_documents.length} PDF
-                                            </span>
-                                        </div>
-
-                                        <div
-                                            {...getRootProps({
-                                                className: cn(
-                                                    'relative rounded-xl border-2 border-dashed p-5 text-center transition-colors cursor-pointer select-none',
-                                                    isDragActive
-                                                        ? 'border-primary bg-primary/5'
-                                                        : hasLegalDocumentsError
-                                                            ? 'border-destructive bg-destructive/5'
-                                                            : 'border-border bg-muted/20 hover:bg-muted/35 hover:border-border/90',
-                                                    processing && 'opacity-60 cursor-not-allowed'
-                                                ),
-                                            })}
-                                        >
-                                            <input {...getInputProps()} aria-label="Unggah dokumen legalitas PDF" />
-                                            <div className="flex flex-col items-center gap-2">
-                                                <div className="size-10 rounded-full bg-background border border-border flex items-center justify-center shadow-2xs">
-                                                    <UploadCloud className="size-5 text-muted-foreground" />
-                                                </div>
-                                                <div className="space-y-0.5">
-                                                    <p className="text-sm font-medium text-foreground">
-                                                        {isDragActive
-                                                            ? 'Lepaskan berkas PDF di sini'
-                                                            : 'Seret & letakkan satu atau beberapa berkas PDF, atau klik untuk memilih'}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        Hanya format PDF (.pdf) dan maksimal 5 MB per file
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            {legalDocumentFeedback.uploading &&
-                                                legalDocumentFeedback.progress !== null && (
-                                                    <div className="mt-3 max-w-xs mx-auto space-y-1">
-                                                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-primary transition-all duration-200"
-                                                                style={{
-                                                                    width: `${legalDocumentFeedback.progress}%`,
-                                                                }}
-                                                            />
-                                                        </div>
-                                                        <p className="text-[11px] text-muted-foreground">
-                                                            Mengunggah {legalDocumentFeedback.progress}%
-                                                        </p>
-                                                    </div>
-                                                )}
+                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                Unggah 3 berkas dokumen legalitas utama berformat PDF dengan batas maksimal 5 MB per berkas.
+                                            </p>
                                         </div>
 
                                         {errors.legal_documents && (
                                             <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs font-medium text-destructive flex items-start gap-2.5">
                                                 <AlertCircle className="size-4 shrink-0 mt-0.5 text-destructive" />
-                                                <div className="space-y-1 min-w-0">
-                                                    {errors.legal_documents.split(' • ').map((msg, idx) => (
-                                                        <p key={idx} className="leading-relaxed">
-                                                            {msg}
-                                                        </p>
-                                                    ))}
-                                                </div>
+                                                <p className="leading-relaxed">{errors.legal_documents}</p>
                                             </div>
                                         )}
 
-                                        {data.legal_documents.length > 0 && (
-                                            <div className="space-y-3">
-                                                {data.legal_documents.map((doc, index) => {
-                                                    const fileError = errors[`legal_documents.${index}.file`];
-                                                    const typeError =
-                                                        errors[`legal_documents.${index}.document_type`];
-                                                    const numberError =
-                                                        errors[`legal_documents.${index}.document_number`];
-                                                    const itemHasError = !!(fileError || typeError || numberError);
-
-                                                    return (
-                                                        <div
-                                                            key={`${doc.file?.name ?? 'doc'}-${doc.file?.size ?? index}-${index}`}
-                                                            data-invalid={itemHasError}
-                                                            className={cn(
-                                                                'rounded-xl border bg-background p-3.5 space-y-3',
-                                                                itemHasError
-                                                                    ? 'border-destructive'
-                                                                    : 'border-border'
-                                                            )}
-                                                        >
-                                                            <div className="flex items-center justify-between gap-3">
-                                                                <div className="flex items-center gap-2.5 min-w-0">
-                                                                    <div className="size-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                                                                        <FileText className="size-4" />
-                                                                    </div>
-                                                                    <div className="min-w-0">
-                                                                        <p className="text-sm font-medium text-foreground truncate">
-                                                                            {doc.file?.name}
-                                                                        </p>
-                                                                        <p className="text-xs text-muted-foreground">
-                                                                            {formatBytes(doc.file?.size ?? 0)} · PDF
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => removeLegalDocument(index)}
-                                                                    disabled={processing}
-                                                                    aria-label={`Hapus ${doc.file?.name ?? 'dokumen'}`}
-                                                                    className="text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
-                                                                >
-                                                                    <Trash2 className="size-4" />
-                                                                </Button>
-                                                            </div>
-
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                                <div className="space-y-1">
-                                                                    <Label
-                                                                        htmlFor={`legal_document_type_${index}`}
-                                                                        className={cn(
-                                                                            'text-xs font-medium',
-                                                                            typeError && 'text-destructive'
-                                                                        )}
-                                                                    >
-                                                                        Jenis Dokumen{' '}
-                                                                        <span className="text-destructive">*</span>
-                                                                    </Label>
-                                                                    <Select
-                                                                        value={doc.document_type}
-                                                                        onValueChange={(value) =>
-                                                                            updateLegalDocument(
-                                                                                index,
-                                                                                'document_type',
-                                                                                value
-                                                                            )
-                                                                        }
-                                                                        disabled={processing}
-                                                                    >
-                                                                        <SelectTrigger
-                                                                            id={`legal_document_type_${index}`}
-                                                                            aria-invalid={!!typeError}
-                                                                            className={cn(
-                                                                                'h-9 w-full text-xs sm:text-sm',
-                                                                                typeError &&
-                                                                                'border-destructive focus-visible:ring-destructive'
-                                                                            )}
-                                                                        >
-                                                                            <SelectValue placeholder="Pilih jenis dokumen" />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            {DOCUMENT_TYPES.map((typeOption) => (
-                                                                                <SelectItem
-                                                                                    key={typeOption.value}
-                                                                                    value={typeOption.value}
-                                                                                >
-                                                                                    {typeOption.label}
-                                                                                </SelectItem>
-                                                                            ))}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                    {typeError && (
-                                                                        <p className="text-xs font-medium text-destructive">
-                                                                            {typeError}
-                                                                        </p>
-                                                                    )}
-                                                                </div>
-
-                                                                <div className="space-y-1">
-                                                                    <Label
-                                                                        htmlFor={`legal_document_number_${index}`}
-                                                                        className={cn(
-                                                                            'text-xs font-medium',
-                                                                            numberError && 'text-destructive'
-                                                                        )}
-                                                                    >
-                                                                        Nomor Dokumen (Opsional)
-                                                                    </Label>
-                                                                    <Input
-                                                                        id={`legal_document_number_${index}`}
-                                                                        type="text"
-                                                                        placeholder="Contoh: 1234567890123"
-                                                                        value={doc.document_number}
-                                                                        onChange={(e) =>
-                                                                            updateLegalDocument(
-                                                                                index,
-                                                                                'document_number',
-                                                                                e.target.value
-                                                                            )
-                                                                        }
-                                                                        disabled={processing}
-                                                                        aria-invalid={!!numberError}
-                                                                        className={cn(
-                                                                            'h-9 w-full text-xs sm:text-sm',
-                                                                            numberError &&
-                                                                            'border-destructive focus-visible:ring-destructive'
-                                                                        )}
-                                                                    />
-                                                                    {numberError && (
-                                                                        <p className="text-xs font-medium text-destructive">
-                                                                            {numberError}
-                                                                        </p>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-
-                                                            {fileError && (
-                                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
-                                                                    <AlertCircle className="size-3.5 shrink-0" />
-                                                                    <span>{fileError}</span>
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
+                                        {/* 1. Dokumen NPWP */}
+                                        <div className="space-y-2 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Label
+                                                    htmlFor="dokumen_npwp"
+                                                    className={cn(
+                                                        'text-xs font-semibold uppercase tracking-wider',
+                                                        (errors.dokumen_npwp || errors.file_npwp) ? 'text-destructive' : 'text-muted-foreground'
+                                                    )}
+                                                >
+                                                    1. Dokumen NPWP Perusahaan <span className="text-destructive">*</span>
+                                                </Label>
+                                                {data.tax_number && (
+                                                    <span className="text-xs text-muted-foreground font-mono">
+                                                        No: {data.tax_number}
+                                                    </span>
+                                                )}
                                             </div>
-                                        )}
+                                            <FileDropzone
+                                                value={data.dokumen_npwp}
+                                                onChange={(file) => {
+                                                    setData('dokumen_npwp', file);
+                                                    if (errors.dokumen_npwp || errors.file_npwp) {
+                                                        clearErrors('dokumen_npwp', 'file_npwp', 'legal_documents');
+                                                    }
+                                                }}
+                                                onError={(msg) => {
+                                                    setError('dokumen_npwp', msg);
+                                                    notify.error(msg);
+                                                }}
+                                                error={errors.dokumen_npwp || errors.file_npwp}
+                                                accept={PDF_ACCEPT}
+                                                maxSize={MAX_DOCUMENT_SIZE}
+                                                disabled={processing}
+                                                uploading={npwpFeedback.uploading}
+                                                progress={npwpFeedback.progress}
+                                                status={npwpFeedback.status}
+                                                label="Unggah Berkas NPWP"
+                                                description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
+                                            />
+                                            {(errors.dokumen_npwp || errors.file_npwp) && (
+                                                 <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                     <AlertCircle className="size-3.5 shrink-0" />
+                                                     <span>{errors.dokumen_npwp || errors.file_npwp}</span>
+                                                 </p>
+                                            )}
+                                        </div>
+
+                                        {/* 2. Dokumen NIB */}
+                                        <div className="space-y-2.5 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Label
+                                                    htmlFor="dokumen_nib"
+                                                    className={cn(
+                                                        'text-xs font-semibold uppercase tracking-wider',
+                                                        (errors.dokumen_nib || errors.file_nib) ? 'text-destructive' : 'text-muted-foreground'
+                                                    )}
+                                                >
+                                                    2. Dokumen NIB (Nomor Induk Berusaha) <span className="text-destructive">*</span>
+                                                </Label>
+                                            </div>
+                                            <FileDropzone
+                                                value={data.dokumen_nib}
+                                                onChange={(file) => {
+                                                    setData('dokumen_nib', file);
+                                                    if (errors.dokumen_nib || errors.file_nib) {
+                                                        clearErrors('dokumen_nib', 'file_nib', 'legal_documents');
+                                                    }
+                                                }}
+                                                onError={(msg) => {
+                                                    setError('dokumen_nib', msg);
+                                                    notify.error(msg);
+                                                }}
+                                                error={errors.dokumen_nib || errors.file_nib}
+                                                accept={PDF_ACCEPT}
+                                                maxSize={MAX_DOCUMENT_SIZE}
+                                                disabled={processing}
+                                                uploading={nibFeedback.uploading}
+                                                progress={nibFeedback.progress}
+                                                status={nibFeedback.status}
+                                                label="Unggah Berkas NIB"
+                                                description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
+                                            />
+                                            {(errors.dokumen_nib || errors.file_nib) && (
+                                                 <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                     <AlertCircle className="size-3.5 shrink-0" />
+                                                     <span>{errors.dokumen_nib || errors.file_nib}</span>
+                                                 </p>
+                                            )}
+                                            <div className="space-y-1 pt-1">
+                                                <Label
+                                                    htmlFor="vendor_nomor_nib"
+                                                    className={cn(
+                                                        'text-xs text-muted-foreground font-normal',
+                                                        errors.nomor_nib && 'text-destructive'
+                                                    )}
+                                                >
+                                                    Nomor NIB (Opsional)
+                                                </Label>
+                                                <Input
+                                                    id="vendor_nomor_nib"
+                                                    type="text"
+                                                    placeholder="Contoh: 1234567890123"
+                                                    value={data.nomor_nib}
+                                                    onChange={(e) => {
+                                                        setData('nomor_nib', e.target.value);
+                                                        if (errors.nomor_nib) clearErrors('nomor_nib');
+                                                    }}
+                                                    disabled={processing}
+                                                    aria-invalid={!!errors.nomor_nib}
+                                                    className={cn(
+                                                        'h-9 text-xs sm:text-sm',
+                                                        errors.nomor_nib && 'border-destructive focus-visible:ring-destructive'
+                                                    )}
+                                                />
+                                                {errors.nomor_nib && (
+                                                    <p className="text-xs font-medium text-destructive">
+                                                        {errors.nomor_nib}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* 3. Dokumen KTP Penanggung Jawab */}
+                                        <div className="space-y-2.5 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Label
+                                                    htmlFor="dokumen_ktp"
+                                                    className={cn(
+                                                        'text-xs font-semibold uppercase tracking-wider',
+                                                        (errors.dokumen_ktp || errors.file_ktp) ? 'text-destructive' : 'text-muted-foreground'
+                                                    )}
+                                                >
+                                                    3. Dokumen KTP Penanggung Jawab <span className="text-destructive">*</span>
+                                                </Label>
+                                            </div>
+                                            <FileDropzone
+                                                value={data.dokumen_ktp}
+                                                onChange={(file) => {
+                                                    setData('dokumen_ktp', file);
+                                                    if (errors.dokumen_ktp || errors.file_ktp) {
+                                                        clearErrors('dokumen_ktp', 'file_ktp', 'legal_documents');
+                                                    }
+                                                }}
+                                                onError={(msg) => {
+                                                    setError('dokumen_ktp', msg);
+                                                    notify.error(msg);
+                                                }}
+                                                error={errors.dokumen_ktp || errors.file_ktp}
+                                                accept={PDF_ACCEPT}
+                                                maxSize={MAX_DOCUMENT_SIZE}
+                                                disabled={processing}
+                                                uploading={ktpFeedback.uploading}
+                                                progress={ktpFeedback.progress}
+                                                status={ktpFeedback.status}
+                                                label="Unggah Berkas KTP Penanggung Jawab"
+                                                description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
+                                            />
+                                            {(errors.dokumen_ktp || errors.file_ktp) && (
+                                                 <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                     <AlertCircle className="size-3.5 shrink-0" />
+                                                     <span>{errors.dokumen_ktp || errors.file_ktp}</span>
+                                                 </p>
+                                            )}
+                                            <div className="space-y-1 pt-1">
+                                                <Label
+                                                    htmlFor="vendor_nomor_ktp"
+                                                    className={cn(
+                                                        'text-xs text-muted-foreground font-normal',
+                                                        errors.nomor_ktp && 'text-destructive'
+                                                    )}
+                                                >
+                                                    Nomor KTP / NIK Penanggung Jawab (Opsional)
+                                                </Label>
+                                                <Input
+                                                    id="vendor_nomor_ktp"
+                                                    type="text"
+                                                    placeholder="Contoh: 3171012345670001"
+                                                    value={data.nomor_ktp}
+                                                    onChange={(e) => {
+                                                        setData('nomor_ktp', e.target.value);
+                                                        if (errors.nomor_ktp) clearErrors('nomor_ktp');
+                                                    }}
+                                                    disabled={processing}
+                                                    aria-invalid={!!errors.nomor_ktp}
+                                                    className={cn(
+                                                        'h-9 text-xs sm:text-sm',
+                                                        errors.nomor_ktp && 'border-destructive focus-visible:ring-destructive'
+                                                    )}
+                                                />
+                                                {errors.nomor_ktp && (
+                                                    <p className="text-xs font-medium text-destructive">
+                                                        {errors.nomor_ktp}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             )}

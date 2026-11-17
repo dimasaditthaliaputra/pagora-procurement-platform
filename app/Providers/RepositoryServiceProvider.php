@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Repositories\Contracts\CommodityCategoryRepositoryInterface;
+use App\Repositories\Contracts\DokumenLegalitasTenantRepositoryInterface;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
 use App\Repositories\Contracts\KomoditasRepositoryInterface;
 use App\Repositories\Contracts\NotificationRepositoryInterface;
@@ -20,6 +21,7 @@ use App\Repositories\Contracts\UndanganVendorRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Contracts\VendorRepositoryInterface;
 use App\Repositories\Eloquent\CommodityCategoryRepository;
+use App\Repositories\Eloquent\DokumenLegalitasTenantRepository;
 use App\Repositories\Eloquent\DokumenLegalitasVendorRepository;
 use App\Repositories\Eloquent\KomoditasRepository;
 use App\Repositories\Eloquent\NotificationRepository;
@@ -66,6 +68,11 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             DokumenLegalitasVendorRepositoryInterface::class,
             DokumenLegalitasVendorRepository::class
+        );
+
+        $this->app->bind(
+            DokumenLegalitasTenantRepositoryInterface::class,
+            DokumenLegalitasTenantRepository::class
         );
 
         $this->app->bind(

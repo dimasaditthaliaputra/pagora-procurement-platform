@@ -107,12 +107,70 @@ export function DetailDialog({ tenant, open, onOpenChange, onApprove, onReject }
 
                     {/* Dokumen Legalitas */}
                     <div className="rounded-lg border p-3.5 space-y-2.5">
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                            <FileText className="size-3.5" />
-                            Berkas Legalitas
-                        </h4>
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                <FileText className="size-3.5" />
+                                Berkas Legalitas
+                            </h4>
+                            {Array.isArray(tenant.legal_documents) && tenant.legal_documents.length > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                    {tenant.legal_documents.length} Dokumen
+                                </span>
+                            )}
+                        </div>
 
-                        {tenant.has_legal_document ? (
+                        {Array.isArray(tenant.legal_documents) && tenant.legal_documents.length > 0 ? (
+                            <div className="space-y-2">
+                                {tenant.legal_documents.map((doc, idx) => {
+                                    const docLabel =
+                                        doc.document_type === 'npwp'
+                                            ? 'NPWP Perusahaan'
+                                            : doc.document_type === 'siup'
+                                                ? 'SIUP'
+                                                : doc.document_type === 'nib'
+                                                    ? 'NIB'
+                                                    : (doc.document_type || 'Dokumen');
+
+                                    return (
+                                        <div
+                                            key={doc.uuid || idx}
+                                            className="flex items-center justify-between gap-2 p-2.5 rounded-md bg-muted/40 border"
+                                        >
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <FileText className="size-4 text-emerald-600 shrink-0" />
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-medium text-foreground truncate">
+                                                        {docLabel}
+                                                    </p>
+                                                    <p className="text-[11px] text-muted-foreground truncate">
+                                                        {doc.document_number
+                                                            ? `No: ${doc.document_number}`
+                                                            : 'Nomor dokumen tidak dicantumkan'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {doc.file_url && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                    className="gap-1.5 text-xs h-8 shrink-0"
+                                                >
+                                                    <a
+                                                        href={doc.file_url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        <Download className="size-3.5" />
+                                                        Unduh
+                                                    </a>
+                                                </Button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : tenant.has_legal_document ? (
                             <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border">
                                 <div className="flex items-center gap-2">
                                     <FileText className="size-4 text-emerald-600 shrink-0" />

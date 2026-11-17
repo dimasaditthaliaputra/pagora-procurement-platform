@@ -8,6 +8,7 @@ use App\Enums\VerificationStatus;
 use Database\Factories\PerusahaanBuyerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -32,6 +33,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
+ * @property-read Collection<int, DokumenLegalitasTenant> $legalDocuments
  */
 #[Fillable([
     'uuid',
@@ -104,5 +106,10 @@ class PerusahaanBuyer extends Model
     public function purchaseOrders(): HasMany
     {
         return $this->hasMany(PurchaseOrder::class, 'perusahaan_buyer_id');
+    }
+
+    public function legalDocuments(): HasMany
+    {
+        return $this->hasMany(DokumenLegalitasTenant::class, 'tenant_id');
     }
 }

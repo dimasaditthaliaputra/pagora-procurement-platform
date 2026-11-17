@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Enums\VerificationStatus;
 use App\Mail\OtpMail;
+use App\Models\DokumenLegalitasTenant;
 use App\Models\PerusahaanBuyer;
 use App\Models\User;
 use App\Notifications\GoogleRegistrationPasswordNotification;
@@ -803,6 +804,145 @@ class AuthenticationTest extends TestCase
         $this->assertFalse(session()->has('google_user'));
     }
 
+    public function test_tenant_registration_succeeds_with_multiple_legal_documents_up_to_ten_files_and_optional_document_numbers(): void
+    {
+        Storage::fake('local');
+        $otp = $this->requestOtp('multi@tenant.co.id');
+
+        $docNpwp = UploadedFile::fake()->create('npwp-perusahaan.pdf', 300, 'application/pdf');
+        $docSiup = UploadedFile::fake()->create('siup-perusahaan.pdf', 400, 'application/pdf');
+        $docNib = UploadedFile::fake()->create('nib-perusahaan.pdf', 250, 'application/pdf');
+
+        $response = $this->post('/register', [
+            'name' => 'Direktur Multi Dokumen',
+            'email' => 'multi@tenant.co.id',
+            'otp' => $otp,
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Manufaktur Mandiri Sejahtera',
+            'nomor_npwp' => '02.345.678.9-012.000',
+            'telepon' => '081234567899',
+            'alamat' => 'Kawasan Industri Jababeka V, Cikarang',
+            'legal_documents' => [
+                [
+                    'document_type' => 'npwp',
+                    'document_number' => '02.345.678.9-012.000',
+                    'file' => $docNpwp,
+                ],
+                [
+                    'document_type' => 'siup',
+                    'document_number' => '510/012/SIUP/2026', // Opsional diisi
+                    'file' => $docSiup,
+                ],
+                [
+                    'document_type' => 'nib',
+                    'document_number' => '', // Opsional tidak diisi
+                    'file' => $docNib,
+                ],
+            ],
+        ]);
+
+        $response->assertRedirect(route('register.success'));
+
+        $tenant = PerusahaanBuyer::where('company_name', 'PT Manufaktur Mandiri Sejahtera')->first();
+        $this->assertNotNull($tenant);
+        assert($tenant instanceof PerusahaanBuyer);
+
+        // Periksa bahwa 3 dokumen legalitas tersimpan di tabel tenant_legal_documents
+        $legalDocs = DokumenLegalitasTenant::where('tenant_id', $tenant->id)->get();
+        $this->assertCount(3, $legalDocs);
+
+        $this->assertDatabaseHas('tenant_legal_documents', [
+            'tenant_id' => $tenant->id,
+            'document_type' => 'npwp',
+            'document_number' => '02.345.678.9-012.000',
+            'verification_status' => 'pending',
+        ]);
+
+        $this->assertDatabaseHas('tenant_legal_documents', [
+            'tenant_id' => $tenant->id,
+            'document_type' => 'siup',
+            'document_number' => '510/012/SIUP/2026',
+            'verification_status' => 'pending',
+        ]);
+
+        $this->assertDatabaseHas('tenant_legal_documents', [
+            'tenant_id' => $tenant->id,
+            'document_type' => 'nib',
+            'document_number' => null,
+            'verification_status' => 'pending',
+        ]);
+
+        // Periksa relasi legalDocuments pada model PerusahaanBuyer
+        $this->assertCount(3, $tenant->legalDocuments);
+
+        // Periksa berkas fisik tersimpan di disk local
+        foreach ($legalDocs as $lDoc) {
+            Storage::disk('local')->assertExists($lDoc->file_path);
+        }
+    }
+
+    public function test_tenant_registration_fails_when_no_npwp_in_legal_documents(): void
+    {
+        Storage::fake('local');
+        $otp = $this->requestOtp('nonpwp@tenant.co.id');
+
+        $docSiup = UploadedFile::fake()->create('siup.pdf', 300, 'application/pdf');
+
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Tanpa NPWP',
+            'email' => 'nonpwp@tenant.co.id',
+            'otp' => $otp,
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Tanpa NPWP',
+            'nomor_npwp' => '03.456.789.0-123.000',
+            'telepon' => '081234567800',
+            'alamat' => 'Jakarta Barat',
+            'legal_documents' => [
+                [
+                    'document_type' => 'siup',
+                    'file' => $docSiup,
+                ],
+            ],
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors(['legal_documents']);
+        $this->assertSame(0, PerusahaanBuyer::where('company_name', 'PT Tanpa NPWP')->count());
+    }
+
+    public function test_tenant_registration_fails_when_legal_documents_exceed_ten_files(): void
+    {
+        Storage::fake('local');
+        $otp = $this->requestOtp('eleven@tenant.co.id');
+
+        $elevenDocs = [];
+        for ($i = 1; $i <= 11; $i++) {
+            $elevenDocs[] = [
+                'document_type' => $i === 1 ? 'npwp' : 'siup',
+                'file' => UploadedFile::fake()->create("doc-{$i}.pdf", 100, 'application/pdf'),
+            ];
+        }
+
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Sebelas Dokumen',
+            'email' => 'eleven@tenant.co.id',
+            'otp' => $otp,
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Melebihi Kuota',
+            'nomor_npwp' => '04.567.890.1-234.000',
+            'telepon' => '081234567801',
+            'alamat' => 'Jakarta Timur',
+            'legal_documents' => $elevenDocs,
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors(['legal_documents']);
+        $this->assertSame(0, PerusahaanBuyer::where('company_name', 'PT Melebihi Kuota')->count());
+    }
+
     public function test_cancel_google_auth_clears_session_and_redirects(): void
     {
         $response = $this->withSession([
@@ -823,5 +963,51 @@ class AuthenticationTest extends TestCase
 
         $response->assertRedirect('/login');
         $this->assertGuest();
+    }
+
+    public function test_tenant_registration_succeeds_with_individual_npwp_nib_and_ktp_files(): void
+    {
+        Storage::fake('local');
+        $otp = $this->requestOtp('tenant.tiga.dokumen@perusahaan.co.id');
+
+        $npwpFile = UploadedFile::fake()->create('scan_npwp_tenant.pdf', 500, 'application/pdf');
+        $nibFile = UploadedFile::fake()->create('scan_nib_tenant.pdf', 600, 'application/pdf');
+        $ktpFile = UploadedFile::fake()->create('scan_ktp_tenant.pdf', 400, 'application/pdf');
+
+        $response = $this->post('/register', [
+            'name' => 'Direktur Utama Tenant Tiga',
+            'email' => 'tenant.tiga.dokumen@perusahaan.co.id',
+            'otp' => $otp,
+            'password' => 'TenantPassword123#',
+            'password_confirmation' => 'TenantPassword123#',
+            'nama_perusahaan' => 'PT Tiga Dokumen Tenant Perkasa',
+            'nomor_npwp' => '05.678.901.2-345.000',
+            'nomor_nib' => 'NIB-TENANT-998811',
+            'nomor_ktp' => '3271012345670002',
+            'telepon' => '081211112222',
+            'alamat' => 'Sudirman Central Business District, Jakarta',
+            'dokumen_npwp' => $npwpFile,
+            'dokumen_nib' => $nibFile,
+            'dokumen_ktp' => $ktpFile,
+        ]);
+
+        $response->assertRedirect(route('register.success'));
+
+        $tenant = PerusahaanBuyer::where('company_name', 'PT Tiga Dokumen Tenant Perkasa')->first();
+        $this->assertNotNull($tenant);
+
+        $documents = $tenant->legalDocuments;
+        $this->assertCount(3, $documents);
+
+        $docTypes = $documents->pluck('document_type')->all();
+        $this->assertContains('npwp', $docTypes);
+        $this->assertContains('nib', $docTypes);
+        $this->assertContains('ktp', $docTypes);
+
+        foreach ($documents as $doc) {
+            Storage::disk('local')->assertExists($doc->file_path);
+            $filename = basename($doc->file_path);
+            $this->assertMatchesRegularExpression('/^tenant_\d+_(npwp|nib|ktp)\.pdf$/', $filename);
+        }
     }
 }

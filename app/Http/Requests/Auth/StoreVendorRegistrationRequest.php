@@ -65,6 +65,18 @@ class StoreVendorRegistrationRequest extends FormRequest
             ]);
         }
 
+        if ($this->hasFile('file_npwp') && ! $this->hasFile('dokumen_npwp')) {
+            $this->files->set('dokumen_npwp', $this->file('file_npwp'));
+        }
+
+        if ($this->hasFile('file_nib') && ! $this->hasFile('dokumen_nib')) {
+            $this->files->set('dokumen_nib', $this->file('file_nib'));
+        }
+
+        if ($this->hasFile('file_ktp') && ! $this->hasFile('dokumen_ktp')) {
+            $this->files->set('dokumen_ktp', $this->file('file_ktp'));
+        }
+
         if ($this->has('legal_documents') && is_array($this->input('legal_documents'))) {
             $docs = $this->input('legal_documents');
             foreach ($docs as $idx => $doc) {
@@ -168,11 +180,42 @@ class StoreVendorRegistrationRequest extends FormRequest
                     ->where('is_active', true)
                     ->whereNull('deleted_at'),
             ],
-            'legal_documents' => ['required', 'array', 'min:1'],
-            'legal_documents.*.document_type' => ['required', 'string', Rule::in(['npwp', 'siup', 'nib'])],
+            'dokumen_npwp' => [
+                'required_without:legal_documents',
+                'file',
+                'mimes:pdf',
+                'min:1',
+                'max:5120',
+            ],
+            'dokumen_nib' => [
+                'required_without:legal_documents',
+                'file',
+                'mimes:pdf',
+                'min:1',
+                'max:5120',
+            ],
+            'dokumen_ktp' => [
+                'required_without:legal_documents',
+                'file',
+                'mimes:pdf',
+                'min:1',
+                'max:5120',
+            ],
+            'file_npwp' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'file_nib' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'file_ktp' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'nomor_nib' => ['nullable', 'string', 'max:100'],
+            'nomor_ktp' => ['nullable', 'string', 'max:100'],
+            'legal_documents' => [
+                'required_without_all:dokumen_npwp,file_npwp',
+                'array',
+                'min:1',
+                'max:10',
+            ],
+            'legal_documents.*.document_type' => ['required_with:legal_documents', 'string', Rule::in(['npwp', 'siup', 'nib', 'ktp', 'ktp_penanggung_jawab'])],
             'legal_documents.*.document_number' => ['nullable', 'string', 'max:100'],
             'legal_documents.*.file' => [
-                'required',
+                'required_with:legal_documents',
                 'file',
                 'mimes:pdf',
                 'min:1', // Minimal 1 KB (mencegah file 0 byte)
@@ -191,8 +234,29 @@ class StoreVendorRegistrationRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
+            $hasFieldFiles = $this->hasFile('dokumen_npwp') || $this->hasFile('dokumen_nib') || $this->hasFile('dokumen_ktp');
             $docs = $this->input('legal_documents', []);
-            if (is_array($docs)) {
+
+            if (! $hasFieldFiles && (! is_array($docs) || count($docs) === 0)) {
+                $validator->errors()->add('dokumen_npwp', 'Dokumen NPWP Perusahaan wajib diunggah.');
+                $validator->errors()->add('dokumen_nib', 'Dokumen NIB Perusahaan wajib diunggah.');
+                $validator->errors()->add('dokumen_ktp', 'Dokumen KTP Penanggung Jawab wajib diunggah.');
+                $validator->errors()->add('legal_documents', 'Dokumen legalitas NPWP Perusahaan wajib diunggah.');
+
+                return;
+            }
+
+            if ($hasFieldFiles) {
+                if (! $this->hasFile('dokumen_npwp')) {
+                    $validator->errors()->add('dokumen_npwp', 'Dokumen NPWP Perusahaan wajib diunggah.');
+                }
+                if (! $this->hasFile('dokumen_nib')) {
+                    $validator->errors()->add('dokumen_nib', 'Dokumen NIB Perusahaan wajib diunggah.');
+                }
+                if (! $this->hasFile('dokumen_ktp')) {
+                    $validator->errors()->add('dokumen_ktp', 'Dokumen KTP Penanggung Jawab wajib diunggah.');
+                }
+            } elseif (is_array($docs) && count($docs) > 0) {
                 $hasNpwp = collect($docs)->contains(function ($doc): bool {
                     return is_array($doc) && ($doc['document_type'] ?? null) === 'npwp';
                 });
@@ -260,11 +324,30 @@ class StoreVendorRegistrationRequest extends FormRequest
             'commodity_category_uuids.*.uuid' => 'Kategori komoditas tidak valid.',
             'commodity_category_uuids.*.exists' => 'Kategori komoditas yang dipilih tidak ditemukan atau tidak aktif.',
 
+            'dokumen_npwp.required' => 'Dokumen NPWP Perusahaan wajib diunggah.',
+            'dokumen_npwp.file' => 'Berkas dokumen NPWP harus berupa file yang valid.',
+            'dokumen_npwp.mimes' => 'Format berkas dokumen NPWP harus berupa PDF (.pdf).',
+            'dokumen_npwp.min' => 'Berkas dokumen NPWP tidak boleh kosong (minimal 1 KB).',
+            'dokumen_npwp.max' => 'Ukuran berkas dokumen NPWP tidak boleh lebih dari 5 MB.',
+
+            'dokumen_nib.required' => 'Dokumen NIB Perusahaan wajib diunggah.',
+            'dokumen_nib.file' => 'Berkas dokumen NIB harus berupa file yang valid.',
+            'dokumen_nib.mimes' => 'Format berkas dokumen NIB harus berupa PDF (.pdf).',
+            'dokumen_nib.min' => 'Berkas dokumen NIB tidak boleh kosong (minimal 1 KB).',
+            'dokumen_nib.max' => 'Ukuran berkas dokumen NIB tidak boleh lebih dari 5 MB.',
+
+            'dokumen_ktp.required' => 'Dokumen KTP Penanggung Jawab wajib diunggah.',
+            'dokumen_ktp.file' => 'Berkas dokumen KTP harus berupa file yang valid.',
+            'dokumen_ktp.mimes' => 'Format berkas dokumen KTP harus berupa PDF (.pdf).',
+            'dokumen_ktp.min' => 'Berkas dokumen KTP tidak boleh kosong (minimal 1 KB).',
+            'dokumen_ktp.max' => 'Ukuran berkas dokumen KTP tidak boleh lebih dari 5 MB.',
+
             'legal_documents.required' => 'Unggah minimal satu dokumen legalitas (NPWP/SIUP/NIB) berformat PDF.',
             'legal_documents.array' => 'Format daftar dokumen legalitas tidak valid.',
             'legal_documents.min' => 'Unggah minimal satu dokumen legalitas (NPWP/SIUP/NIB) berformat PDF.',
+            'legal_documents.max' => 'Maksimal 10 dokumen legalitas yang dapat diunggah.',
             'legal_documents.*.document_type.required' => 'Jenis dokumen legalitas wajib dipilih.',
-            'legal_documents.*.document_type.in' => 'Jenis dokumen legalitas harus berupa NPWP, SIUP, atau NIB.',
+            'legal_documents.*.document_type.in' => 'Jenis dokumen legalitas harus berupa NPWP, SIUP, NIB, atau KTP.',
             'legal_documents.*.document_number.max' => 'Nomor dokumen tidak boleh lebih dari 100 karakter.',
             'legal_documents.*.file.required' => 'File dokumen legalitas wajib diunggah.',
             'legal_documents.*.file.file' => 'Dokumen legalitas harus berupa file yang valid.',
@@ -291,6 +374,9 @@ class StoreVendorRegistrationRequest extends FormRequest
             'phone' => 'nomor telepon',
             'address' => 'alamat lengkap',
             'commodity_category_uuids' => 'kategori komoditas',
+            'dokumen_npwp' => 'dokumen NPWP perusahaan',
+            'dokumen_nib' => 'dokumen NIB perusahaan',
+            'dokumen_ktp' => 'dokumen KTP penanggung jawab',
             'legal_documents' => 'dokumen legalitas',
             'legal_documents.*.file' => 'file dokumen legalitas',
             'legal_documents.*.document_type' => 'jenis dokumen legalitas',

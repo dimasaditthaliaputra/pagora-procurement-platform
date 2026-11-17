@@ -11,6 +11,7 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Role;
 use App\Models\User;
 use App\Notifications\GoogleRegistrationPasswordNotification;
+use App\Repositories\Contracts\DokumenLegalitasTenantRepositoryInterface;
 use App\Repositories\Contracts\PerusahaanBuyerRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Auth\Events\PasswordReset;
@@ -22,17 +23,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\LoginRateLimiter;
 use Laravel\Socialite\Facades\Socialite;
-use RuntimeException;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Throwable;
 
 class AuthService
 {
+    private readonly DokumenLegalitasTenantRepositoryInterface $dokumenTenantRepository;
+
+    private readonly FileStorageService $fileStorage;
+
     /**
      * Create a new AuthService instance.
      */
@@ -40,8 +43,13 @@ class AuthService
         private readonly UserRepositoryInterface $userRepository,
         private readonly LoginRateLimiter $limiter,
         private readonly OtpService $otpService,
-        private readonly PerusahaanBuyerRepositoryInterface $perusahaanBuyerRepository
-    ) {}
+        private readonly PerusahaanBuyerRepositoryInterface $perusahaanBuyerRepository,
+        ?DokumenLegalitasTenantRepositoryInterface $dokumenTenantRepository = null,
+        ?FileStorageService $fileStorage = null
+    ) {
+        $this->dokumenTenantRepository = $dokumenTenantRepository ?? app(DokumenLegalitasTenantRepositoryInterface::class);
+        $this->fileStorage = $fileStorage ?? app(FileStorageService::class);
+    }
 
     /**
      * Authenticate user with email and password.
@@ -405,86 +413,187 @@ class AuthService
             ? trim((string) $request->input('alamat'))
             : ($request->filled('address') ? trim((string) $request->input('address')) : null);
 
-        $file = $request->file('dokumen_npwp') ?? $request->file('legal_document') ?? $request->file('file_npwp');
-        $documentPath = null;
+        $timestamp = now()->timestamp;
+        $tenantFieldMap = [
+            'npwp' => [
+                'file' => $request->file('dokumen_npwp') ?? $request->file('file_npwp') ?? $request->file('legal_document'),
+                'number' => $nomorNpwp,
+            ],
+            'nib' => [
+                'file' => $request->file('dokumen_nib') ?? $request->file('file_nib'),
+                'number' => $request->filled('nomor_nib') ? trim((string) $request->input('nomor_nib')) : null,
+            ],
+            'ktp' => [
+                'file' => $request->file('dokumen_ktp') ?? $request->file('file_ktp'),
+                'number' => $request->filled('nomor_ktp') ? trim((string) $request->input('nomor_ktp')) : null,
+            ],
+        ];
 
-        if ($file instanceof UploadedFile) {
-            $extension = strtolower($file->guessExtension() ?: 'bin');
-            $filename = Str::uuid()->toString().'.'.$extension;
-
-            $documentPath = $file->storeAs(
-                'perusahaan/legalitas',
-                $filename,
-                'local'
-            );
-
-            if ($documentPath === false) {
-                throw new RuntimeException('Dokumen legalitas gagal disimpan.');
+        $documentsToStore = [];
+        foreach ($tenantFieldMap as $type => $info) {
+            if ($info['file'] instanceof UploadedFile) {
+                $documentsToStore[] = [
+                    'file' => $info['file'],
+                    'document_type' => $type,
+                    'document_number' => $info['number'],
+                ];
             }
         }
 
+        if (count($documentsToStore) === 0) {
+            $rawDocuments = $request->input('legal_documents');
+            $rawFiles = $request->file('legal_documents');
+
+            if (is_array($rawDocuments) && count($rawDocuments) > 0) {
+                foreach ($rawDocuments as $idx => $doc) {
+                    $file = null;
+                    if (is_array($rawFiles) && isset($rawFiles[$idx])) {
+                        $file = is_array($rawFiles[$idx]) ? ($rawFiles[$idx]['file'] ?? null) : $rawFiles[$idx];
+                    }
+                    if (! $file instanceof UploadedFile) {
+                        $file = $request->file("legal_documents.{$idx}.file");
+                    }
+
+                    if ($file instanceof UploadedFile) {
+                        $documentsToStore[] = [
+                            'file' => $file,
+                            'document_type' => (string) ($doc['document_type'] ?? 'npwp'),
+                            'document_number' => isset($doc['document_number']) && trim((string) $doc['document_number']) !== ''
+                                ? trim((string) $doc['document_number'])
+                                : null,
+                        ];
+                    }
+                }
+            }
+        }
+
+        $storedDocuments = [];
         try {
-            $user = DB::transaction(function () use ($name, $email, $password, $googleId, $avatar, $namaPerusahaan, $nomorNpwp, $telepon, $alamat, $documentPath): User {
-                $perusahaan = $this->perusahaanBuyerRepository->create([
-                    'company_name' => $namaPerusahaan,
-                    'tax_number' => $nomorNpwp,
-                    'phone' => $telepon,
-                    'legal_document_path' => $documentPath,
-                    'address' => $alamat,
-                    'verification_status' => VerificationStatus::Pending,
-                    'is_active' => true,
-                ]);
-
-                $ownerRole = Role::where('name', RoleName::Owner->value)->first()
-                    ?? Role::where('name', 'owner')->first()
-                    ?? Role::where('name', 'purchasing')->first();
-                $roleId = $ownerRole ? (int) $ownerRole->getKey() : 6;
-
-                return $this->userRepository->create([
-                    'name' => $name,
-                    'email' => $email,
-                    'password' => Hash::make($password),
-                    'google_id' => $googleId ?: null,
-                    'avatar' => $avatar ?: null,
-                    'role_id' => $roleId,
-                    'tenant_id' => (int) $perusahaan->getKey(),
-                    'is_active' => true,
-                    'email_verified_at' => now(),
-                ]);
-            });
-        } catch (QueryException $e) {
-            if ($documentPath !== null) {
-                Storage::disk('local')->delete($documentPath);
+            foreach ($documentsToStore as $docItem) {
+                $extension = strtolower($docItem['file']->guessExtension() ?: 'pdf');
+                $customFilename = sprintf('tenant_%d_%s.%s', $timestamp, $docItem['document_type'], $extension);
+                $storedDocuments[] = [
+                    'document_type' => $docItem['document_type'],
+                    'document_number' => $docItem['document_number'],
+                    'file_path' => $this->fileStorage->store(
+                        $docItem['file'],
+                        'perusahaan/legalitas',
+                        'local',
+                        customFilename: $customFilename
+                    ),
+                ];
             }
-
-            $message = $e->getMessage();
-
-            if (
-                str_contains($message, 'ux_tenants_tax_number')
-                || (str_contains($message, 'tax_number') && (str_contains($message, 'UNIQUE') || str_contains($message, 'duplicate') || str_contains($message, 'Integrity constraint violation')))
-            ) {
-                throw ValidationException::withMessages([
-                    'nomor_npwp' => 'Nomor NPWP ini sudah terdaftar dalam sistem.',
-                ]);
-            }
-
-            if (
-                str_contains($message, 'ux_users_email')
-                || (str_contains($message, 'email') && (str_contains($message, 'UNIQUE') || str_contains($message, 'duplicate') || str_contains($message, 'Integrity constraint violation')))
-            ) {
-                throw ValidationException::withMessages([
-                    'email' => 'Alamat email ini sudah terdaftar dalam sistem.',
-                ]);
-            }
-
-            throw $e;
         } catch (Throwable $e) {
-            if ($documentPath !== null) {
-                Storage::disk('local')->delete($documentPath);
+            foreach ($storedDocuments as $stored) {
+                $this->fileStorage->delete('local', $stored['file_path']);
             }
 
             throw $e;
         }
+
+        $storedPaths = array_column($storedDocuments, 'file_path');
+        $primaryDocumentPath = null;
+        foreach ($storedDocuments as $sDoc) {
+            if ($sDoc['document_type'] === 'npwp') {
+                $primaryDocumentPath = $sDoc['file_path'];
+                break;
+            }
+        }
+        if ($primaryDocumentPath === null && count($storedDocuments) > 0) {
+            $primaryDocumentPath = $storedDocuments[0]['file_path'];
+        }
+
+        $user = $this->fileStorage->rollbackOnFailure('local', $storedPaths, function () use (
+            $name,
+            $email,
+            $password,
+            $googleId,
+            $avatar,
+            $namaPerusahaan,
+            $nomorNpwp,
+            $telepon,
+            $alamat,
+            $primaryDocumentPath,
+            $storedDocuments
+        ): User {
+            try {
+                return DB::transaction(function () use (
+                    $name,
+                    $email,
+                    $password,
+                    $googleId,
+                    $avatar,
+                    $namaPerusahaan,
+                    $nomorNpwp,
+                    $telepon,
+                    $alamat,
+                    $primaryDocumentPath,
+                    $storedDocuments
+                ): User {
+                    $perusahaan = $this->perusahaanBuyerRepository->create([
+                        'company_name' => $namaPerusahaan,
+                        'tax_number' => $nomorNpwp,
+                        'phone' => $telepon,
+                        'legal_document_path' => $primaryDocumentPath,
+                        'address' => $alamat,
+                        'verification_status' => VerificationStatus::Pending,
+                        'is_active' => true,
+                    ]);
+
+                    foreach ($storedDocuments as $sDoc) {
+                        $this->dokumenTenantRepository->create([
+                            'tenant_id' => (int) $perusahaan->getKey(),
+                            'document_type' => $sDoc['document_type'],
+                            'document_number' => $sDoc['document_number'],
+                            'file_path' => $sDoc['file_path'],
+                            'verification_status' => VerificationStatus::Pending,
+                            'verified_by' => null,
+                            'verified_at' => null,
+                            'rejection_reason' => null,
+                        ]);
+                    }
+
+                    $ownerRole = Role::where('name', RoleName::Owner->value)->first()
+                        ?? Role::where('name', 'owner')->first()
+                        ?? Role::where('name', 'purchasing')->first();
+                    $roleId = $ownerRole ? (int) $ownerRole->getKey() : 6;
+
+                    return $this->userRepository->create([
+                        'name' => $name,
+                        'email' => $email,
+                        'password' => Hash::make($password),
+                        'google_id' => $googleId ?: null,
+                        'avatar' => $avatar ?: null,
+                        'role_id' => $roleId,
+                        'tenant_id' => (int) $perusahaan->getKey(),
+                        'is_active' => true,
+                        'email_verified_at' => now(),
+                    ]);
+                });
+            } catch (QueryException $e) {
+                $message = $e->getMessage();
+
+                if (
+                    str_contains($message, 'ux_tenants_tax_number')
+                    || (str_contains($message, 'tax_number') && (str_contains($message, 'UNIQUE') || str_contains($message, 'duplicate') || str_contains($message, 'Integrity constraint violation')))
+                ) {
+                    throw ValidationException::withMessages([
+                        'nomor_npwp' => 'Nomor NPWP ini sudah terdaftar dalam sistem.',
+                    ]);
+                }
+
+                if (
+                    str_contains($message, 'ux_users_email')
+                    || (str_contains($message, 'email') && (str_contains($message, 'UNIQUE') || str_contains($message, 'duplicate') || str_contains($message, 'Integrity constraint violation')))
+                ) {
+                    throw ValidationException::withMessages([
+                        'email' => 'Alamat email ini sudah terdaftar dalam sistem.',
+                    ]);
+                }
+
+                throw $e;
+            }
+        });
 
         if ($isGoogleRegistration && $defaultPassword !== null) {
             try {

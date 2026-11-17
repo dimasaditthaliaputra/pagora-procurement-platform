@@ -1,0 +1,303 @@
+{
+  "meta": {
+    "title": "Syarat dan Ketentuan Penggunaan PAGORA",
+    "version": "1.0",
+    "effective_date": "{{TANGGAL_BERLAKU}}",
+    "language": "id",
+    "operator_name": "{{NAMA_PENYELENGGARA}}",
+    "contact_email": "{{EMAIL_KONTAK}}",
+    "jurisdiction": "{{YURISDIKSI}}",
+    "placeholders_to_fill": [
+      "{{TANGGAL_BERLAKU}}",
+      "{{NAMA_PENYELENGGARA}}",
+      "{{EMAIL_KONTAK}}",
+      "{{YURISDIKSI}}"
+    ],
+    "drafting_notes": [
+      "Isi disusun dari PRD.md (rev. 5). Bila PRD berubah, S&K perlu ditinjau ulang.",
+      "Pasal 10 (pembayaran) menyebut Payment Gateway tanpa menyebut nama penyedia. Saat ini PRD hanya mencakup mode sandbox; sesuaikan sebelum rilis produksi.",
+      "Pasal 15 (data pribadi) dan Pasal 22 (hukum) adalah draf umum dan sebaiknya ditinjau penasihat hukum sebelum dipublikasikan."
+    ]
+  },
+  "sections": [
+    {
+      "number": 1,
+      "id": "definisi",
+      "title": "Definisi",
+      "clauses": [
+        "\"PAGORA\" adalah aplikasi web portal e-procurement B2B multi-tenant untuk pengadaan bahan baku industri yang diselenggarakan oleh {{NAMA_PENYELENGGARA}} (\"Penyelenggara\").",
+        "\"Tenant\" adalah perusahaan pembeli yang terdaftar di PAGORA.",
+        "\"Vendor\" adalah perusahaan pemasok yang terdaftar di PAGORA.",
+        "\"Pengguna\" adalah setiap orang yang memiliki akun PAGORA, yaitu Superadmin, Owner, Manajemen, Purchasing/Finance, QC Gudang, atau Vendor.",
+        "\"Superadmin\" adalah pengelola platform PAGORA yang memverifikasi pendaftaran dan mengelola data master.",
+        "\"Owner\" adalah pengguna yang mendaftarkan Tenant dan mengelola perusahaan serta anggota internalnya.",
+        "\"Purchase Order\" atau \"PO\" adalah dokumen pemesanan barang dari Tenant kepada Vendor di PAGORA.",
+        "\"Harga Pagu\" adalah rekomendasi batas harga wajar tertinggi yang dihitung PAGORA dengan Regresi Linier dari data API Harga Pangan Bank Indonesia.",
+        "\"3-Way Matching\" adalah pencocokan otomatis per item antara PO, penerimaan barang di gudang, dan invoice.",
+        "\"Sengketa\" adalah perselisihan atas suatu transaksi yang dicatat di PAGORA beserta \"Log Sengketa\"-nya.",
+        "\"Payment Gateway\" adalah layanan pembayaran pihak ketiga yang terintegrasi dengan PAGORA."
+      ]
+    },
+    {
+      "number": 2,
+      "id": "ruang-lingkup",
+      "title": "Ruang Lingkup dan Sifat Layanan",
+      "clauses": [
+        "PAGORA menyediakan sarana digital untuk siklus pengadaan: kemitraan, Purchase Order, negosiasi harga per item, pelaporan pengiriman, inspeksi barang, penerbitan invoice, verifikasi tagihan, pembayaran, dan pengelolaan sengketa.",
+        "PAGORA hanya berperan sebagai penyedia platform. Perjanjian jual beli dibuat langsung antara Tenant dan Vendor. Penyelenggara bukan pihak dalam transaksi tersebut dan tidak menjamin kualitas, kuantitas, keaslian, maupun pengiriman barang.",
+        "PAGORA berupa aplikasi web responsif. Tidak ada aplikasi mobile native.",
+        "Status pengiriman dicatat secara manual oleh Vendor. PAGORA tidak terhubung dengan sistem pelacakan kurir dan tidak menjamin ketepatan data pengiriman yang dilaporkan Vendor.",
+        "PAGORA tidak menyediakan paket langganan berbayar untuk Tenant pada saat S&K ini berlaku. Bila ketentuan biaya dikenakan di kemudian hari, ketentuan itu diberlakukan melalui perubahan S&K sesuai Pasal 21."
+      ]
+    },
+    {
+      "number": 3,
+      "id": "pendaftaran",
+      "title": "Pendaftaran dan Verifikasi Akun",
+      "clauses": [
+        "Pendaftaran Tenant dan Vendor hanya untuk badan usaha yang sah dan diwakili oleh orang yang berwenang. Dengan mendaftar, Anda menyatakan berwenang mengikat perusahaan Anda pada S&K ini.",
+        "Pendaftaran dapat dilakukan dengan email bisnis dan kata sandi, atau dengan akun Google. Pada pendaftaran manual, email bisnis wajib diverifikasi dengan kode OTP 6 digit. Pada pendaftaran dengan Google, identitas dan email diverifikasi melalui Google OAuth, dan PAGORA membuat kata sandi default yang dikirim ke email Google Anda. Anda disarankan segera menggantinya.",
+        "Tenant wajib menyerahkan nama perusahaan, NPWP, nomor telepon, alamat, dan dokumen legalitas (NPWP atau Surat Izin Usaha). Vendor wajib menyerahkan nama perusahaan, NPWP, nomor telepon, alamat, minimal satu kategori komoditas, dan dokumen legalitas (NPWP wajib; SIUP/NIB opsional).",
+        "Berkas unggahan berformat sesuai ketentuan yang tampil di form dan berukuran maksimal 5 MB per berkas.",
+        "Data yang Anda berikan harus benar, lengkap, dan terkini. Anda bertanggung jawab atas keakuratannya dan wajib memperbaruinya bila berubah.",
+        "Setiap pendaftaran Tenant dan legalitas Vendor diverifikasi Superadmin. Sebelum disetujui, akun tidak dapat digunakan untuk login. Superadmin dapat menolak pendaftaran dengan menyebutkan alasan melalui email.",
+        "Vendor dapat mendaftar secara mandiri atau melalui tautan undangan dari Tenant. Tautan undangan bersifat unik, memiliki masa berlaku, dan tidak boleh dialihkan kepada pihak lain."
+      ]
+    },
+    {
+      "number": 4,
+      "id": "peran-dan-akses",
+      "title": "Peran dan Hak Akses",
+      "clauses": [
+        "Hak akses ditentukan oleh peran: Superadmin, Owner, Manajemen, Purchasing/Finance, QC Gudang, dan Vendor. Anda hanya boleh menggunakan fitur yang tersedia untuk peran Anda.",
+        "Owner dapat menambahkan anggota internal dengan peran Manajemen, Purchasing/Finance, atau QC Gudang, melalui akun langsung dengan kata sandi default atau melalui undangan email. Owner tidak dapat memberikan peran Superadmin.",
+        "Owner bertanggung jawab atas seluruh tindakan anggota internal Tenant-nya di PAGORA, termasuk pemberian, perubahan, dan pencabutan akses.",
+        "Data antar-Tenant terisolasi. Vendor tidak dapat mengakses halaman internal Tenant, dan pengguna hanya dapat mengakses PO yang terkait dengannya. Superadmin dapat melihat data lintas Tenant sebatas untuk pengelolaan platform.",
+        "Tindakan di PAGORA dicatat dan dikaitkan dengan akun yang melakukannya."
+      ]
+    },
+    {
+      "number": 5,
+      "id": "keamanan-akun",
+      "title": "Keamanan Akun dan Sesi",
+      "clauses": [
+        "Anda wajib menjaga kerahasiaan kata sandi dan akses ke akun Google yang terhubung. Setiap aktivitas yang dilakukan melalui akun Anda dianggap dilakukan oleh Anda.",
+        "Segera hubungi {{EMAIL_KONTAK}} bila Anda menduga akun Anda digunakan tanpa izin.",
+        "Sesi login berakhir otomatis setelah 30 menit tidak aktif. Fitur \"Ingat Saya\" berlaku paling lama 30 hari. Sesi dapat diputus paksa bila akun diblokir.",
+        "Tautan reset kata sandi berlaku 60 menit dan hanya dapat digunakan sekali.",
+        "Login ditolak bila akun tidak aktif atau dihapus, Tenant atau Vendor belum disetujui verifikasinya, atau Vendor diblokir secara global."
+      ]
+    },
+    {
+      "number": 6,
+      "id": "kerja-sama-dan-pemblokiran",
+      "title": "Kerja Sama dan Pemblokiran Vendor",
+      "clauses": [
+        "Purchase Order hanya dapat dibuat kepada Vendor yang berstatus kerja sama \"Disepakati\" dengan Tenant dan tidak sedang diblokir.",
+        "Pengajuan kerja sama dapat diterima atau ditolak oleh pihak yang diajak. Penolakan disertai catatan alasan.",
+        "Kerja sama tidak dapat dibatalkan selama masih ada PO yang belum selesai atau dibatalkan, atau masih ada Sengketa terbuka.",
+        "Tenant dapat memblokir Vendor dengan menyebutkan alasan. Pemblokiran per Tenant tidak menghentikan PO yang sedang berjalan, tetapi PO baru kepada Vendor tersebut tidak dapat dibuat sampai blokir dibuka.",
+        "Superadmin dapat memblokir Vendor secara global, yang mencabut akses dan memutus seluruh sesi akun Vendor. Alasan, waktu, dan pelaku pemblokiran dicatat."
+      ]
+    },
+    {
+      "number": 7,
+      "id": "harga-pagu",
+      "title": "Harga Pagu dan Analitik Harga",
+      "clauses": [
+        "Harga Pagu dihitung dari data API Harga Pangan Bank Indonesia dengan metode Regresi Linier. Harga Pagu hanyalah alat bantu pengambilan keputusan, bukan penawaran harga, jaminan harga, atau saran keuangan. Keputusan harga sepenuhnya ada pada Tenant.",
+        "Hasil prediksi dapat tidak akurat, terutama bila data historis terbatas. Bila API Bank Indonesia tidak dapat diakses, PAGORA menampilkan data terakhir yang tersimpan beserta waktu pembaruannya. Prediksi tidak tersedia untuk komoditas yang tidak ada di API tersebut.",
+        "Harga Pagu dan estimasi harga internal Tenant hanya terlihat oleh pihak Tenant. Keduanya tidak ditampilkan atau dikirim kepada Vendor."
+      ]
+    },
+    {
+      "number": 8,
+      "id": "po-dan-negosiasi",
+      "title": "Purchase Order dan Negosiasi",
+      "clauses": [
+        "PO dapat memuat satu atau lebih item. Estimasi harga satuan hanya acuan anggaran. Harga final per item ditentukan dari hasil negosiasi.",
+        "Draf PO dapat diubah atau dihapus selama berstatus Draft. PO dapat dibatalkan selama belum berstatus Disepakati, dan pembatalan wajib disertai alasan yang disimpan pada PO.",
+        "Negosiasi dilakukan per item melalui Smart Negotiation Chat yang terikat pada satu PO. Item yang tidak disepakati dikeluarkan dari PO. Bila tidak ada item tersisa, PO berstatus Dibatalkan.",
+        "Setelah seluruh item tersisa disepakati, PO berstatus Disepakati. Dokumen dan harga final terkunci, dan chat menjadi hanya-baca. Persetujuan harga di PAGORA oleh pengguna yang berwenang mengikat Tenant atau Vendor yang diwakilinya.",
+        "Tenant hanya dapat memesan komoditas yang diaktifkannya di PAGORA."
+      ]
+    },
+    {
+      "number": 9,
+      "id": "pengiriman-dan-inspeksi",
+      "title": "Pengiriman dan Inspeksi Barang",
+      "clauses": [
+        "Vendor wajib mengisi form pengiriman secara benar, yaitu jalur pengiriman, nama armada, nomor plat, dan perkiraan tanggal tiba. Setelah form disimpan, kuantitas PO terkunci dan tidak dapat diubah.",
+        "Inspeksi dilakukan per item oleh QC Gudang atau Owner pada PO berstatus Dalam Pengiriman. Item yang sesuai berstatus Disetujui.",
+        "Item yang tidak sesuai berstatus Ditolak dan wajib disertai catatan serta minimal satu foto bukti (maksimal 5 MB per berkas). Penolakan membuka Sengketa untuk item tersebut dan tidak membatalkan PO.",
+        "Foto bukti inspeksi tidak dapat diubah atau dihapus setelah disimpan."
+      ]
+    },
+    {
+      "number": 10,
+      "id": "invoice-dan-pembayaran",
+      "title": "Invoice, Verifikasi Tagihan, dan Pembayaran",
+      "clauses": [
+        "Vendor hanya dapat menerbitkan invoice untuk item yang lolos inspeksi dan belum ditagih. Satu PO dapat memiliki lebih dari satu invoice.",
+        "Setiap invoice diverifikasi dengan 3-Way Matching per item terhadap kuantitas dan harga final PO, kuantitas yang diterima gudang, serta kuantitas dan nominal invoice.",
+        "Bila hasil pencocokan sesuai, PO berstatus Siap Dibayar dan pembayaran dapat diproses melalui Payment Gateway. Jumlah yang dibayar adalah nilai tagihan dikurangi credit note yang sudah dikonfirmasi Vendor.",
+        "Bila hasil pencocokan tidak sesuai, pembayaran ditolak dan PAGORA otomatis membuka Sengketa. Selama Sengketa terbuka, PO dibekukan.",
+        "Pembayaran diproses oleh penyedia Payment Gateway pihak ketiga dan tunduk pada syarat penyedia tersebut. Penyelenggara tidak menyimpan data kartu atau rekening Anda dan tidak bertanggung jawab atas gangguan atau kegagalan layanan penyedia pembayaran. Status pembayaran di PAGORA mengikuti notifikasi (callback) dari penyedia tersebut.",
+        "Bila pembayaran gagal, pembayaran dapat dicoba kembali. Satu invoice dinyatakan lunas bila total pembayaran berhasil sama dengan nilai tagihan dikurangi credit note yang dikonfirmasi.",
+        "Pajak, bea, dan kewajiban perpajakan atas transaksi menjadi tanggung jawab masing-masing pihak sesuai peraturan perundang-undangan."
+      ]
+    },
+    {
+      "number": 11,
+      "id": "sengketa",
+      "title": "Sengketa",
+      "clauses": [
+        "Sengketa dibuka otomatis ketika barang ditolak saat inspeksi atau 3-Way Matching tidak sesuai. Owner, Manajemen, atau Purchasing dapat membuka Sengketa secara manual bila Tenant dan Vendor tidak menyepakati penyelesaian transaksi, dengan menyertakan alasan dan bukti.",
+        "Sengketa memiliki status tersendiri yang terpisah dari status PO. Selama Sengketa terbuka, PO dibekukan pada bagian yang terdampak.",
+        "Peninjauan dan mediasi dilakukan oleh Owner atau Manajemen Tenant. Penyelenggara tidak bertindak sebagai hakim, arbiter, atau penjamin atas hasil penyelesaian.",
+        "Penyelesaian dapat berupa pengiriman ulang, retur barang, atau potongan tagihan melalui credit note. Penyelesaian yang membutuhkan tindakan Vendor hanya berlaku setelah Vendor mengonfirmasinya.",
+        "Vendor dapat menanggapi dan mengonfirmasi penyelesaian, tetapi tidak dapat mengubah status Sengketa. Status Selesai hanya dapat ditetapkan oleh Owner atau Manajemen setelah penyelesaian diverifikasi. Bila Vendor tidak mengonfirmasi, Sengketa kembali ke tahap mediasi.",
+        "Setelah Sengketa selesai, PO dilanjutkan dari progres terakhirnya.",
+        "Dokumen Sengketa dapat diunduh oleh pihak yang berhak. Para pihak boleh menempuh jalur penyelesaian lain di luar PAGORA sesuai Pasal 22."
+      ]
+    },
+    {
+      "number": 12,
+      "id": "catatan-permanen",
+      "title": "Catatan Permanen dan Penghapusan Data",
+      "clauses": [
+        "Chat negosiasi, foto inspeksi, harga PO yang terkunci, Log Sengketa, Sengketa yang selesai, serta credit note dan retur yang sudah dikonfirmasi bersifat permanen. Catatan tersebut tidak dapat diubah atau dihapus oleh siapa pun, termasuk Superadmin, sebagai bukti transaksi yang sah.",
+        "Penghapusan anggota, komoditas, draf PO, dan pemblokiran Vendor dilakukan dengan penghapusan lunak (soft delete) atau perubahan status, sehingga riwayat transaksi tetap utuh.",
+        "Karena itu, permintaan penghapusan data pribadi atau transaksi dapat dibatasi sepanjang data tersebut diperlukan untuk bukti transaksi, penyelesaian Sengketa, atau kewajiban hukum."
+      ]
+    },
+    {
+      "number": 13,
+      "id": "konten-pengguna",
+      "title": "Dokumen dan Konten yang Anda Unggah",
+      "clauses": [
+        "Anda tetap memiliki hak atas dokumen dan konten yang Anda unggah, termasuk dokumen legalitas, foto inspeksi, invoice, bukti pembayaran, dan bukti Sengketa.",
+        "Anda memberi Penyelenggara izin terbatas, non-eksklusif, untuk menyimpan, memproses, dan menampilkan konten tersebut kepada pihak yang berhak di PAGORA, hanya untuk menjalankan layanan.",
+        "Anda menjamin bahwa konten yang diunggah benar, tidak dipalsukan, dan tidak melanggar hak pihak lain atau hukum yang berlaku."
+      ]
+    },
+    {
+      "number": 14,
+      "id": "larangan",
+      "title": "Larangan Penggunaan",
+      "clauses": [
+        "Memberikan data, dokumen, atau identitas yang palsu atau menyesatkan.",
+        "Mengakses akun, data, atau PO milik pihak lain tanpa hak, atau mencoba melewati pembatasan hak akses dan isolasi data.",
+        "Mengganggu atau merusak layanan, antara lain dengan malware, serangan beban berlebih, pemindaian kerentanan tanpa izin, atau rekayasa balik.",
+        "Mengambil data PAGORA secara massal (scraping) atau menggunakan layanan ini untuk tujuan di luar pengadaan bisnis yang sah.",
+        "Menyalahgunakan Harga Pagu, misalnya membagikannya kepada Vendor atau pihak luar di luar Tenant.",
+        "Menyebarkan konten yang melanggar hukum, mengandung kebencian, atau melanggar hak pihak lain di chat, catatan, atau berkas unggahan.",
+        "Menggunakan layanan untuk pencucian uang, penipuan, atau kegiatan melawan hukum lainnya."
+      ]
+    },
+    {
+      "number": 15,
+      "id": "data-pribadi",
+      "title": "Data Pribadi dan Privasi",
+      "clauses": [
+        "Penyelenggara memproses data seperti nama, email, peran, data perusahaan, NPWP, dokumen legalitas, aktivitas transaksi, dan log aktivitas, untuk menjalankan layanan, memverifikasi pendaftaran, mengamankan platform, dan memenuhi kewajiban hukum.",
+        "Pada login dengan Google, PAGORA menerima identitas dasar akun Google Anda, yaitu nama dan alamat email, untuk mendaftarkan atau mengautentikasi akun Anda.",
+        "Data yang relevan dibagikan kepada pihak lain di transaksi yang sama (misalnya Tenant dan Vendor pada PO yang sama), kepada penyedia layanan yang membantu operasional (seperti penyedia email, penyimpanan, Payment Gateway, dan Google OAuth), serta kepada pihak berwenang bila diwajibkan hukum. Penyelenggara tidak menjual data Anda.",
+        "Kata sandi disimpan dalam bentuk hash. Berkas unggahan disimpan di lokasi yang tidak dapat dieksekusi. Kredensial layanan pihak ketiga disimpan terpisah dari kode aplikasi.",
+        "Data dilindungi dengan langkah keamanan yang wajar, tetapi tidak ada sistem yang sepenuhnya bebas risiko. Penyelenggara akan menindaklanjuti insiden keamanan sesuai peraturan yang berlaku.",
+        "Sesuai peraturan pelindungan data pribadi yang berlaku di Indonesia, Anda berhak meminta akses, perbaikan, dan penghapusan data pribadi Anda, dengan batasan pada Pasal 12. Ajukan permintaan ke {{EMAIL_KONTAK}}.",
+        "Anda menjamin bahwa data pribadi pihak lain yang Anda masukkan, misalnya data anggota tim, telah Anda peroleh secara sah dan Anda berwenang membagikannya."
+      ]
+    },
+    {
+      "number": 16,
+      "id": "notifikasi",
+      "title": "Notifikasi dan Komunikasi",
+      "clauses": [
+        "PAGORA mengirim notifikasi di dalam aplikasi dan melalui email untuk hal-hal seperti verifikasi akun, kode OTP, undangan, reset kata sandi, perkembangan PO, kerja sama, dan Sengketa.",
+        "Anda wajib menjaga agar alamat email Anda aktif. Pemberitahuan yang dikirim ke email terdaftar dianggap telah diterima."
+      ]
+    },
+    {
+      "number": 17,
+      "id": "ketersediaan-layanan",
+      "title": "Ketersediaan Layanan",
+      "clauses": [
+        "Penyelenggara menargetkan ketersediaan layanan minimal 99% pada Senin sampai Sabtu pukul 07.00 sampai 18.00 WIB. Ini adalah target, bukan jaminan.",
+        "Pemeliharaan terjadwal diupayakan di luar jam operasional tersebut. Data dicadangkan otomatis minimal sekali sehari.",
+        "Layanan dapat terganggu karena hal di luar kendali Penyelenggara, termasuk gangguan jaringan, gangguan penyedia pihak ketiga (API Bank Indonesia, Payment Gateway, email, Google), atau keadaan memaksa.",
+        "Layanan dirancang untuk peramban terbaru (Chrome, Firefox, Edge, Safari) melalui koneksi HTTPS."
+      ]
+    },
+    {
+      "number": 18,
+      "id": "kekayaan-intelektual",
+      "title": "Hak Kekayaan Intelektual",
+      "clauses": [
+        "Seluruh hak atas PAGORA, termasuk perangkat lunak, desain, merek, dan dokumentasi, dimiliki Penyelenggara atau pemberi lisensinya.",
+        "Anda diberi hak terbatas, tidak eksklusif, dan tidak dapat dialihkan untuk menggunakan PAGORA selama akun Anda aktif, sesuai S&K ini."
+      ]
+    },
+    {
+      "number": 19,
+      "id": "batasan-tanggung-jawab",
+      "title": "Batasan Tanggung Jawab",
+      "clauses": [
+        "Layanan disediakan sebagaimana adanya dan sebagaimana tersedia. Sejauh diizinkan hukum, Penyelenggara tidak bertanggung jawab atas kerugian tidak langsung, kehilangan keuntungan, atau kehilangan peluang usaha yang timbul dari penggunaan atau ketidakmampuan menggunakan PAGORA.",
+        "Penyelenggara tidak bertanggung jawab atas: (a) kualitas, jumlah, atau pengiriman barang; (b) kesepakatan harga dan keputusan bisnis para pihak, termasuk keputusan berdasarkan Harga Pagu; (c) kebenaran data dan dokumen yang diberikan pengguna; (d) hasil penyelesaian Sengketa; (e) gangguan pada layanan pihak ketiga; atau (f) tindakan pengguna yang melanggar S&K ini.",
+        "Sejauh diizinkan hukum, total tanggung jawab Penyelenggara kepada Anda atas klaim apa pun terkait layanan dibatasi pada biaya yang telah Anda bayarkan kepada Penyelenggara untuk layanan dalam 12 bulan terakhir, atau nol bila layanan tidak berbayar.",
+        "Ketentuan ini tidak membatasi tanggung jawab yang menurut hukum tidak dapat dibatasi."
+      ]
+    },
+    {
+      "number": 20,
+      "id": "penangguhan-dan-penghentian",
+      "title": "Penangguhan dan Penghentian Akun",
+      "clauses": [
+        "Penyelenggara dapat menangguhkan atau memblokir akun, menolak verifikasi, atau menghentikan akses bila Anda melanggar S&K ini, memberikan data palsu, atau bila diwajibkan hukum, dengan memberitahukan alasannya bila memungkinkan.",
+        "Anda dapat berhenti menggunakan PAGORA kapan saja dengan menghubungi {{EMAIL_KONTAK}}, setelah transaksi dan Sengketa yang sedang berjalan diselesaikan.",
+        "Penghentian akun tidak menghapus catatan permanen sesuai Pasal 12, dan tidak menghapus kewajiban yang telah timbul sebelum penghentian.",
+        "Pasal yang menurut sifatnya tetap berlaku setelah penghentian, termasuk Pasal 12, 13, 18, 19, dan 22, tetap berlaku."
+      ]
+    },
+    {
+      "number": 21,
+      "id": "perubahan",
+      "title": "Perubahan S&K",
+      "clauses": [
+        "Penyelenggara dapat mengubah S&K ini dari waktu ke waktu. Perubahan material diberitahukan melalui email atau notifikasi di aplikasi, dengan tanggal berlaku yang jelas.",
+        "Bila Anda terus menggunakan PAGORA setelah tanggal berlaku perubahan, Anda dianggap menyetujui S&K yang baru. Bila tidak setuju, Anda berhak berhenti menggunakan layanan sesuai Pasal 20."
+      ]
+    },
+    {
+      "number": 22,
+      "id": "hukum-yang-berlaku",
+      "title": "Hukum yang Berlaku dan Penyelesaian Perselisihan",
+      "clauses": [
+        "S&K ini diatur oleh hukum Republik Indonesia.",
+        "Perselisihan antara Anda dan Penyelenggara diselesaikan terlebih dahulu secara musyawarah. Bila tidak tercapai kesepakatan, perselisihan diselesaikan melalui {{YURISDIKSI}}.",
+        "Perselisihan antara Tenant dan Vendor atas transaksi diselesaikan terlebih dahulu melalui fitur Sengketa di PAGORA. Hal ini tidak menghilangkan hak para pihak untuk menempuh jalur hukum atau arbitrase di luar PAGORA."
+      ]
+    },
+    {
+      "number": 23,
+      "id": "ketentuan-umum",
+      "title": "Ketentuan Umum dan Kontak",
+      "clauses": [
+        "Bila salah satu ketentuan S&K ini dinyatakan tidak sah atau tidak dapat dilaksanakan, ketentuan lainnya tetap berlaku.",
+        "Penyelenggara tidak melepaskan haknya bila tidak segera menegakkan suatu ketentuan.",
+        "Anda tidak boleh mengalihkan hak dan kewajiban Anda berdasarkan S&K ini tanpa persetujuan tertulis Penyelenggara.",
+        "Pertanyaan, keluhan, atau permintaan terkait S&K dan data pribadi dapat disampaikan ke {{EMAIL_KONTAK}}."
+      ]
+    }
+  ],
+  "acceptance": {
+    "checkbox_label": "Saya telah membaca dan menyetujui Syarat dan Ketentuan PAGORA.",
+    "applies_to": [
+      "Registrasi Tenant (UC-01)",
+      "Registrasi Vendor (UC-02)",
+      "Daftar dengan Google",
+      "Penerimaan ajakan perusahaan (UC-03), bila pengguna belum pernah menyetujui versi terbaru"
+    ]
+  }
+}

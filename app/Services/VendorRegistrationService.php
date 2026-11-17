@@ -175,7 +175,7 @@ class VendorRegistrationService
         $invitationToken = $data['invitation_token'] ?? null;
 
         // Stored before the transaction so every uploaded file is removed if any database write fails.
-        $storedDocuments = $this->storeLegalDocuments((array) ($data['legal_documents'] ?? []));
+        $storedDocuments = $this->storeLegalDocuments((array) ($data['legal_documents'] ?? []), $data);
         $storedPaths = array_column($storedDocuments, 'file_path');
 
         return $this->fileStorage->rollbackOnFailure(self::DOCUMENT_DISK, $storedPaths, function () use (
@@ -276,27 +276,70 @@ class VendorRegistrationService
      * Store each uploaded legal document PDF before starting the database transaction.
      *
      * @param  array<int, array<string, mixed>>  $documents
+     * @param  array<string, mixed>  $data
      * @return list<array{document_type: string, document_number: ?string, file_path: string}>
      */
-    private function storeLegalDocuments(array $documents): array
+    private function storeLegalDocuments(array $documents, array $data = []): array
     {
         $storedDocuments = [];
+        $timestamp = now()->timestamp;
+
+        $fieldMap = [
+            'npwp' => $data['dokumen_npwp'] ?? $data['file_npwp'] ?? null,
+            'nib' => $data['dokumen_nib'] ?? $data['file_nib'] ?? null,
+            'ktp' => $data['dokumen_ktp'] ?? $data['file_ktp'] ?? null,
+        ];
 
         try {
-            foreach ($documents as $document) {
-                $file = $document['file'] ?? null;
-                if (! $file instanceof UploadedFile) {
-                    continue;
+            foreach ($fieldMap as $type => $file) {
+                if ($file instanceof UploadedFile) {
+                    $extension = strtolower($file->guessExtension() ?: 'pdf');
+                    $customFilename = sprintf('vendor_%d_%s.%s', $timestamp, $type, $extension);
+                    $path = $this->fileStorage->store(
+                        $file,
+                        self::DOCUMENT_DIRECTORY,
+                        self::DOCUMENT_DISK,
+                        customFilename: $customFilename
+                    );
+
+                    $docNumber = match ($type) {
+                        'npwp' => ! empty($data['tax_number']) ? trim((string) $data['tax_number']) : (! empty($data['nomor_npwp']) ? trim((string) $data['nomor_npwp']) : null),
+                        'nib' => ! empty($data['nomor_nib']) ? trim((string) $data['nomor_nib']) : null,
+                        'ktp' => ! empty($data['nomor_ktp']) ? trim((string) $data['nomor_ktp']) : null,
+                        default => null,
+                    };
+
+                    $storedDocuments[] = [
+                        'document_type' => $type,
+                        'document_number' => $docNumber,
+                        'file_path' => $path,
+                    ];
                 }
+            }
 
-                $documentType = (string) ($document['document_type'] ?? 'npwp');
-                $rawNumber = isset($document['document_number']) ? trim((string) $document['document_number']) : '';
+            if (count($storedDocuments) === 0) {
+                foreach ($documents as $document) {
+                    $file = $document['file'] ?? null;
+                    if (! $file instanceof UploadedFile) {
+                        continue;
+                    }
 
-                $storedDocuments[] = [
-                    'document_type' => $documentType,
-                    'document_number' => $rawNumber !== '' ? $rawNumber : null,
-                    'file_path' => $this->fileStorage->store($file, self::DOCUMENT_DIRECTORY, self::DOCUMENT_DISK, uuidName: true),
-                ];
+                    $documentType = (string) ($document['document_type'] ?? 'npwp');
+                    $rawNumber = isset($document['document_number']) ? trim((string) $document['document_number']) : '';
+                    $extension = strtolower($file->guessExtension() ?: 'pdf');
+                    $customFilename = sprintf('vendor_%d_%s.%s', $timestamp, $documentType, $extension);
+
+                    $storedDocuments[] = [
+                        'document_type' => $documentType,
+                        'document_number' => $rawNumber !== '' ? $rawNumber : null,
+                        'file_path' => $this->fileStorage->store(
+                            $file,
+                            self::DOCUMENT_DIRECTORY,
+                            self::DOCUMENT_DISK,
+                            customFilename: $customFilename
+                        ),
+                    ];
+                }
             }
         } catch (Throwable $e) {
             foreach ($storedDocuments as $stored) {

@@ -32,10 +32,19 @@ class VerifikasiTenantResource extends JsonResource
             'address' => $this->address,
             'verification_status' => $this->verification_status->value,
             'verification_note' => $this->verification_note,
-            'has_legal_document' => filled($this->legal_document_path),
+            'has_legal_document' => filled($this->legal_document_path) || ($this->relationLoaded('legalDocuments') && $this->legalDocuments->isNotEmpty()),
             'legal_document_url' => filled($this->legal_document_path)
                 ? route('master.tenant.verifikasi-dokumen.download', $this->uuid)
                 : null,
+            'legal_documents' => $this->relationLoaded('legalDocuments')
+                ? $this->legalDocuments->map(fn ($doc) => [
+                    'uuid' => $doc->uuid,
+                    'document_type' => $doc->document_type,
+                    'document_number' => $doc->document_number,
+                    'verification_status' => $doc->verification_status->value,
+                    'file_url' => route('master.tenant.verifikasi-dokumen.download', $doc->uuid),
+                ])->values()->all()
+                : [],
             'verified_at' => $this->verified_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
             'owner' => $owner ? [

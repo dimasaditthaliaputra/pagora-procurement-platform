@@ -70,7 +70,7 @@ class PerusahaanBuyerRepository implements PerusahaanBuyerRepositoryInterface
         $query = $this->model->newQuery()
             ->with(['users' => function ($q) {
                 $q->whereHas('role', fn ($roleQuery) => $roleQuery->where('name', 'owner'));
-            }, 'verifiedByUser'])
+            }, 'verifiedByUser', 'legalDocuments'])
             ->when($search !== '', function ($q) use ($search) {
                 $driver = DB::getDriverName();
                 $op = $driver === 'pgsql' ? 'ilike' : 'like';

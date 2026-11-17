@@ -721,4 +721,53 @@ class VendorRegistrationTest extends TestCase
 
         $this->assertFalse(session()->has('google_user'));
     }
+
+    public function test_vendor_registration_succeeds_with_individual_npwp_nib_and_ktp_files(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $code = $this->requestOtp('vendor.tiga.dokumen@perusahaan.com');
+        $category = CommodityCategory::firstOrFail();
+
+        $npwpFile = UploadedFile::fake()->create('scan_npwp_asli.pdf', 500, 'application/pdf');
+        $nibFile = UploadedFile::fake()->create('scan_nib_asli.pdf', 600, 'application/pdf');
+        $ktpFile = UploadedFile::fake()->create('scan_ktp_asli.pdf', 400, 'application/pdf');
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Direktur Vendor Tiga',
+            'email' => 'vendor.tiga.dokumen@perusahaan.com',
+            'contact_email' => 'vendor.tiga.dokumen@perusahaan.com',
+            'password' => 'VendorPassword123#',
+            'password_confirmation' => 'VendorPassword123#',
+            'company_name' => 'PT Tiga Dokumen Sejahtera',
+            'tax_number' => '04.567.890.1-234.000',
+            'nomor_nib' => 'NIB-9988776655',
+            'nomor_ktp' => '3171012345670001',
+            'phone' => '081299998888',
+            'address' => 'Kawasan Industri MM2100, Cikarang',
+            'commodity_category_uuids' => [$category->uuid],
+            'otp' => $code,
+            'dokumen_npwp' => $npwpFile,
+            'dokumen_nib' => $nibFile,
+            'dokumen_ktp' => $ktpFile,
+        ]);
+
+        $response->assertRedirect(route('register.success'));
+        $vendor = Vendor::where('company_name', 'PT Tiga Dokumen Sejahtera')->first();
+        $this->assertNotNull($vendor);
+
+        $documents = $vendor->legalDocuments;
+        $this->assertCount(3, $documents);
+
+        $docTypes = $documents->pluck('document_type')->all();
+        $this->assertContains('npwp', $docTypes);
+        $this->assertContains('nib', $docTypes);
+        $this->assertContains('ktp', $docTypes);
+
+        foreach ($documents as $doc) {
+            Storage::disk('local')->assertExists($doc->file_path);
+            $filename = basename($doc->file_path);
+            $this->assertMatchesRegularExpression('/^vendor_\d+_(npwp|nib|ktp)\.pdf$/', $filename);
+        }
+    }
 }

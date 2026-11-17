@@ -23,11 +23,15 @@ class FileStorageService
      *
      * @throws RuntimeException When the disk refuses the file.
      */
-    public function store(UploadedFile $file, string $directory, string $disk, bool $uuidName = false): string
+    public function store(UploadedFile $file, string $directory, string $disk, bool $uuidName = false, ?string $customFilename = null): string
     {
-        $path = $uuidName
-            ? $file->storeAs($directory, Str::uuid()->toString().'.'.strtolower($file->guessExtension() ?: 'bin'), $disk)
-            : $file->store($directory, $disk);
+        if ($customFilename !== null && $customFilename !== '') {
+            $path = $file->storeAs($directory, $customFilename, $disk);
+        } else {
+            $path = $uuidName
+                ? $file->storeAs($directory, Str::uuid()->toString().'.'.strtolower($file->guessExtension() ?: 'bin'), $disk)
+                : $file->store($directory, $disk);
+        }
 
         if (! is_string($path) || $path === '') {
             throw new RuntimeException('File gagal disimpan ke penyimpanan.');

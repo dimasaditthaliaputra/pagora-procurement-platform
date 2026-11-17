@@ -6,6 +6,16 @@ import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { PasswordInput } from '@/Components/password-input';
 import { LoadingButton } from '@/Components/loading-button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/Components/ui/select';
+import { useDropzone } from 'react-dropzone';
+import { describeRejection, formatBytes } from '@/lib/file';
+import { useUploadFeedback } from '@/hooks/use-upload-feedback';
 import { FileDropzone } from '@/Components/file-dropzone';
 import { OtpField, OTP_LENGTH } from '@/Components/otp-field';
 import { useCountdown } from '@/hooks/use-countdown';
@@ -22,21 +32,33 @@ import {
     AlertCircle,
     ChevronLeft,
     ChevronRight,
+    UploadCloud,
+    FileText,
+    Trash2,
 } from 'lucide-react';
 
 const STEPS = [
     { id: 1, label: 'Akun' },
     { id: 2, label: 'Verifikasi' },
     { id: 3, label: 'Perusahaan' },
+    { id: 4, label: 'Legalitas' },
 ];
 
+const DOCUMENT_TYPES = [
+    { value: 'npwp', label: 'NPWP Perusahaan' },
+    { value: 'siup', label: 'SIUP (Surat Izin Usaha Perdagangan)' },
+    { value: 'nib', label: 'NIB (Nomor Induk Berusaha)' },
+];
+
+const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024;
+const MAX_LEGAL_DOCUMENTS = 10;
 const PDF_ACCEPT = { 'application/pdf': ['.pdf'] };
 
 export default function Register({ google_user = null, status = null }) {
     const isGoogle = Boolean(google_user?.email);
     const [step, setStep] = useState(() => (isGoogle ? 3 : 1));
 
-    const { data, setData, post, processing, errors, setError, clearErrors, progress } = useForm({
+    const form = useForm({
         name: google_user?.name ?? '',
         email: google_user?.email ?? '',
         otp: isGoogle ? '000000' : '',
@@ -47,10 +69,21 @@ export default function Register({ google_user = null, status = null }) {
         telepon: '',
         alamat: '',
         dokumen_npwp: null,
+        dokumen_nib: null,
+        dokumen_ktp: null,
+        nomor_nib: '',
+        nomor_ktp: '',
+        legal_documents: [],
         google_id: google_user?.google_id ?? '',
         avatar: google_user?.avatar ?? '',
         is_google_registration: isGoogle,
     });
+
+    const { data, setData, post, processing, errors, setError, clearErrors, progress } = form;
+    const npwpFeedback = useUploadFeedback(form, 'dokumen_npwp');
+    const nibFeedback = useUploadFeedback(form, 'dokumen_nib');
+    const ktpFeedback = useUploadFeedback(form, 'dokumen_ktp');
+    const legalDocumentFeedback = useUploadFeedback(form, 'legal_documents');
 
     const [otpSent, setOtpSent] = useState(false);
     const [lastOtpEmail, setLastOtpEmail] = useState('');
@@ -58,6 +91,77 @@ export default function Register({ google_user = null, status = null }) {
     const [verifyingOtp, setVerifyingOtp] = useState(false);
     const [sendingOtp, setSendingOtp] = useState(false);
     const resend = useCountdown();
+
+    const clearLegalDocumentErrors = () => {
+        const docErrorKeys = Object.keys(errors).filter(
+            (key) =>
+                key === 'legal_documents' ||
+                key.startsWith('legal_documents.') ||
+                key === 'dokumen_npwp' ||
+                key === 'dokumen_nib' ||
+                key === 'dokumen_ktp' ||
+                key === 'file_npwp' ||
+                key === 'file_nib' ||
+                key === 'file_ktp' ||
+                key === 'nomor_nib' ||
+                key === 'nomor_ktp'
+        );
+        if (docErrorKeys.length > 0) {
+            clearErrors(...docErrorKeys);
+        }
+    };
+
+    const validateLegalFile = (file, fieldKey, fieldLabel) => {
+        if (!file) {
+            setError(fieldKey, `${fieldLabel} wajib diunggah.`);
+            return false;
+        }
+
+        if (!(file instanceof File)) {
+            setError(fieldKey, `Berkas ${fieldLabel.toLowerCase()} tidak valid.`);
+            return false;
+        }
+
+        const isPdf =
+            file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        if (!isPdf) {
+            setError(
+                fieldKey,
+                `Format berkas ${fieldLabel.toLowerCase()} harus berupa PDF (.pdf).`
+            );
+            return false;
+        }
+
+        if (file.size <= 0) {
+            setError(
+                fieldKey,
+                `Berkas ${fieldLabel.toLowerCase()} kosong (0 byte).`
+            );
+            return false;
+        }
+
+        if (file.size > MAX_DOCUMENT_SIZE) {
+            setError(
+                fieldKey,
+                `Ukuran berkas ${fieldLabel.toLowerCase()} (${formatBytes(file.size)}) melebihi batas maksimal 5 MB.`
+            );
+            return false;
+        }
+
+        return true;
+    };
+
+    const hasLegalDocumentsError = Object.keys(errors).some(
+        (key) =>
+            key === 'legal_documents' ||
+            key.startsWith('legal_documents.') ||
+            key === 'dokumen_npwp' ||
+            key === 'dokumen_nib' ||
+            key === 'dokumen_ktp' ||
+            key === 'file_npwp' ||
+            key === 'file_nib' ||
+            key === 'file_ktp'
+    );
 
     const isOtpVerified = isGoogle || Boolean(
         verifiedOtpInfo &&
@@ -184,13 +288,13 @@ export default function Register({ google_user = null, status = null }) {
 
             setError('otp', errorMsg);
             setVerifiedOtpInfo(null);
-            notify.error(errorMsg);
+            notify.validationFailed();
             return false;
         } catch {
             const errorMsg = 'Terjadi kesalahan saat memverifikasi kode OTP. Silakan coba lagi.';
             setError('otp', errorMsg);
             setVerifiedOtpInfo(null);
-            notify.error(errorMsg);
+            notify.validationFailed();
             return false;
         } finally {
             setVerifyingOtp(false);
@@ -317,7 +421,7 @@ export default function Register({ google_user = null, status = null }) {
 
     const validateStep3 = () => {
         let hasError = false;
-        clearErrors('nama_perusahaan', 'nomor_npwp', 'telepon', 'alamat', 'dokumen_npwp');
+        clearErrors('nama_perusahaan', 'telepon', 'alamat');
 
         const trimmedPerusahaan = data.nama_perusahaan.trim();
         if (!trimmedPerusahaan) {
@@ -326,20 +430,6 @@ export default function Register({ google_user = null, status = null }) {
         } else if (trimmedPerusahaan.length < 3) {
             setError('nama_perusahaan', 'Nama perusahaan minimal 3 karakter.');
             hasError = true;
-        }
-
-        const normalizedNpwp = normalizeNpwp(data.nomor_npwp);
-        if (!normalizedNpwp) {
-            setError('nomor_npwp', 'Nomor NPWP wajib diisi.');
-            hasError = true;
-        } else if (!isNpwp(normalizedNpwp)) {
-            setError(
-                'nomor_npwp',
-                'Format nomor NPWP tidak valid. Gunakan format 15 digit (contoh: 01.234.567.8-901.000) atau 16 digit angka.'
-            );
-            hasError = true;
-        } else if (normalizedNpwp !== data.nomor_npwp) {
-            setData('nomor_npwp', normalizedNpwp);
         }
 
         const normalizedTelepon = normalizePhoneNumber(data.telepon);
@@ -362,15 +452,70 @@ export default function Register({ google_user = null, status = null }) {
             hasError = true;
         }
 
-        if (!data.dokumen_npwp) {
-            setError('dokumen_npwp', 'Dokumen legalitas perusahaan (NPWP/SIUP) wajib diunggah.');
+        if (hasError) {
+            notify.validationFailed();
+            requestAnimationFrame(() => {
+                const firstInvalid = document.querySelector('[aria-invalid="true"]');
+                firstInvalid?.focus();
+            });
+            return false;
+        }
+
+        return true;
+    };
+
+    const handleNextStep3 = () => {
+        if (validateStep3()) {
+            setStep(4);
+        }
+    };
+
+    const validateStep4 = () => {
+        let hasError = false;
+        clearErrors('nomor_npwp', 'nomor_nib', 'nomor_ktp');
+        clearLegalDocumentErrors();
+
+        const normalizedNpwp = normalizeNpwp(data.nomor_npwp);
+        if (!normalizedNpwp) {
+            setError('nomor_npwp', 'Nomor NPWP wajib diisi.');
             hasError = true;
-        } else if (
-            data.dokumen_npwp instanceof File &&
-            !data.dokumen_npwp.name.toLowerCase().endsWith('.pdf') &&
-            data.dokumen_npwp.type !== 'application/pdf'
-        ) {
-            setError('dokumen_npwp', 'Format berkas dokumen legalitas harus berupa PDF (.pdf).');
+        } else if (!isNpwp(normalizedNpwp)) {
+            setError(
+                'nomor_npwp',
+                'Format nomor NPWP tidak valid. Gunakan format 15 digit (contoh: 01.234.567.8-901.000) atau 16 digit angka.'
+            );
+            hasError = true;
+        } else if (normalizedNpwp !== data.nomor_npwp) {
+            setData('nomor_npwp', normalizedNpwp);
+        }
+
+        if (!validateLegalFile(data.dokumen_npwp, 'dokumen_npwp', 'Dokumen NPWP Perusahaan')) {
+            hasError = true;
+        }
+
+        const trimmedNib = (data.nomor_nib || '').trim();
+        if (!trimmedNib) {
+            setError('nomor_nib', 'Nomor NIB perusahaan wajib diisi.');
+            hasError = true;
+        } else if (trimmedNib.length < 3) {
+            setError('nomor_nib', 'Nomor NIB minimal 3 karakter.');
+            hasError = true;
+        }
+
+        if (!validateLegalFile(data.dokumen_nib, 'dokumen_nib', 'Dokumen NIB Perusahaan')) {
+            hasError = true;
+        }
+
+        const trimmedKtp = (data.nomor_ktp || '').trim();
+        if (!trimmedKtp) {
+            setError('nomor_ktp', 'Nomor KTP / NIK penanggung jawab wajib diisi.');
+            hasError = true;
+        } else if (trimmedKtp.length < 8) {
+            setError('nomor_ktp', 'Nomor KTP / NIK minimal 8 karakter.');
+            hasError = true;
+        }
+
+        if (!validateLegalFile(data.dokumen_ktp, 'dokumen_ktp', 'Dokumen KTP Penanggung Jawab')) {
             hasError = true;
         }
 
@@ -386,6 +531,40 @@ export default function Register({ google_user = null, status = null }) {
         return true;
     };
 
+    const handleStepClick = (targetStep) => {
+        if (processing || verifyingOtp || sendingOtp || targetStep === step) {
+            return;
+        }
+
+        if (targetStep === 2 && isGoogle) {
+            setStep(3);
+            return;
+        }
+
+        if (targetStep < step) {
+            setStep(targetStep);
+            return;
+        }
+
+        if (step === 1 && !validateStep1()) {
+            return;
+        }
+
+        if (targetStep >= 3 && !isGoogle && !isOtpVerified) {
+            setStep(2);
+            return;
+        }
+
+        if (targetStep === 4) {
+            if (!validateStep3()) {
+                setStep(3);
+                return;
+            }
+        }
+
+        setStep(targetStep);
+    };
+
     const submit = (e) => {
         e.preventDefault();
 
@@ -397,11 +576,16 @@ export default function Register({ google_user = null, status = null }) {
         if (!isOtpVerified) {
             setStep(2);
             setError('otp', 'Silakan verifikasi email bisnis Anda dengan kode OTP terlebih dahulu.');
-            notify.validationFailed();
             return;
         }
 
         if (!validateStep3()) {
+            setStep(3);
+            return;
+        }
+
+        if (!validateStep4()) {
+            setStep(4);
             return;
         }
 
@@ -414,6 +598,10 @@ export default function Register({ google_user = null, status = null }) {
                 } else if (errs.otp && !isGoogle) {
                     setVerifiedOtpInfo(null);
                     setStep(2);
+                } else if (errs.nama_perusahaan || errs.telepon || errs.alamat) {
+                    setStep(3);
+                } else {
+                    setStep(4);
                 }
                 requestAnimationFrame(() => {
                     const firstInvalid = document.querySelector('[aria-invalid="true"]');
@@ -451,8 +639,8 @@ export default function Register({ google_user = null, status = null }) {
                 {/* Form Body Area */}
                 <div className="flex flex-1 items-center justify-center py-2 md:py-4">
                     <div className="w-full max-w-md">
-                        {/* Stepper Progress (3 Langkah: Akun, Verifikasi, Perusahaan) */}
-                        <div className="grid grid-cols-3 gap-1.5 mb-5 p-1 rounded-xl bg-muted/50 border border-border/70 text-xs select-none">
+                        {/* Stepper Progress (4 Langkah: Akun, Verifikasi, Perusahaan, Legalitas) */}
+                        <div className="grid grid-cols-4 gap-1 sm:gap-1.5 mb-5 p-1 rounded-xl bg-muted/50 border border-border/70 text-xs select-none">
                             {STEPS.map((item) => {
                                 const isActive = step === item.id;
                                 const isCompleted = step > item.id || (isGoogle && item.id < 3);
@@ -461,24 +649,16 @@ export default function Register({ google_user = null, status = null }) {
                                     <button
                                         key={item.id}
                                         type="button"
-                                        onClick={() => {
-                                            if (item.id === 1) {
-                                                setStep(1);
-                                            } else if (item.id === 2 && !isGoogle && validateStep1()) {
-                                                setStep(2);
-                                            } else if (item.id === 3 && validateStep1() && isOtpVerified) {
-                                                setStep(3);
-                                            }
-                                        }}
+                                        onClick={() => handleStepClick(item.id)}
                                         disabled={
                                             processing ||
                                             verifyingOtp ||
                                             sendingOtp ||
                                             (item.id === 2 && (isGoogle || !otpSent)) ||
-                                            (item.id === 3 && !isOtpVerified)
+                                            (item.id >= 3 && !isOtpVerified)
                                         }
                                         className={cn(
-                                            'flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition-all text-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-50',
+                                            'flex items-center justify-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1.5 rounded-lg font-medium transition-all text-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 text-[11px] sm:text-xs',
                                             isActive
                                                 ? 'bg-background text-foreground shadow-xs'
                                                 : 'text-muted-foreground hover:text-foreground'
@@ -550,7 +730,7 @@ export default function Register({ google_user = null, status = null }) {
                                 <div className="flex flex-col gap-1 text-center">
                                     <h1 className="text-2xl font-bold tracking-tight">Daftar Akun Tenant</h1>
                                     <p className="text-muted-foreground text-xs text-balance">
-                                        Langkah 1 dari 3 - Masukkan profil perwakilan penanggung jawab akun
+                                        Langkah 1 dari 4 - Masukkan profil perwakilan penanggung jawab akun
                                     </p>
                                 </div>
 
@@ -794,7 +974,7 @@ export default function Register({ google_user = null, status = null }) {
                                 <div className="flex flex-col gap-1.5 text-center">
                                     <h1 className="text-2xl font-bold tracking-tight">Verifikasi Email Bisnis</h1>
                                     <p className="text-muted-foreground text-sm text-balance">
-                                        Langkah 2 dari 3 - Masukkan kode 6 digit yang kami kirimkan ke{' '}
+                                        Langkah 2 dari 4 - Masukkan kode 6 digit yang kami kirimkan ke{' '}
                                         <span className="font-semibold text-foreground">{data.email}</span> untuk memverifikasi pendaftaran Anda.
                                     </p>
                                 </div>
@@ -875,13 +1055,20 @@ export default function Register({ google_user = null, status = null }) {
                             </form>
                         )}
 
-                        {/* STEP 3: Data Perusahaan Tenant */}
+                        {/* STEP 3: Data Profil Perusahaan Tenant */}
                         {step === 3 && (
-                            <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    handleNextStep3();
+                                }}
+                                className="flex flex-col gap-4"
+                                noValidate
+                            >
                                 <div className="flex flex-col gap-1 text-center">
-                                    <h1 className="text-2xl font-bold tracking-tight">Data Perusahaan Tenant</h1>
+                                    <h1 className="text-2xl font-bold tracking-tight">Profil Perusahaan</h1>
                                     <p className="text-muted-foreground text-xs text-balance">
-                                        Langkah 3 dari 3 - Lengkapi profil perusahaan buyer untuk aktivasi tenant
+                                        Langkah 3 dari 4 - Lengkapi profil perusahaan buyer yang akan didaftarkan
                                     </p>
                                 </div>
 
@@ -911,39 +1098,6 @@ export default function Register({ google_user = null, status = null }) {
                                         />
                                         {errors.nama_perusahaan && (
                                             <p className="text-xs font-medium text-destructive">{errors.nama_perusahaan}</p>
-                                        )}
-                                    </div>
-
-                                    {/* Nomor NPWP */}
-                                    <div className="grid gap-1">
-                                        <Label htmlFor="nomor_npwp" className={errors.nomor_npwp ? 'text-destructive text-xs' : 'text-xs'}>
-                                            Nomor NPWP Perusahaan <span className="text-destructive">*</span>
-                                        </Label>
-                                        <Input
-                                            id="nomor_npwp"
-                                            type="text"
-                                            name="nomor_npwp"
-                                            value={data.nomor_npwp}
-                                            onChange={(e) => {
-                                                setData('nomor_npwp', e.target.value);
-                                                if (errors.nomor_npwp) clearErrors('nomor_npwp');
-                                            }}
-                                            onBlur={(e) => {
-                                                const formatted = normalizeNpwp(e.target.value);
-                                                if (formatted && formatted !== e.target.value) {
-                                                    setData('nomor_npwp', formatted);
-                                                }
-                                            }}
-                                            placeholder="Contoh: 01.234.567.8-901.000"
-                                            aria-invalid={!!errors.nomor_npwp}
-                                            disabled={processing}
-                                            className={cn(
-                                                'h-9 text-sm',
-                                                errors.nomor_npwp && 'border-destructive focus-visible:ring-destructive'
-                                            )}
-                                        />
-                                        {errors.nomor_npwp && (
-                                            <p className="text-xs font-medium text-destructive">{errors.nomor_npwp}</p>
                                         )}
                                     </div>
 
@@ -988,7 +1142,7 @@ export default function Register({ google_user = null, status = null }) {
                                         <Textarea
                                             id="alamat"
                                             name="alamat"
-                                            rows={2}
+                                            rows={3}
                                             value={data.alamat}
                                             onChange={(e) => {
                                                 setData('alamat', e.target.value);
@@ -998,7 +1152,7 @@ export default function Register({ google_user = null, status = null }) {
                                             aria-invalid={!!errors.alamat}
                                             disabled={processing}
                                             className={cn(
-                                                'text-sm',
+                                                'text-sm resize-none',
                                                 errors.alamat && 'border-destructive focus-visible:ring-destructive'
                                             )}
                                         />
@@ -1007,33 +1161,7 @@ export default function Register({ google_user = null, status = null }) {
                                         )}
                                     </div>
 
-                                    {/* Dokumen Legalitas */}
-                                    <div className="grid gap-1">
-                                        <Label htmlFor="dokumen_npwp" className={errors.dokumen_npwp ? 'text-destructive text-xs' : 'text-xs'}>
-                                            Dokumen Legalitas Perusahaan (NPWP / SIUP) <span className="text-destructive">*</span>
-                                        </Label>
-                                        <FileDropzone
-                                            value={data.dokumen_npwp}
-                                            onChange={(file) => {
-                                                setData('dokumen_npwp', file);
-                                                if (errors.dokumen_npwp) clearErrors('dokumen_npwp');
-                                            }}
-                                            onError={(msg) => {
-                                                setError('dokumen_npwp', msg);
-                                                notify.validationFailed();
-                                            }}
-                                            error={errors.dokumen_npwp}
-                                            accept={PDF_ACCEPT}
-                                            disabled={processing}
-                                            uploading={processing}
-                                            progress={progress?.percentage ?? null}
-                                            label="Dokumen Legalitas Perusahaan"
-                                            description="Hanya format PDF (.pdf) dan maksimal 5 MB"
-                                            maxSize={5 * 1024 * 1024}
-                                        />
-                                    </div>
-
-                                    {/* Navigation Controls on Step 3: [ < ] and Submit Button */}
+                                    {/* Navigation Controls on Step 3: [ < ] and [ Lanjut > ] */}
                                     <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/60">
                                         <Button
                                             type="button"
@@ -1043,6 +1171,308 @@ export default function Register({ google_user = null, status = null }) {
                                             disabled={processing}
                                             aria-label={isGoogle ? 'Kembali ke profil akun' : 'Kembali ke Verifikasi OTP'}
                                             title={isGoogle ? 'Kembali ke profil akun' : 'Kembali ke Verifikasi OTP'}
+                                            className="size-10 rounded-xl cursor-pointer shrink-0"
+                                        >
+                                            <ChevronLeft className="size-4" />
+                                        </Button>
+
+                                        <Button
+                                            type="submit"
+                                            size="icon"
+                                            disabled={processing}
+                                            aria-label="Lanjut ke langkah berikutnya"
+                                            title="Lanjut ke langkah berikutnya"
+                                            className="size-10 rounded-xl cursor-pointer"
+                                        >
+                                            <ChevronRight className="size-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </form>
+                        )}
+
+                        {/* STEP 4: Dokumen Legalitas Tenant */}
+                        {step === 4 && (
+                            <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+                                <div className="flex flex-col gap-1 text-center">
+                                    <h1 className="text-2xl font-bold tracking-tight">Dokumen Legalitas Perusahaan</h1>
+                                    <p className="text-muted-foreground text-xs text-balance">
+                                        Langkah 4 dari 4 - Lengkapi nomor identitas dan unggah berkas legalitas resmi perusahaan berformat PDF maksimal 5 MB per berkas.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-4 pt-1" data-invalid={hasLegalDocumentsError}>
+                                    {errors.legal_documents && (
+                                        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs font-medium text-destructive flex items-start gap-2.5">
+                                            <AlertCircle className="size-4 shrink-0 mt-0.5 text-destructive" />
+                                            <p className="leading-relaxed">{errors.legal_documents}</p>
+                                        </div>
+                                    )}
+
+                                    {/* 1. Card Dokumen NPWP Perusahaan */}
+                                    <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <Label
+                                                htmlFor="nomor_npwp"
+                                                className={cn(
+                                                    'text-xs font-semibold uppercase tracking-wider',
+                                                    (errors.nomor_npwp || errors.dokumen_npwp || errors.file_npwp)
+                                                        ? 'text-destructive'
+                                                        : 'text-muted-foreground'
+                                                )}
+                                            >
+                                                1. Dokumen NPWP Perusahaan <span className="text-destructive">*</span>
+                                            </Label>
+                                        </div>
+
+                                        {/* Input Nomor NPWP diletakkan diatas dropzone upload */}
+                                        <div className="space-y-1">
+                                            <Label
+                                                htmlFor="nomor_npwp"
+                                                className={cn(
+                                                    'text-xs font-normal text-muted-foreground',
+                                                    errors.nomor_npwp && 'text-destructive'
+                                                )}
+                                            >
+                                                Nomor NPWP Perusahaan <span className="text-destructive">*</span>
+                                            </Label>
+                                            <Input
+                                                id="nomor_npwp"
+                                                type="text"
+                                                name="nomor_npwp"
+                                                value={data.nomor_npwp}
+                                                onChange={(e) => {
+                                                    setData('nomor_npwp', e.target.value);
+                                                    if (errors.nomor_npwp) clearErrors('nomor_npwp');
+                                                }}
+                                                onBlur={(e) => {
+                                                    const formatted = normalizeNpwp(e.target.value);
+                                                    if (formatted && formatted !== e.target.value) {
+                                                        setData('nomor_npwp', formatted);
+                                                    }
+                                                }}
+                                                placeholder="Contoh: 01.234.567.8-901.000 atau 16 digit"
+                                                aria-invalid={!!errors.nomor_npwp}
+                                                disabled={processing}
+                                                className={cn(
+                                                    'h-9 text-xs sm:text-sm',
+                                                    errors.nomor_npwp && 'border-destructive focus-visible:ring-destructive'
+                                                )}
+                                            />
+                                            {errors.nomor_npwp && (
+                                                <p className="text-xs font-medium text-destructive">{errors.nomor_npwp}</p>
+                                            )}
+                                        </div>
+
+                                        {/* Dropzone Upload Dokumen NPWP */}
+                                        <div className="space-y-1">
+                                            <FileDropzone
+                                                value={data.dokumen_npwp}
+                                                onChange={(file) => {
+                                                    setData('dokumen_npwp', file);
+                                                    if (errors.dokumen_npwp || errors.file_npwp) {
+                                                        clearErrors('dokumen_npwp', 'file_npwp', 'legal_documents');
+                                                    }
+                                                }}
+                                                onError={(msg) => {
+                                                    setError('dokumen_npwp', msg);
+                                                    notify.error(msg);
+                                                }}
+                                                error={errors.dokumen_npwp || errors.file_npwp}
+                                                accept={PDF_ACCEPT}
+                                                maxSize={MAX_DOCUMENT_SIZE}
+                                                disabled={processing}
+                                                uploading={npwpFeedback.uploading}
+                                                progress={npwpFeedback.progress}
+                                                status={npwpFeedback.status}
+                                                label="Unggah Berkas NPWP"
+                                                description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
+                                            />
+                                            {(errors.dokumen_npwp || errors.file_npwp) && (
+                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                    <AlertCircle className="size-3.5 shrink-0" />
+                                                    <span>{errors.dokumen_npwp || errors.file_npwp}</span>
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* 2. Card Dokumen NIB Perusahaan */}
+                                    <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <Label
+                                                htmlFor="tenant_nomor_nib"
+                                                className={cn(
+                                                    'text-xs font-semibold uppercase tracking-wider',
+                                                    (errors.nomor_nib || errors.dokumen_nib || errors.file_nib)
+                                                        ? 'text-destructive'
+                                                        : 'text-muted-foreground'
+                                                )}
+                                            >
+                                                2. Dokumen NIB (Nomor Induk Berusaha) <span className="text-destructive">*</span>
+                                            </Label>
+                                        </div>
+
+                                        {/* Input Nomor NIB diletakkan diatas dropzone upload */}
+                                        <div className="space-y-1">
+                                            <Label
+                                                htmlFor="tenant_nomor_nib"
+                                                className={cn(
+                                                    'text-xs font-normal text-muted-foreground',
+                                                    errors.nomor_nib && 'text-destructive'
+                                                )}
+                                            >
+                                                Nomor NIB Perusahaan <span className="text-destructive">*</span>
+                                            </Label>
+                                            <Input
+                                                id="tenant_nomor_nib"
+                                                type="text"
+                                                placeholder="Contoh: 1234567890123"
+                                                value={data.nomor_nib}
+                                                onChange={(e) => {
+                                                    setData('nomor_nib', e.target.value);
+                                                    if (errors.nomor_nib) clearErrors('nomor_nib');
+                                                }}
+                                                disabled={processing}
+                                                aria-invalid={!!errors.nomor_nib}
+                                                className={cn(
+                                                    'h-9 text-xs sm:text-sm',
+                                                    errors.nomor_nib && 'border-destructive focus-visible:ring-destructive'
+                                                )}
+                                            />
+                                            {errors.nomor_nib && (
+                                                <p className="text-xs font-medium text-destructive">
+                                                    {errors.nomor_nib}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Dropzone Upload Dokumen NIB */}
+                                        <div className="space-y-1">
+                                            <FileDropzone
+                                                value={data.dokumen_nib}
+                                                onChange={(file) => {
+                                                    setData('dokumen_nib', file);
+                                                    if (errors.dokumen_nib || errors.file_nib) {
+                                                        clearErrors('dokumen_nib', 'file_nib', 'legal_documents');
+                                                    }
+                                                }}
+                                                onError={(msg) => {
+                                                    setError('dokumen_nib', msg);
+                                                    notify.error(msg);
+                                                }}
+                                                error={errors.dokumen_nib || errors.file_nib}
+                                                accept={PDF_ACCEPT}
+                                                maxSize={MAX_DOCUMENT_SIZE}
+                                                disabled={processing}
+                                                uploading={nibFeedback.uploading}
+                                                progress={nibFeedback.progress}
+                                                status={nibFeedback.status}
+                                                label="Unggah Berkas NIB"
+                                                description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
+                                            />
+                                            {(errors.dokumen_nib || errors.file_nib) && (
+                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                    <AlertCircle className="size-3.5 shrink-0" />
+                                                    <span>{errors.dokumen_nib || errors.file_nib}</span>
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* 3. Card Dokumen KTP Penanggung Jawab */}
+                                    <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <Label
+                                                htmlFor="tenant_nomor_ktp"
+                                                className={cn(
+                                                    'text-xs font-semibold uppercase tracking-wider',
+                                                    (errors.nomor_ktp || errors.dokumen_ktp || errors.file_ktp)
+                                                        ? 'text-destructive'
+                                                        : 'text-muted-foreground'
+                                                )}
+                                            >
+                                                3. Dokumen KTP Penanggung Jawab <span className="text-destructive">*</span>
+                                            </Label>
+                                        </div>
+
+                                        {/* Input Nomor KTP diletakkan diatas dropzone upload */}
+                                        <div className="space-y-1">
+                                            <Label
+                                                htmlFor="tenant_nomor_ktp"
+                                                className={cn(
+                                                    'text-xs font-normal text-muted-foreground',
+                                                    errors.nomor_ktp && 'text-destructive'
+                                                )}
+                                            >
+                                                Nomor KTP / NIK Penanggung Jawab <span className="text-destructive">*</span>
+                                            </Label>
+                                            <Input
+                                                id="tenant_nomor_ktp"
+                                                type="text"
+                                                placeholder="Contoh: 3171012345670001"
+                                                value={data.nomor_ktp}
+                                                onChange={(e) => {
+                                                    setData('nomor_ktp', e.target.value);
+                                                    if (errors.nomor_ktp) clearErrors('nomor_ktp');
+                                                }}
+                                                disabled={processing}
+                                                aria-invalid={!!errors.nomor_ktp}
+                                                className={cn(
+                                                    'h-9 text-xs sm:text-sm',
+                                                    errors.nomor_ktp && 'border-destructive focus-visible:ring-destructive'
+                                                )}
+                                            />
+                                            {errors.nomor_ktp && (
+                                                <p className="text-xs font-medium text-destructive">
+                                                    {errors.nomor_ktp}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Dropzone Upload Dokumen KTP */}
+                                        <div className="space-y-1">
+                                            <FileDropzone
+                                                value={data.dokumen_ktp}
+                                                onChange={(file) => {
+                                                    setData('dokumen_ktp', file);
+                                                    if (errors.dokumen_ktp || errors.file_ktp) {
+                                                        clearErrors('dokumen_ktp', 'file_ktp', 'legal_documents');
+                                                    }
+                                                }}
+                                                onError={(msg) => {
+                                                    setError('dokumen_ktp', msg);
+                                                    notify.error(msg);
+                                                }}
+                                                error={errors.dokumen_ktp || errors.file_ktp}
+                                                accept={PDF_ACCEPT}
+                                                maxSize={MAX_DOCUMENT_SIZE}
+                                                disabled={processing}
+                                                uploading={ktpFeedback.uploading}
+                                                progress={ktpFeedback.progress}
+                                                status={ktpFeedback.status}
+                                                label="Unggah Berkas KTP Penanggung Jawab"
+                                                description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
+                                            />
+                                            {(errors.dokumen_ktp || errors.file_ktp) && (
+                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                    <AlertCircle className="size-3.5 shrink-0" />
+                                                    <span>{errors.dokumen_ktp || errors.file_ktp}</span>
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Navigation Controls on Step 4: [ < ] and Submit Button */}
+                                    <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/60">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => setStep(3)}
+                                            disabled={processing}
+                                            aria-label="Kembali ke profil perusahaan"
+                                            title="Kembali ke profil perusahaan"
                                             className="size-10 rounded-xl cursor-pointer shrink-0"
                                         >
                                             <ChevronLeft className="size-4" />

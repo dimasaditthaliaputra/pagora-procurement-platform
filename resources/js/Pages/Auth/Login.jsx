@@ -308,11 +308,22 @@ export default function Login({ status, otp = null }) {
                                 </div>
                             </div>
 
-                            <div className="text-center text-sm text-muted-foreground">
-                                Belum memiliki akun?{' '}
-                                <Link href="/register" className="text-foreground font-semibold underline underline-offset-4 hover:text-primary transition-colors">
-                                    Daftar di sini
-                                </Link>
+                            <div className="space-y-2 text-center text-sm text-muted-foreground">
+                                <div>
+                                    Belum memiliki akun?{' '}
+                                    <Link href="/register" className="text-foreground font-semibold underline underline-offset-4 hover:text-primary transition-colors">
+                                        Daftar di sini
+                                    </Link>
+                                </div>
+                                <div className="text-xs text-muted-foreground/80">
+                                    Ingin membaca kembali ketentuan layanan?{' '}
+                                    <Link
+                                        href="/syarat-dan-ketentuan"
+                                        className="font-medium text-foreground underline underline-offset-4 hover:text-primary transition-colors"
+                                    >
+                                        Syarat dan Ketentuan
+                                    </Link>
+                                </div>
                             </div>
                         </form>
                         )}
@@ -320,7 +331,13 @@ export default function Login({ status, otp = null }) {
                 </div>
 
                 <div className="text-center text-xs text-muted-foreground">
-                    © {new Date().getFullYear()} PAGORA Enterprise E-Procurement
+                    © {new Date().getFullYear()} PAGORA Enterprise E-Procurement ·{' '}
+                    <Link
+                        href="/syarat-dan-ketentuan"
+                        className="underline underline-offset-4 hover:text-foreground transition-colors"
+                    >
+                        Syarat &amp; Ketentuan
+                    </Link>
                 </div>
             </div>
 

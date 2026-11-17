@@ -117,10 +117,18 @@ export default function LandingFooter({ appName, logoUrl, tagline }) {
                 </VelocityMarquee>
             </div>
 
-            <div className="landing-container mt-10 flex flex-col gap-2 border-t border-brand-offblack/20 py-6 type-body-xs tab:flex-row tab:justify-between">
-                <p>
-                    © {new Date().getFullYear()} {appName}. Seluruh hak cipta dilindungi.
-                </p>
+            <div className="landing-container mt-10 flex flex-col gap-3 border-t border-brand-offblack/20 py-6 type-body-xs tab:flex-row tab:items-center tab:justify-between">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                    <p>
+                        © {new Date().getFullYear()} {appName}. Seluruh hak cipta dilindungi.
+                    </p>
+                    <Link
+                        href="/syarat-dan-ketentuan"
+                        className="font-medium text-brand-offblack/80 underline underline-offset-4 transition-colors hover:text-warm-50"
+                    >
+                        Syarat dan Ketentuan
+                    </Link>
+                </div>
                 <p className="text-brand-offblack/70">Data harga acuan bersumber dari Bank Indonesia.</p>
             </div>
         </footer>

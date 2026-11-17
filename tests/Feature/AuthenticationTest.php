@@ -400,6 +400,28 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_register_fails_when_legal_document_is_not_pdf(): void
+    {
+        Storage::fake('local');
+        $file = UploadedFile::fake()->create('dokumen-npwp.png', 500, 'image/png');
+
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Budi Santoso',
+            'email' => 'budi.nonpdf@perusahaan.co.id',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Sumber Pangan Makmur',
+            'nomor_npwp' => '01.234.567.8-901.000',
+            'telepon' => '081234567890',
+            'alamat' => 'Jl. Industri No. 10, Cikarang',
+            'dokumen_npwp' => $file,
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors(['dokumen_npwp']);
+        $this->assertGuest();
+    }
+
     public function test_register_succeeds_with_sixteen_digit_npwp(): void
     {
         Storage::fake('local');

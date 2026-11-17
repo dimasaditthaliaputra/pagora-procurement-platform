@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Head, Link, useForm, useHttp } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -29,6 +29,8 @@ const STEPS = [
     { id: 3, label: 'Perusahaan' },
 ];
 
+const PDF_ACCEPT = { 'application/pdf': ['.pdf'] };
+
 export default function Register({ google_user = null, status = null }) {
     const isGoogle = Boolean(google_user?.email);
     const [step, setStep] = useState(() => (isGoogle ? 3 : 1));
@@ -53,8 +55,8 @@ export default function Register({ google_user = null, status = null }) {
     const [lastOtpEmail, setLastOtpEmail] = useState('');
     const [verifiedOtpInfo, setVerifiedOtpInfo] = useState(null);
     const [verifyingOtp, setVerifyingOtp] = useState(false);
+    const [sendingOtp, setSendingOtp] = useState(false);
     const resend = useCountdown();
-    const otpRequest = useHttp({ email: '' });
 
     const isOtpVerified = isGoogle || Boolean(
         verifiedOtpInfo &&
@@ -63,44 +65,82 @@ export default function Register({ google_user = null, status = null }) {
         data.otp.length === OTP_LENGTH
     );
 
-    const sendOtp = (onSuccessCallback) => {
+    const sendOtp = async (onSuccessCallback) => {
         const trimmedEmail = data.email.trim();
 
         if (!trimmedEmail) {
             setError('email', 'Alamat email bisnis wajib diisi.');
             notify.validationFailed();
-            return;
+            return false;
         }
         if (!isEmail(trimmedEmail)) {
             setError('email', 'Format alamat email tidak valid.');
             notify.validationFailed();
-            return;
+            return false;
         }
 
         clearErrors('email', 'otp');
         setVerifiedOtpInfo(null);
         setData('otp', '');
-        otpRequest.transform(() => ({ email: trimmedEmail }));
-        otpRequest.post('/register/otp/kirim', {
-            onSuccess: () => {
+        setSendingOtp(true);
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const response = await fetch('/register/otp/kirim', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                },
+                body: JSON.stringify({
+                    email: trimmedEmail,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
                 setOtpSent(true);
                 setLastOtpEmail(trimmedEmail.toLowerCase());
                 resend.start(60);
-                notify.success('Kode OTP telah dikirim ke email bisnis Anda.');
-                if (onSuccessCallback) {
+                notify.success(result.message || 'Kode OTP telah dikirim ke email bisnis Anda.');
+                if (typeof onSuccessCallback === 'function') {
                     onSuccessCallback();
-                }
-            },
-            onError: (errs) => {
-                const errorMsg = errs.email ?? errs.otp ?? 'Gagal mengirim kode OTP.';
-                if (step === 2) {
-                    setError('otp', errorMsg);
                 } else {
-                    setError('email', errorMsg);
+                    setStep(2);
                 }
-                notify.error(errorMsg);
-            },
-        });
+                return true;
+            }
+
+            const errorMsg =
+                result.errors?.email?.[0] ||
+                result.errors?.email ||
+                result.errors?.otp?.[0] ||
+                result.errors?.otp ||
+                result.message ||
+                'Gagal mengirim kode OTP.';
+
+            if (step === 2) {
+                setError('otp', errorMsg);
+            } else {
+                setError('email', errorMsg);
+            }
+            notify.error(errorMsg);
+            return false;
+        } catch {
+            const errorMsg = 'Terjadi kesalahan saat mengirim kode OTP. Silakan periksa koneksi Anda.';
+            if (step === 2) {
+                setError('otp', errorMsg);
+            } else {
+                setError('email', errorMsg);
+            }
+            notify.error(errorMsg);
+            return false;
+        } finally {
+            setSendingOtp(false);
+        }
     };
 
     const verifyOtpWithServer = async (email, otp) => {
@@ -324,6 +364,13 @@ export default function Register({ google_user = null, status = null }) {
         if (!data.dokumen_npwp) {
             setError('dokumen_npwp', 'Dokumen legalitas perusahaan (NPWP/SIUP) wajib diunggah.');
             hasError = true;
+        } else if (
+            data.dokumen_npwp instanceof File &&
+            !data.dokumen_npwp.name.toLowerCase().endsWith('.pdf') &&
+            data.dokumen_npwp.type !== 'application/pdf'
+        ) {
+            setError('dokumen_npwp', 'Format berkas dokumen legalitas harus berupa PDF (.pdf).');
+            hasError = true;
         }
 
         if (hasError) {
@@ -424,6 +471,7 @@ export default function Register({ google_user = null, status = null }) {
                                         disabled={
                                             processing ||
                                             verifyingOtp ||
+                                            sendingOtp ||
                                             (item.id === 2 && (isGoogle || !otpSent)) ||
                                             (item.id === 3 && !isOtpVerified)
                                         }
@@ -550,7 +598,7 @@ export default function Register({ google_user = null, status = null }) {
                                             }}
                                             placeholder="Contoh: Budi Pratama"
                                             aria-invalid={!!errors.name}
-                                            disabled={otpRequest.processing || isGoogle}
+                                            disabled={sendingOtp || isGoogle}
                                             readOnly={isGoogle}
                                             className={cn(
                                                 'h-9 text-sm',
@@ -588,7 +636,7 @@ export default function Register({ google_user = null, status = null }) {
                                             }}
                                             placeholder="Contoh: procurement@perusahaan.co.id"
                                             aria-invalid={!!errors.email}
-                                            disabled={otpRequest.processing || isGoogle}
+                                            disabled={sendingOtp || isGoogle}
                                             readOnly={isGoogle}
                                             className={cn(
                                                 'h-9 text-sm',
@@ -630,7 +678,7 @@ export default function Register({ google_user = null, status = null }) {
                                                     }}
                                                     placeholder="Minimal 8 karakter"
                                                     error={errors.password}
-                                                    disabled={otpRequest.processing}
+                                                    disabled={sendingOtp}
                                                 />
                                                 {errors.password && (
                                                     <p className="text-xs font-medium text-destructive">{errors.password}</p>
@@ -654,7 +702,7 @@ export default function Register({ google_user = null, status = null }) {
                                                     }}
                                                     placeholder="Ulangi kata sandi"
                                                     error={errors.password_confirmation}
-                                                    disabled={otpRequest.processing}
+                                                    disabled={sendingOtp}
                                                 />
                                                 {errors.password_confirmation && (
                                                     <p className="text-xs font-medium text-destructive">
@@ -709,12 +757,12 @@ export default function Register({ google_user = null, status = null }) {
                                             <Button
                                                 type="submit"
                                                 size="icon"
-                                                disabled={otpRequest.processing}
+                                                disabled={sendingOtp}
                                                 aria-label={isGoogle ? 'Lanjut ke Data Perusahaan' : 'Lanjut ke Verifikasi OTP'}
                                                 title={isGoogle ? 'Lanjut ke Data Perusahaan' : 'Lanjut ke Verifikasi OTP'}
                                                 className="size-10 rounded-xl cursor-pointer"
                                             >
-                                                {otpRequest.processing ? (
+                                                {sendingOtp ? (
                                                     <span className="size-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                                                 ) : (
                                                     <ChevronRight className="size-4" />
@@ -766,7 +814,7 @@ export default function Register({ google_user = null, status = null }) {
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => sendOtp()}
-                                            loading={otpRequest.processing}
+                                            loading={sendingOtp}
                                             loadingText="Mengirim ulang..."
                                             disabled={processing || verifyingOtp || resend.seconds > 0}
                                             className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
@@ -775,15 +823,6 @@ export default function Register({ google_user = null, status = null }) {
                                                 ? `Kirim ulang kode dalam ${resend.seconds} detik`
                                                 : 'Tidak menerima kode? Kirim ulang'}
                                         </LoadingButton>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => setStep(1)}
-                                            disabled={processing || verifyingOtp}
-                                            className="text-xs text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
-                                        >
-                                            Salah alamat email? Ubah profil akun
-                                        </button>
                                     </div>
                                 </div>
 
@@ -843,7 +882,7 @@ export default function Register({ google_user = null, status = null }) {
                                     {/* Nama Perusahaan */}
                                     <div className="grid gap-1">
                                         <Label htmlFor="nama_perusahaan" className={errors.nama_perusahaan ? 'text-destructive text-xs' : 'text-xs'}>
-                                            Nama Perusahaan / Entitas Bisnis <span className="text-destructive">*</span>
+                                            Nama Perusahaan / Instansi <span className="text-destructive">*</span>
                                         </Label>
                                         <Input
                                             id="nama_perusahaan"
@@ -977,11 +1016,12 @@ export default function Register({ google_user = null, status = null }) {
                                                 notify.validationFailed();
                                             }}
                                             error={errors.dokumen_npwp}
+                                            accept={PDF_ACCEPT}
                                             disabled={processing}
                                             uploading={processing}
                                             progress={progress?.percentage ?? null}
                                             label="Dokumen Legalitas Perusahaan"
-                                            description="Format PDF, JPG, JPEG, atau PNG (Maksimal 5 MB)"
+                                            description="Hanya format PDF (.pdf) dan maksimal 5 MB"
                                             maxSize={5 * 1024 * 1024}
                                         />
                                     </div>

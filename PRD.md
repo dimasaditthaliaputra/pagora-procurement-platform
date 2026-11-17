@@ -115,11 +115,11 @@ Seluruh aktivitas selain registrasi, konfirmasi undangan, dan reset kata sandi w
   2. Guest mengisi nama, email bisnis, kata sandi, dan konfirmasi kata sandi, lalu konfirmasi lanjut (**atau** memilih "Daftar dengan Google").
   3. Pada alur manual, sistem mengirimkan kode OTP ke email bisnis dan memuat langkah 2 (**Verifikasi OTP**). Setelah kode OTP 6 digit diverifikasi, sistem memuat langkah 3 (**Form Perusahaan**).
   4. Pada alur **Daftar dengan Google**, identitas dan email pengguna otomatis tervalidasi via Google OAuth sehingga tidak memerlukan input kata sandi manual maupun verifikasi OTP. Sistem membuatkan kata sandi default unik yang dikirimkan ke Gmail pengguna, dan langsung mengarahkan pengguna ke langkah 3 (**Form Perusahaan**).
-  5. Guest mengisi nama perusahaan, NPWP, nomor telepon perusahaan, alamat, dan mengunggah dokumen legalitas (NPWP / Surat Izin Usaha).
+  5. Guest mengisi nama perusahaan, NPWP, nomor telepon perusahaan, alamat, dan mengunggah dokumen legalitas (NPWP / Surat Izin Usaha berformat PDF maksimal 5 MB).
   6. Guest mengonfirmasi pendaftaran; sistem memvalidasi kelengkapan data & berkas.
   7. Sistem menyimpan profil ke `users` (role `owner`) dan perusahaan ke `tenants` dengan status **menunggu verifikasi**.
   8. Sistem mengarahkan ke halaman "Pendaftaran sukses".
-- **Alternatif/error**: 6a. Data tidak valid (kolom wajib kosong, email terdaftar, berkas > 5 MB / format salah) → tolak, tampilkan error di kolom terkait, tetap di form.
+- **Alternatif/error**: 6a. Data tidak valid (kolom wajib kosong, email terdaftar, berkas bukan PDF / > 5 MB) → tolak, tampilkan error di kolom terkait, tetap di form.
 - **Hasil**: data Owner & Tenant tersimpan; Tenant aktif setelah diverifikasi Superadmin (UC-21).
 
 ### UC-02 Registrasi Akun Vendor
@@ -469,8 +469,8 @@ Prioritas: **Must** = Tinggi di SKPL / wajib menurut keputusan tim, **Should** =
 
 | ID | Kebutuhan | Aktor | Prioritas | UC | Ref |
 |---|---|---|---|---|---|
-| FR-01 | Registrasi Tenant bertahap: data Owner → profil perusahaan (nama, NPWP, alamat) + unggah legalitas; status menunggu verifikasi | Guest | Must | UC-01 | REQ-AUTH-01 |
-| FR-02 | Registrasi Vendor bertahap (mandiri / via undangan): data individu → profil perusahaan (nama, NPWP, alamat, kontak, **≥ 1 kategori komoditas**) + wajib unggah legalitas | Guest | Must | UC-02 | REQ-AUTH-02 |
+| FR-01 | Registrasi Tenant bertahap: data Owner → verifikasi OTP email bisnis → profil perusahaan (nama, NPWP, telepon, alamat) + unggah legalitas; status menunggu verifikasi | Guest | Must | UC-01 | REQ-AUTH-01 |
+| FR-02 | Registrasi Vendor bertahap (mandiri / via undangan): data individu → verifikasi OTP email bisnis → profil perusahaan (nama, NPWP, alamat, telepon, **≥ 1 kategori komoditas**) + wajib unggah legalitas; status pending | Guest | Must | UC-02 | REQ-AUTH-02 |
 | FR-03 | Email undangan bergabung ke Tenant; konfirmasi via tautan (ke login / registrasi bila belum punya akun) | Guest, Owner | Must | UC-03 | REQ-AUTH-03 |
 | FR-04 | Login email + kata sandi atau Google; opsi **Ingat Saya**; validasi status aktif; buat sesi; redirect sesuai role | User | Must | UC-04 | REQ-AUTH-04 |
 | FR-05 | Lihat & perbarui profil akun pribadi (username, email, password) | User | Should | UC-05 | REQ-AUTH-05 |
@@ -780,8 +780,8 @@ Ke `resolved` hanya oleh Owner/Manajemen; bila `resolution_type` membutuhkan tin
 ### 9.4 Validasi Input
 | Form | Aturan |
 |---|---|
-| Registrasi Tenant | Semua kolom wajib; email unik & valid; konfirmasi kata sandi cocok; NPWP format valid & unik; telepon format valid (8–15 digit); dokumen legalitas wajib, format sesuai, ≤ 5 MB |
-| Registrasi Vendor | Seperti Tenant + NPWP wajib & valid, minimal 1 kategori komoditas, email perusahaan & telepon valid |
+| Registrasi Tenant | Semua kolom wajib; email unik & valid; verifikasi kode OTP 6 digit email bisnis (alur manual); konfirmasi kata sandi cocok; NPWP format valid & unik; telepon format valid (8–15 digit); dokumen legalitas wajib berformat PDF (.pdf), ≤ 5 MB |
+| Registrasi Vendor | Seperti Tenant + NPWP wajib & valid, minimal 1 kategori komoditas, email bisnis & telepon valid |
 | Profil perusahaan | Nama, NPWP (format valid), alamat wajib |
 | Tambah pegawai | Nama, email (unik), role ∈ {Manajemen, Purchasing/Finance, QC Gudang} wajib |
 | Update akun | Email unik terhadap user lain; konfirmasi password cocok |

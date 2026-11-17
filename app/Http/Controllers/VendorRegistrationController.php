@@ -69,23 +69,33 @@ class VendorRegistrationController extends Controller
     /**
      * Kirim kode OTP ke email bisnis untuk memastikan email tersebut asli.
      */
-    public function sendOtp(SendVendorOtpRequest $request): JsonResponse|RedirectResponse
+    public function sendOtp(SendVendorOtpRequest $request): JsonResponse
     {
         try {
             $this->service->sendEmailOtp((string) $request->validated('contact_email'));
 
-            return ResponseHelper::success('Kode OTP telah dikirim ke email bisnis Anda.');
+            return response()->json([
+                'success' => true,
+                'message' => 'Kode OTP telah dikirim ke email bisnis Anda.',
+            ]);
         } catch (ValidationException $e) {
-            return ResponseHelper::validationError($e->errors());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan validasi data.',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (Throwable $e) {
-            return ResponseHelper::serverError('Gagal mengirim kode OTP.', $e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengirim kode OTP.',
+            ], 500);
         }
     }
 
     /**
      * Verifikasi kode OTP email bisnis calon vendor sebelum lanjut ke langkah berikutnya.
      */
-    public function verifyOtp(VerifyVendorOtpRequest $request): JsonResponse|RedirectResponse
+    public function verifyOtp(VerifyVendorOtpRequest $request): JsonResponse
     {
         try {
             $this->service->verifyEmailOtp(
@@ -93,16 +103,21 @@ class VendorRegistrationController extends Controller
                 (string) $request->validated('otp')
             );
 
-            return ResponseHelper::success(
-                'Kode OTP berhasil diverifikasi.',
-                null,
-                url()->previous() ?: route('register.vendor'),
-                $request
-            );
+            return response()->json([
+                'success' => true,
+                'message' => 'Kode OTP berhasil diverifikasi.',
+            ]);
         } catch (ValidationException $e) {
-            return ResponseHelper::validationError($e->errors(), request: $request);
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan validasi data.',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (Throwable $e) {
-            return ResponseHelper::serverError('Gagal memverifikasi kode OTP.', $e, $request);
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memverifikasi kode OTP.',
+            ], 500);
         }
     }
 

@@ -154,7 +154,7 @@ Kolom `timestamps` tidak ditulis ulang kecuali tabel immutable. Kolom "Saat ini"
 |---|---|---|---|
 | name | string(150) NN | `nama_lengkap` | |
 | email | string(150) U NN | | |
-| email_verified_at | timestamp null | | |
+| email_verified_at | timestamp null | | Terisi saat verifikasi OTP pendaftaran (tenant/vendor) berhasil atau registrasi via Google |
 | password | string null | | null untuk akun Google-only |
 | google_id | string U null | | Socialite |
 | avatar | string(500) null | | |
@@ -173,7 +173,7 @@ Aturan (di Service/Form Request): role `vendor` ⇒ `vendor_id` terisi & `tenant
 | company_name | string(200) NN | `nama_perusahaan` | |
 | tax_number | string(30) U null | `nomor_npwp` | NPWP (indeks unik aktif: `ux_tenants_tax_number`) |
 | phone | string(30) null | [baru] | Nomor telepon perusahaan (E.164) |
-| legal_document_path | string(500) null | `file_url` | |
+| legal_document_path | string(500) null | `file_url` | Berkas legalitas NPWP/SIUP tenant (format PDF, maks 5 MB) |
 | address | text null | `alamat` | |
 | verification_status | string(30) NN default `pending`, idx | [baru] | `pending`, `approved`, `rejected` |
 | verification_note | text null | [baru] | Alasan penolakan |

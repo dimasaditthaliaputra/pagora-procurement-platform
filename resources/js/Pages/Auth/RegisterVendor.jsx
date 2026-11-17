@@ -1,4 +1,4 @@
-import { Head, Link, useForm, useHttp } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -97,10 +97,11 @@ export default function RegisterVendor({
     const legalDocumentFeedback = useUploadFeedback(form, 'legal_documents');
 
     const [otpSent, setOtpSent] = useState(false);
+    const [lastOtpEmail, setLastOtpEmail] = useState('');
     const [verifiedOtpInfo, setVerifiedOtpInfo] = useState(null);
     const [verifyingOtp, setVerifyingOtp] = useState(false);
+    const [sendingOtp, setSendingOtp] = useState(false);
     const resend = useCountdown();
-    const otpRequest = useHttp({ contact_email: '', email: '' });
 
     const currentEmail = (data.email || data.contact_email || '').trim().toLowerCase();
     const isOtpVerified = isGoogle || Boolean(
@@ -130,47 +131,81 @@ export default function RegisterVendor({
         scrollBodyToTop();
     };
 
-    const sendOtp = (callback) => {
+    const sendOtp = async (callback) => {
         const email = (data.email || data.contact_email || '').trim();
 
         if (!email) {
             setError('email', 'Email bisnis wajib diisi.');
             notify.validationFailed();
             scrollToFirstError();
-            return;
+            return false;
         }
         if (!isEmail(email)) {
             setError('email', 'Format email bisnis tidak valid.');
             notify.validationFailed();
             scrollToFirstError();
-            return;
+            return false;
         }
 
         clearErrors('email', 'contact_email', 'otp');
         setVerifiedOtpInfo(null);
         setData('otp', '');
-        otpRequest.transform(() => ({
-            contact_email: email,
-            email: email,
-        }));
-        otpRequest.post('/register/vendor/otp', {
-            onSuccess: () => {
+        setSendingOtp(true);
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const response = await fetch('/register/vendor/otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                },
+                body: JSON.stringify({
+                    contact_email: email,
+                    email: email,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
                 setOtpSent(true);
+                setLastOtpEmail(email.toLowerCase());
                 resend.start(60);
-                notify.success('Kode OTP telah dikirim ke email bisnis Anda.');
+                notify.success(result.message || 'Kode OTP telah dikirim ke email bisnis Anda.');
                 if (typeof callback === 'function') {
                     callback();
                 } else {
                     goToStep(2);
                 }
-            },
-            onError: (errs) => {
-                const msg = errs.contact_email ?? errs.email ?? 'Gagal mengirim kode OTP.';
-                setError('email', msg);
-                notify.validationFailed();
-                scrollToFirstError();
-            },
-        });
+                return true;
+            }
+
+            const errorMsg =
+                result.errors?.contact_email?.[0] ||
+                result.errors?.contact_email ||
+                result.errors?.email?.[0] ||
+                result.errors?.email ||
+                result.errors?.otp?.[0] ||
+                result.errors?.otp ||
+                result.message ||
+                'Gagal mengirim kode OTP.';
+
+            setError('email', errorMsg);
+            notify.validationFailed();
+            scrollToFirstError();
+            return false;
+        } catch {
+            const errorMsg = 'Terjadi kesalahan saat mengirim kode OTP. Silakan periksa koneksi Anda.';
+            setError('email', errorMsg);
+            notify.error(errorMsg);
+            scrollToFirstError();
+            return false;
+        } finally {
+            setSendingOtp(false);
+        }
     };
 
     const validateStep1 = () => {
@@ -291,7 +326,11 @@ export default function RegisterVendor({
 
         const email = (data.email || data.contact_email || '').trim();
         if (value.length === OTP_LENGTH && email && isEmail(email)) {
-            verifyOtpWithServer(email, value);
+            verifyOtpWithServer(email, value).then((valid) => {
+                if (valid) {
+                    goToStep(3);
+                }
+            });
         }
     };
 
@@ -556,7 +595,7 @@ export default function RegisterVendor({
     };
 
     const handleStepClick = async (targetStep) => {
-        if (processing || verifyingOtp || otpRequest.processing || targetStep === step) {
+        if (processing || verifyingOtp || sendingOtp || targetStep === step) {
             return;
         }
 
@@ -596,7 +635,7 @@ export default function RegisterVendor({
     };
 
     const handleNextStep = async () => {
-        if (processing || verifyingOtp || otpRequest.processing) {
+        if (processing || verifyingOtp || sendingOtp) {
             return;
         }
 
@@ -611,22 +650,15 @@ export default function RegisterVendor({
             }
 
             const email = (data.email || data.contact_email || '').trim().toLowerCase();
-            if (
-                verifiedOtpInfo &&
-                verifiedOtpInfo.email === email &&
-                verifiedOtpInfo.otp === data.otp &&
-                data.otp.length === OTP_LENGTH
-            ) {
+            const emailNeedsOtp = !otpSent || lastOtpEmail !== email;
+
+            if (emailNeedsOtp) {
+                sendOtp(() => goToStep(2));
+            } else if (isOtpVerified) {
                 goToStep(3);
-                return;
-            }
-
-            if (otpSent && !resend.seconds) {
+            } else {
                 goToStep(2);
-                return;
             }
-
-            sendOtp(() => goToStep(2));
         } else if (step === 2) {
             const valid = await validateStep2();
             if (valid) {
@@ -654,7 +686,12 @@ export default function RegisterVendor({
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (processing || verifyingOtp || otpRequest.processing) {
+        if (processing || verifyingOtp || sendingOtp) {
+            return;
+        }
+
+        if (step < 4) {
+            handleNextStep();
             return;
         }
 
@@ -994,14 +1031,10 @@ export default function RegisterVendor({
                                                 isGoogle && 'bg-muted/50 cursor-not-allowed'
                                             )}
                                         />
-                                        {errors.email ? (
+                                        {errors.email && (
                                             <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
                                                 <AlertCircle className="size-3.5 shrink-0" />
                                                 <span>{errors.email}</span>
-                                            </p>
-                                        ) : (
-                                            <p className="text-[11px] text-muted-foreground">
-                                                Email bisnis digunakan untuk login dan menerima kode OTP verifikasi resmi perusahaan.
                                             </p>
                                         )}
                                     </div>
@@ -1139,7 +1172,7 @@ export default function RegisterVendor({
                                         {isOtpVerified && (
                                             <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5">
                                                 <CheckCircle2 className="size-4 shrink-0" />
-                                                <span>Email bisnis berhasil diverifikasi. Klik tombol panah kanan untuk lanjut.</span>
+                                                <span>Email bisnis telah terverifikasi.</span>
                                             </p>
                                         )}
 
@@ -1149,7 +1182,7 @@ export default function RegisterVendor({
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => sendOtp()}
-                                                loading={otpRequest.processing}
+                                                loading={sendingOtp}
                                                 loadingText="Mengirim ulang..."
                                                 disabled={processing || verifyingOtp || resend.seconds > 0}
                                                 className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
@@ -1158,15 +1191,6 @@ export default function RegisterVendor({
                                                     ? `Kirim ulang kode dalam ${resend.seconds} detik`
                                                     : 'Tidak menerima kode? Kirim ulang'}
                                             </LoadingButton>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => goToStep(1)}
-                                                disabled={processing || verifyingOtp}
-                                                className="text-xs text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
-                                            >
-                                                Salah alamat email bisnis? Ubah di Profil Akun
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -1641,7 +1665,7 @@ export default function RegisterVendor({
                                 variant="outline"
                                 size="icon"
                                 onClick={() => goToStep(step === 3 && isGoogle ? 1 : step - 1)}
-                                disabled={processing || verifyingOtp || otpRequest.processing || step === 1}
+                                disabled={processing || verifyingOtp || sendingOtp || step === 1}
                                 aria-label={step === 3 && isGoogle ? 'Kembali ke profil akun' : 'Langkah sebelumnya'}
                                 title={step === 3 && isGoogle ? 'Kembali ke profil akun' : 'Langkah sebelumnya'}
                                 className="size-10 rounded-xl cursor-pointer"
@@ -1657,14 +1681,14 @@ export default function RegisterVendor({
                                     disabled={
                                         processing ||
                                         verifyingOtp ||
-                                        otpRequest.processing ||
+                                        sendingOtp ||
                                         (step === 2 && data.otp.length !== OTP_LENGTH)
                                     }
                                     aria-label="Langkah berikutnya"
                                     title="Langkah berikutnya"
                                     className="size-10 rounded-xl cursor-pointer"
                                 >
-                                    {verifyingOtp || ((step === 1 || step === 2) && otpRequest.processing) ? (
+                                    {verifyingOtp || ((step === 1 || step === 2) && sendingOtp) ? (
                                         <span className="size-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                                     ) : (
                                         <ChevronRight className="size-4" />

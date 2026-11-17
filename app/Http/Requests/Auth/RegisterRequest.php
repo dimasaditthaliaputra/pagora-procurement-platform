@@ -168,7 +168,7 @@ class RegisterRequest extends FormRequest
             'dokumen_npwp' => [
                 'required',
                 'file',
-                'mimes:pdf,jpg,jpeg,png',
+                'mimes:pdf',
                 'max:5120',
             ],
             'otp' => $isGoogleRegistration
@@ -216,7 +216,7 @@ class RegisterRequest extends FormRequest
             'alamat.max' => 'Alamat perusahaan tidak boleh lebih dari :max karakter.',
             'dokumen_npwp.required' => 'Dokumen legalitas perusahaan (NPWP/SIUP) wajib diunggah.',
             'dokumen_npwp.file' => 'Berkas dokumen legalitas harus berupa file yang valid.',
-            'dokumen_npwp.mimes' => 'Format dokumen legalitas harus berupa PDF, JPG, JPEG, atau PNG.',
+            'dokumen_npwp.mimes' => 'Format berkas dokumen legalitas harus berupa PDF (.pdf).',
             'dokumen_npwp.max' => 'Ukuran berkas dokumen legalitas tidak boleh melebihi 5 MB.',
             'otp.required' => 'Kode OTP verifikasi email wajib diisi.',
             'otp.digits' => 'Kode OTP harus terdiri dari 6 digit angka.',

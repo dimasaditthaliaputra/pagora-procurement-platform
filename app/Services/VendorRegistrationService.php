@@ -63,14 +63,19 @@ class VendorRegistrationService
      */
     public function getActiveCommodityCategories(): array
     {
-        return CommodityCategory::query()
+        $categories = CommodityCategory::query()
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['uuid', 'name'])
             ->map(fn (CommodityCategory $category): array => [
                 'uuid' => $category->uuid,
                 'name' => $category->name,
-            ])
+            ]);
+
+        $others = $categories->filter(fn (array $cat): bool => in_array(strtolower(trim($cat['name'])), ['lainnya', 'lain-lain', 'other'], true));
+        $regular = $categories->reject(fn (array $cat): bool => in_array(strtolower(trim($cat['name'])), ['lainnya', 'lain-lain', 'other'], true));
+
+        return $regular->concat($others)
             ->values()
             ->all();
     }

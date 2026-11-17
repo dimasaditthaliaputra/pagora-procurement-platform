@@ -85,11 +85,11 @@ function OtpStep({ otp, status }) {
                     variant="outline"
                     onClick={resendOtp}
                     loading={resending}
-                    loadingText="Mengirim..."
+                    loadingText="Mengajukan..."
                     disabled={processing || resend.seconds > 0}
                     className="w-full cursor-pointer"
                 >
-                    {resend.seconds > 0 ? `Kirim ulang kode (${resend.seconds}d)` : 'Kirim ulang kode'}
+                    {resend.seconds > 0 ? `Ajukan ulang kode (${resend.seconds}d)` : 'Ajukan kode baru'}
                 </LoadingButton>
                 <button
                     type="button"

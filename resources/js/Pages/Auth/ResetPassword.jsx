@@ -76,7 +76,7 @@ export default function ResetPassword({ token, email }) {
                             <div className="text-xs font-medium text-destructive bg-destructive/5 border border-destructive/30 p-3 rounded-lg text-center">
                                 {errors.email || errors.token || errors.general}{' '}
                                 <Link href="/forgot-password" className="underline underline-offset-4">
-                                    Minta tautan baru
+                                    Ajukan tautan baru
                                 </Link>
                             </div>
                         )}

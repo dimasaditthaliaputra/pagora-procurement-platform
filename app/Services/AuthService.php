@@ -269,7 +269,7 @@ class AuthService
 
         if ($status === Password::RESET_THROTTLED) {
             throw ValidationException::withMessages([
-                'email' => 'Permintaan terlalu sering. Silakan tunggu sebentar sebelum meminta tautan baru.',
+                'email' => 'Permintaan terlalu sering. Silakan tunggu sebentar sebelum mengajukan tautan baru.',
             ]);
         }
 
@@ -305,7 +305,7 @@ class AuthService
 
         if ($status !== Password::PASSWORD_RESET) {
             throw ValidationException::withMessages([
-                'email' => 'Tautan atur ulang kata sandi tidak valid atau sudah kedaluwarsa. Silakan minta tautan baru.',
+                'email' => 'Tautan atur ulang kata sandi tidak valid atau sudah kedaluwarsa. Silakan ajukan tautan baru.',
             ]);
         }
 

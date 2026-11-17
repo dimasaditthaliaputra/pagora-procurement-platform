@@ -817,13 +817,13 @@ export default function Register({ google_user = null, status = null }) {
                                             size="sm"
                                             onClick={() => sendOtp()}
                                             loading={sendingOtp}
-                                            loadingText="Mengirim ulang..."
+                                            loadingText="Mengajukan ulang..."
                                             disabled={processing || verifyingOtp || resend.seconds > 0}
                                             className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                                         >
                                             {resend.seconds > 0
-                                                ? `Kirim ulang kode dalam ${resend.seconds} detik`
-                                                : 'Tidak menerima kode? Kirim ulang'}
+                                                ? `Ajukan ulang kode dalam ${resend.seconds} detik`
+                                                : 'Tidak menerima kode? Ajukan kode baru'}
                                         </LoadingButton>
                                     </div>
                                 </div>

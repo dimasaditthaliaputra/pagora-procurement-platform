@@ -1,5 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -72,6 +72,22 @@ export default function RegisterVendor({
         ? [invitation.commodity_category_uuid]
         : [];
     const initialEmail = google_user?.email ?? (invitation?.contact_email ?? '');
+
+    const sortedCommodityCategories = useMemo(() => {
+        if (!Array.isArray(commodity_categories)) {
+            return [];
+        }
+        const regular = [];
+        const others = [];
+        for (const cat of commodity_categories) {
+            if (/^(lainnya|lain-lain|other)$/i.test(cat.name?.trim() ?? '')) {
+                others.push(cat);
+            } else {
+                regular.push(cat);
+            }
+        }
+        return [...regular, ...others];
+    }, [commodity_categories]);
 
     const form = useForm({
         name: google_user?.name ?? '',
@@ -192,13 +208,21 @@ export default function RegisterVendor({
                 result.message ||
                 'Gagal mengirim kode OTP.';
 
-            setError('email', errorMsg);
-            notify.validationFailed();
+            if (step === 2) {
+                setError('otp', errorMsg);
+            } else {
+                setError('email', errorMsg);
+            }
+            notify.error(errorMsg);
             scrollToFirstError();
             return false;
         } catch {
             const errorMsg = 'Terjadi kesalahan saat mengirim kode OTP. Silakan periksa koneksi Anda.';
-            setError('email', errorMsg);
+            if (step === 2) {
+                setError('otp', errorMsg);
+            } else {
+                setError('email', errorMsg);
+            }
             notify.error(errorMsg);
             scrollToFirstError();
             return false;
@@ -961,7 +985,7 @@ export default function RegisterVendor({
                                         <Input
                                             id="name"
                                             type="text"
-                                            placeholder="Contoh: Andi Wijaya"
+                                            placeholder="Contoh: Budi Pratama"
                                             value={data.name}
                                             onChange={(e) => {
                                                 setData('name', e.target.value);
@@ -1003,7 +1027,7 @@ export default function RegisterVendor({
                                         <Input
                                             id="email"
                                             type="email"
-                                            placeholder="Contoh: procurement@sumberpangan.co.id"
+                                            placeholder="Contoh: procurement@perusahaan.co.id"
                                             value={data.email}
                                             onChange={(e) => {
                                                 const val = e.target.value;
@@ -1139,19 +1163,15 @@ export default function RegisterVendor({
                             {/* STEP 2: Verifikasi OTP Email Bisnis */}
                             {step === 2 && (
                                 <div className="space-y-6 max-w-lg mx-auto py-4">
-                                    <div className="text-center space-y-1.5">
-                                        <p className="text-sm text-muted-foreground">
-                                            Kode 6 digit telah dikirimkan ke email bisnis Anda:
-                                        </p>
-                                        <p className="text-base font-semibold text-foreground">
-                                            {data.email}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Masukkan kode di bawah untuk memverifikasi kontak email bisnis resmi perusahaan Anda.
+                                    <div className="flex flex-col gap-1.5 text-center">
+                                        <h1 className="text-2xl font-bold tracking-tight">Verifikasi Email Bisnis</h1>
+                                        <p className="text-muted-foreground text-sm text-balance">
+                                            Langkah 2 dari 4 - Masukkan kode 6 digit yang kami kirimkan ke{' '}
+                                            <span className="font-semibold text-foreground">{data.email}</span> untuk memverifikasi pendaftaran Anda.
                                         </p>
                                     </div>
 
-                                    <div className="space-y-4">
+                                    <div className="space-y-4 pt-1">
                                         <OtpField
                                             value={data.otp}
                                             onChange={handleOtpChange}
@@ -1167,27 +1187,20 @@ export default function RegisterVendor({
                                             </p>
                                         )}
 
-                                        {isOtpVerified && (
-                                            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5">
-                                                <CheckCircle2 className="size-4 shrink-0" />
-                                                <span>Email bisnis telah terverifikasi.</span>
-                                            </p>
-                                        )}
-
-                                        <div className="flex flex-col items-center gap-2 pt-2">
+                                        <div className="flex flex-col items-center gap-2 pt-1">
                                             <LoadingButton
                                                 type="button"
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => sendOtp()}
                                                 loading={sendingOtp}
-                                                loadingText="Mengirim ulang..."
+                                                loadingText="Mengajukan ulang..."
                                                 disabled={processing || verifyingOtp || resend.seconds > 0}
                                                 className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                                             >
                                                 {resend.seconds > 0
-                                                    ? `Kirim ulang kode dalam ${resend.seconds} detik`
-                                                    : 'Tidak menerima kode? Kirim ulang'}
+                                                    ? `Ajukan ulang kode dalam ${resend.seconds} detik`
+                                                    : 'Tidak menerima kode? Ajukan kode baru'}
                                             </LoadingButton>
                                         </div>
                                     </div>
@@ -1275,18 +1288,18 @@ export default function RegisterVendor({
                                             )}
                                         </div>
 
-                                        {/* Nomor Telepon */}
+                                        {/* Nomor Telepon Perusahaan */}
                                         <div className="space-y-1.5 md:col-span-2">
                                             <Label
                                                 htmlFor="phone"
                                                 className={cn('text-sm font-medium', errors.phone && 'text-destructive')}
                                             >
-                                                Nomor Telepon <span className="text-destructive">*</span>
+                                                Nomor Telepon Perusahaan <span className="text-destructive">*</span>
                                             </Label>
                                             <Input
                                                 id="phone"
                                                 type="tel"
-                                                placeholder="Contoh: 0812-3456-7890"
+                                                placeholder="Contoh: 081234567890 atau (021) 5551234"
                                                 value={data.phone}
                                                 onChange={(e) => {
                                                     setData('phone', e.target.value);
@@ -1319,7 +1332,7 @@ export default function RegisterVendor({
                                         <Textarea
                                             id="address"
                                             rows={2}
-                                            placeholder="Contoh: Kawasan Industri MM2100 Blok C-3 No. 8, Cikarang Barat, Kab. Bekasi"
+                                            placeholder="Contoh: Jl. Industri Raya No. 45, Kawasan MM2100, Cikarang Barat, Bekasi"
                                             value={data.address}
                                             onChange={(e) => {
                                                 setData('address', e.target.value);
@@ -1361,7 +1374,7 @@ export default function RegisterVendor({
                                             </span>
                                         </div>
 
-                                        {commodity_categories.length > 0 ? (
+                                        {sortedCommodityCategories.length > 0 ? (
                                             <div
                                                 data-invalid={!!errors.commodity_category_uuids}
                                                 className={cn(
@@ -1371,7 +1384,7 @@ export default function RegisterVendor({
                                                         : 'border-border'
                                                 )}
                                             >
-                                                {commodity_categories.map((cat) => {
+                                                {sortedCommodityCategories.map((cat) => {
                                                     const checked = data.commodity_category_uuids.includes(
                                                         cat.uuid
                                                     );

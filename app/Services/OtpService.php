@@ -47,7 +47,7 @@ class OtpService
             $seconds = max(1, (int) Cache::get($cooldownKey) - time());
 
             throw ValidationException::withMessages([
-                $errorField => "Mohon tunggu {$seconds} detik sebelum meminta kode baru.",
+                $errorField => "Mohon tunggu {$seconds} detik sebelum mengajukan kode baru.",
             ]);
         }
 
@@ -71,7 +71,7 @@ class OtpService
 
         if (! is_array($entry)) {
             throw ValidationException::withMessages([
-                $errorField => 'Kode OTP tidak ditemukan atau sudah kedaluwarsa. Silakan minta kode baru.',
+                $errorField => 'Kode OTP tidak ditemukan atau sudah kedaluwarsa. Silakan ajukan kode baru.',
             ]);
         }
 
@@ -79,7 +79,7 @@ class OtpService
             Cache::forget($key);
 
             throw ValidationException::withMessages([
-                $errorField => 'Terlalu banyak percobaan. Silakan minta kode baru.',
+                $errorField => 'Terlalu banyak percobaan gagal. Silakan ajukan kode baru.',
             ]);
         }
 
@@ -108,7 +108,7 @@ class OtpService
 
         if (! is_array($entry)) {
             throw ValidationException::withMessages([
-                $errorField => 'Kode OTP tidak ditemukan atau sudah kedaluwarsa. Silakan minta kode baru.',
+                $errorField => 'Kode OTP tidak ditemukan atau sudah kedaluwarsa. Silakan ajukan kode baru.',
             ]);
         }
 
@@ -116,7 +116,7 @@ class OtpService
             Cache::forget($key);
 
             throw ValidationException::withMessages([
-                $errorField => 'Terlalu banyak percobaan. Silakan minta kode baru.',
+                $errorField => 'Terlalu banyak percobaan gagal. Silakan ajukan kode baru.',
             ]);
         }
 

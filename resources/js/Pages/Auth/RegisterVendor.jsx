@@ -20,7 +20,6 @@ import { LoadingButton } from '@/Components/loading-button';
 import { FlashHandler } from '@/Components/flash-handler';
 import { OtpField, OTP_LENGTH } from '@/Components/otp-field';
 import { useCountdown } from '@/hooks/use-countdown';
-import { Toaster } from '@/Components/ui/sonner';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 import {
@@ -774,7 +773,6 @@ export default function RegisterVendor({
         <div className="h-dvh w-full overflow-hidden bg-muted/30 text-foreground flex flex-col p-3 sm:p-5 lg:p-6 font-inter selection:bg-brand-primary selection:text-text-primary">
             <Head title="Registrasi Calon Vendor Mitra - PAGORA" />
             <FlashHandler />
-            <Toaster />
 
             {/* Full-Width Card Container with Internal Scroll */}
             <div className="w-full flex-1 min-h-0 flex flex-col bg-card rounded-2xl border border-border shadow-sm overflow-hidden">

@@ -17,5 +17,17 @@ export function FlashHandler() {
         }
     }, [flash?.error]);
 
+    useEffect(() => {
+        if (flash?.warning) {
+            notify.warning(flash.warning);
+        }
+    }, [flash?.warning]);
+
+    useEffect(() => {
+        if (flash?.info) {
+            notify.info(flash.info);
+        }
+    }, [flash?.info]);
+
     return null;
 }

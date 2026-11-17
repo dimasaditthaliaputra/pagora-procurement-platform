@@ -4,7 +4,6 @@ import { Label } from '@/Components/ui/label';
 import { LoadingButton } from '@/Components/loading-button';
 import { PasswordInput } from '@/Components/password-input';
 import { FlashHandler } from '@/Components/flash-handler';
-import { Toaster } from '@/Components/ui/sonner';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 
@@ -62,7 +61,6 @@ export default function ResetPassword({ token, email }) {
         <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-6 md:p-10">
             <Head title="Atur Ulang Kata Sandi - PAGORA" />
             <FlashHandler />
-            <Toaster />
 
             <div className="flex flex-1 items-center justify-center py-8">
                 <div className="w-full max-w-sm">

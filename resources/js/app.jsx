@@ -1,6 +1,7 @@
 import { createInertiaApp, router } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { ThemeProvider } from '@/Components/theme-provider';
+import { Toaster } from '@/Components/ui/sonner';
 import { notify } from '@/lib/notify';
 
 // Each page is its own chunk, loaded on first visit.
@@ -43,6 +44,7 @@ createInertiaApp({
         createRoot(el).render(
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
                 <App {...props} />
+                <Toaster />
             </ThemeProvider>
         );
     },

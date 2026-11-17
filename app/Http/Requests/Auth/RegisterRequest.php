@@ -236,10 +236,14 @@ class RegisterRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            $hasDokumenNpwp = $this->hasFile('dokumen_npwp');
+            $hasFieldFiles = $this->hasFile('dokumen_npwp')
+                || $this->hasFile('dokumen_nib')
+                || $this->hasFile('dokumen_ktp')
+                || $this->filled('nomor_nib')
+                || $this->filled('nomor_ktp');
             $docs = $this->input('legal_documents', []);
 
-            if (! $hasDokumenNpwp && (! is_array($docs) || count($docs) === 0)) {
+            if (! $hasFieldFiles && (! is_array($docs) || count($docs) === 0)) {
                 $validator->errors()->add(
                     'dokumen_npwp',
                     'Dokumen legalitas perusahaan (NPWP / SIUP / NIB) wajib diunggah.'
@@ -252,7 +256,23 @@ class RegisterRequest extends FormRequest
                 return;
             }
 
-            if (is_array($docs) && count($docs) > 0) {
+            if ($this->hasFile('dokumen_nib') || $this->hasFile('dokumen_ktp') || $this->filled('nomor_nib') || $this->filled('nomor_ktp')) {
+                if (! $this->hasFile('dokumen_npwp') && ! $this->hasFile('file_npwp')) {
+                    $validator->errors()->add('dokumen_npwp', 'Dokumen NPWP Perusahaan wajib diunggah.');
+                }
+                if (! $this->hasFile('dokumen_nib') && ! $this->hasFile('file_nib')) {
+                    $validator->errors()->add('dokumen_nib', 'Dokumen NIB Perusahaan wajib diunggah.');
+                }
+                if (! $this->hasFile('dokumen_ktp') && ! $this->hasFile('file_ktp')) {
+                    $validator->errors()->add('dokumen_ktp', 'Dokumen KTP Penanggung Jawab wajib diunggah.');
+                }
+                if (! $this->filled('nomor_nib')) {
+                    $validator->errors()->add('nomor_nib', 'Nomor NIB perusahaan wajib diisi.');
+                }
+                if (! $this->filled('nomor_ktp')) {
+                    $validator->errors()->add('nomor_ktp', 'Nomor KTP / NIK penanggung jawab wajib diisi.');
+                }
+            } elseif (is_array($docs) && count($docs) > 0) {
                 $hasNpwp = collect($docs)->contains(function ($doc): bool {
                     return is_array($doc) && ($doc['document_type'] ?? null) === 'npwp';
                 });
@@ -327,6 +347,12 @@ class RegisterRequest extends FormRequest
             'dokumen_ktp.mimes' => 'Format berkas dokumen KTP harus berupa PDF (.pdf).',
             'dokumen_ktp.min' => 'Berkas dokumen KTP tidak boleh kosong (minimal 1 KB).',
             'dokumen_ktp.max' => 'Ukuran berkas dokumen KTP tidak boleh melebihi 5 MB.',
+            'nomor_nib.required' => 'Nomor NIB perusahaan wajib diisi.',
+            'nomor_nib.string' => 'Nomor NIB perusahaan harus berupa teks.',
+            'nomor_nib.max' => 'Nomor NIB perusahaan tidak boleh lebih dari :max karakter.',
+            'nomor_ktp.required' => 'Nomor KTP / NIK penanggung jawab wajib diisi.',
+            'nomor_ktp.string' => 'Nomor KTP / NIK penanggung jawab harus berupa teks.',
+            'nomor_ktp.max' => 'Nomor KTP / NIK penanggung jawab tidak boleh lebih dari :max karakter.',
             'otp.required' => 'Kode OTP verifikasi email wajib diisi.',
             'otp.digits' => 'Kode OTP harus terdiri dari 6 digit angka.',
         ];
@@ -346,6 +372,8 @@ class RegisterRequest extends FormRequest
             'otp' => 'kode OTP',
             'nama_perusahaan' => 'nama perusahaan',
             'nomor_npwp' => 'nomor NPWP',
+            'nomor_nib' => 'nomor NIB perusahaan',
+            'nomor_ktp' => 'nomor KTP penanggung jawab',
             'telepon' => 'nomor telepon perusahaan',
             'alamat' => 'alamat lengkap perusahaan',
             'dokumen_npwp' => 'dokumen NPWP perusahaan',

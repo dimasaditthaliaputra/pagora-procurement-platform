@@ -256,6 +256,12 @@ class StoreVendorRegistrationRequest extends FormRequest
                 if (! $this->hasFile('dokumen_ktp')) {
                     $validator->errors()->add('dokumen_ktp', 'Dokumen KTP Penanggung Jawab wajib diunggah.');
                 }
+                if (! $this->filled('nomor_nib')) {
+                    $validator->errors()->add('nomor_nib', 'Nomor NIB perusahaan wajib diisi.');
+                }
+                if (! $this->filled('nomor_ktp')) {
+                    $validator->errors()->add('nomor_ktp', 'Nomor KTP / NIK penanggung jawab wajib diisi.');
+                }
             } elseif (is_array($docs) && count($docs) > 0) {
                 $hasNpwp = collect($docs)->contains(function ($doc): bool {
                     return is_array($doc) && ($doc['document_type'] ?? null) === 'npwp';
@@ -342,6 +348,14 @@ class StoreVendorRegistrationRequest extends FormRequest
             'dokumen_ktp.min' => 'Berkas dokumen KTP tidak boleh kosong (minimal 1 KB).',
             'dokumen_ktp.max' => 'Ukuran berkas dokumen KTP tidak boleh lebih dari 5 MB.',
 
+            'nomor_nib.required' => 'Nomor NIB perusahaan wajib diisi.',
+            'nomor_nib.string' => 'Nomor NIB perusahaan harus berupa teks.',
+            'nomor_nib.max' => 'Nomor NIB perusahaan tidak boleh lebih dari :max karakter.',
+
+            'nomor_ktp.required' => 'Nomor KTP / NIK penanggung jawab wajib diisi.',
+            'nomor_ktp.string' => 'Nomor KTP / NIK penanggung jawab harus berupa teks.',
+            'nomor_ktp.max' => 'Nomor KTP / NIK penanggung jawab tidak boleh lebih dari :max karakter.',
+
             'legal_documents.required' => 'Unggah minimal satu dokumen legalitas (NPWP/SIUP/NIB) berformat PDF.',
             'legal_documents.array' => 'Format daftar dokumen legalitas tidak valid.',
             'legal_documents.min' => 'Unggah minimal satu dokumen legalitas (NPWP/SIUP/NIB) berformat PDF.',
@@ -370,6 +384,8 @@ class StoreVendorRegistrationRequest extends FormRequest
             'password' => 'kata sandi',
             'company_name' => 'nama perusahaan',
             'tax_number' => 'nomor NPWP',
+            'nomor_nib' => 'nomor NIB perusahaan',
+            'nomor_ktp' => 'nomor KTP penanggung jawab',
             'contact_email' => 'email bisnis perusahaan',
             'phone' => 'nomor telepon',
             'address' => 'alamat lengkap',

@@ -129,7 +129,9 @@ export function DetailDialog({ tenant, open, onOpenChange, onApprove, onReject }
                                                 ? 'SIUP'
                                                 : doc.document_type === 'nib'
                                                     ? 'NIB'
-                                                    : (doc.document_type || 'Dokumen');
+                                                    : doc.document_type === 'ktp'
+                                                        ? 'KTP Penanggung Jawab'
+                                                        : (doc.document_type || 'Dokumen');
 
                                     return (
                                         <div

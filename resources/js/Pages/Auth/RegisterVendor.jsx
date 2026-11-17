@@ -1623,12 +1623,24 @@ export default function RegisterVendor({
 
                     {/* Pinned Bottom Card Footer: Login Link & Compact Step Navigation */}
                     <div className="shrink-0 border-t border-border/80 bg-card px-5 py-3.5 sm:px-8 flex items-center justify-between gap-3">
-                        <p className="text-xs text-muted-foreground">
-                            Sudah memiliki akun?{' '}
-                            <Link href="/login" className="font-semibold text-foreground hover:underline">
-                                Masuk
-                            </Link>
-                        </p>
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                            <p>
+                                Sudah memiliki akun?{' '}
+                                <Link href="/login" className="font-semibold text-foreground hover:underline">
+                                    Masuk
+                                </Link>
+                            </p>
+                            <p className="text-[11px]">
+                                Dengan mendaftar, Anda menyetujui{' '}
+                                <Link
+                                    href="/syarat-dan-ketentuan"
+                                    className="font-semibold text-foreground underline underline-offset-4 hover:text-primary"
+                                >
+                                    Syarat &amp; Ketentuan PAGORA
+                                </Link>
+                                .
+                            </p>
+                        </div>
 
                         <div className="flex items-center gap-2">
                             <Button

@@ -20,6 +20,8 @@ Saat masuk pertama kali, sistem akan mengirimkan kode OTP ke email ini. Segera g
 Masuk ke {{ config('app.name') }}
 </x-mail::button>
 
+Dengan masuk dan menggunakan akun ini, Anda menyetujui [Syarat dan Ketentuan Penggunaan {{ config('app.name') }}]({{ url('/syarat-dan-ketentuan') }}).
+
 Salam,<br>
 Manajemen {{ $companyName }}
 </x-mail::message>

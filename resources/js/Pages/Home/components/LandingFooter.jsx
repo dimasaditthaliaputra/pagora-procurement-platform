@@ -15,7 +15,7 @@ const FOOTER_COLUMNS = [
             { label: 'Alur kerja', href: '#alur' },
             { label: 'Peran pengguna', href: '#peran' },
             { label: 'Keamanan data', href: '#keamanan' },
-            { label: 'Mulai', href: '#mulai' },
+            { label: 'Syarat & ketentuan', href: '/syarat-dan-ketentuan' },
         ],
     },
     {
@@ -33,8 +33,12 @@ function FooterLink({ href, children }) {
     const className = 'type-body-s transition-colors duration-200 hover:text-warm-50';
 
     if (href.startsWith('#')) {
+        const resolvedHref =
+            typeof window !== 'undefined' && window.location.pathname !== '/'
+                ? `/${href}`
+                : href;
         return (
-            <a href={href} className={className}>
+            <a href={resolvedHref} className={className}>
                 {children}
             </a>
         );

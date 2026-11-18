@@ -47,6 +47,30 @@ class StoreVendorRegistrationRequest extends FormRequest
             ]);
         }
 
+        if ($this->has('nomor_nib') && $this->input('nomor_nib') !== null) {
+            $this->merge([
+                'nomor_nib' => trim((string) $this->input('nomor_nib')),
+            ]);
+        }
+
+        if ($this->has('nomor_ktp') && $this->input('nomor_ktp') !== null) {
+            $this->merge([
+                'nomor_ktp' => trim((string) $this->input('nomor_ktp')),
+            ]);
+        }
+
+        if ($this->has('nomor_sppkp') && $this->input('nomor_sppkp') !== null) {
+            $this->merge([
+                'nomor_sppkp' => trim((string) $this->input('nomor_sppkp')),
+            ]);
+        }
+
+        if ($this->has('nomor_akta') && $this->input('nomor_akta') !== null) {
+            $this->merge([
+                'nomor_akta' => trim((string) $this->input('nomor_akta')),
+            ]);
+        }
+
         $rawEmail = $this->has('email') && filled($this->input('email'))
             ? strtolower(trim($this->string('email')->toString()))
             : null;
@@ -98,6 +122,8 @@ class StoreVendorRegistrationRequest extends FormRequest
             foreach ($docs as $idx => $doc) {
                 if (is_array($doc) && ($doc['document_type'] ?? null) === 'npwp' && ! empty($doc['document_number'])) {
                     $docs[$idx]['document_number'] = NpwpHelper::normalize($doc['document_number']);
+                } elseif (is_array($doc) && isset($doc['document_number'])) {
+                    $docs[$idx]['document_number'] = trim((string) $doc['document_number']);
                 }
             }
             $this->merge(['legal_documents' => $docs]);
@@ -173,7 +199,7 @@ class StoreVendorRegistrationRequest extends FormRequest
             'tax_number' => [
                 'required',
                 'string',
-                'max:30',
+                'max:20',
                 new Npwp,
                 Rule::unique('vendors', 'tax_number')->whereNull('deleted_at'),
             ],
@@ -185,7 +211,7 @@ class StoreVendorRegistrationRequest extends FormRequest
                 Rule::unique('vendors', 'contact_email')->whereNull('deleted_at'),
                 Rule::unique('users', 'email')->whereNull('deleted_at'),
             ],
-            'phone' => ['required', 'string', 'max:30', new PhoneNumber],
+            'phone' => ['required', 'string', 'max:20', new PhoneNumber],
             'address' => ['required', 'string', 'max:1000'],
             'otp' => $isGoogleRegistration ? ['nullable', 'string'] : ['required', 'digits:6'],
             'commodity_category_uuids' => ['required', 'array', 'min:1'],
@@ -220,16 +246,16 @@ class StoreVendorRegistrationRequest extends FormRequest
             'file_npwp' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
             'file_nib' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
             'file_ktp' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
-            'nomor_nib' => ['nullable', 'string', 'max:100'],
-            'nomor_ktp' => ['nullable', 'string', 'max:100'],
+            'nomor_nib' => ['nullable', 'string', 'max:20'],
+            'nomor_ktp' => ['nullable', 'string', 'max:16'],
             'is_pkp' => ['nullable', 'boolean'],
             'pkp_status' => ['nullable', 'string', Rule::in(['ppn', 'non_ppn', 'pkp', 'non_pkp'])],
             'dokumen_sppkp' => ['nullable', 'file', 'mimes:pdf', 'min:1', 'max:5120'],
             'file_sppkp' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
-            'nomor_sppkp' => ['nullable', 'string', 'max:100'],
+            'nomor_sppkp' => ['nullable', 'string', 'max:50'],
             'dokumen_akta' => ['nullable', 'file', 'mimes:pdf', 'min:1', 'max:5120'],
             'file_akta' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
-            'nomor_akta' => ['nullable', 'string', 'max:100'],
+            'nomor_akta' => ['nullable', 'string', 'max:50'],
             'legal_documents' => [
                 'required_without_all:dokumen_npwp,file_npwp',
                 'array',
@@ -237,7 +263,7 @@ class StoreVendorRegistrationRequest extends FormRequest
                 'max:10',
             ],
             'legal_documents.*.document_type' => ['required_with:legal_documents', 'string', Rule::in(['npwp', 'siup', 'nib', 'ktp', 'ktp_penanggung_jawab', 'sppkp', 'akta', 'akta_pendirian'])],
-            'legal_documents.*.document_number' => ['nullable', 'string', 'max:100'],
+            'legal_documents.*.document_number' => ['nullable', 'string', 'max:50'],
             'legal_documents.*.file' => [
                 'required_with:legal_documents',
                 'file',

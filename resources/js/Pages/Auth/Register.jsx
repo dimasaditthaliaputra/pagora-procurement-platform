@@ -23,7 +23,7 @@ import { useCountdown } from '@/hooks/use-countdown';
 import { FlashHandler } from '@/Components/flash-handler';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
-import { isEmail, isNpwp, isPhoneNumber, normalizeNpwp, normalizePhoneNumber } from '@/lib/validators';
+import { isEmail, isNpwp, isPhoneNumber, normalizePhoneNumber, limitNpwpInput, limitNibInput, limitKtpInput } from '@/lib/validators';
 import {
     Building2,
     ArrowRight,
@@ -505,18 +505,16 @@ export default function Register({ google_user = null, status = null, acceptance
         clearErrors('nomor_npwp', 'nomor_nib', 'nomor_ktp');
         clearLegalDocumentErrors();
 
-        const normalizedNpwp = normalizeNpwp(data.nomor_npwp);
-        if (!normalizedNpwp) {
+        const rawNpwp = (data.nomor_npwp || '').trim();
+        if (!rawNpwp) {
             setError('nomor_npwp', 'Nomor NPWP wajib diisi.');
             hasError = true;
-        } else if (!isNpwp(normalizedNpwp)) {
+        } else if (!isNpwp(rawNpwp)) {
             setError(
                 'nomor_npwp',
-                'Format nomor NPWP tidak valid. Gunakan format 15 digit (contoh: 01.234.567.8-901.000) atau 16 digit angka.'
+                'Nomor NPWP harus terdiri dari 15 atau 16 digit angka.'
             );
             hasError = true;
-        } else if (normalizedNpwp !== data.nomor_npwp) {
-            setData('nomor_npwp', normalizedNpwp);
         }
 
         if (!validateLegalFile(data.dokumen_npwp, 'dokumen_npwp', 'Dokumen NPWP Perusahaan')) {
@@ -527,8 +525,8 @@ export default function Register({ google_user = null, status = null, acceptance
         if (!trimmedNib) {
             setError('nomor_nib', 'Nomor NIB perusahaan wajib diisi.');
             hasError = true;
-        } else if (trimmedNib.length < 3) {
-            setError('nomor_nib', 'Nomor NIB minimal 3 karakter.');
+        } else if (trimmedNib.length !== 13) {
+            setError('nomor_nib', 'Nomor NIB harus terdiri dari 13 digit angka.');
             hasError = true;
         }
 
@@ -540,8 +538,8 @@ export default function Register({ google_user = null, status = null, acceptance
         if (!trimmedKtp) {
             setError('nomor_ktp', 'Nomor KTP / NIK penanggung jawab wajib diisi.');
             hasError = true;
-        } else if (trimmedKtp.length < 8) {
-            setError('nomor_ktp', 'Nomor KTP / NIK minimal 8 karakter.');
+        } else if (trimmedKtp.length !== 16) {
+            setError('nomor_ktp', 'Nomor KTP / NIK harus terdiri dari 16 digit angka.');
             hasError = true;
         }
 
@@ -833,6 +831,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                             type="text"
                                             name="name"
                                             value={data.name}
+                                            maxLength={255}
                                             onChange={(e) => {
                                                 setData('name', e.target.value);
                                                 if (errors.name) clearErrors('name');
@@ -870,6 +869,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                             type="email"
                                             name="email"
                                             value={data.email}
+                                            maxLength={255}
                                             onChange={(e) => {
                                                 setData('email', e.target.value);
                                                 if (errors.email) clearErrors('email');
@@ -1130,8 +1130,9 @@ export default function Register({ google_user = null, status = null, acceptance
                                             type="text"
                                             name="nama_perusahaan"
                                             value={data.nama_perusahaan}
+                                            maxLength={200}
                                             onChange={(e) => {
-                                                setData('nama_perusahaan', e.target.value);
+                                                setData('nama_perusahaan', e.target.value.slice(0, 200));
                                                 if (errors.nama_perusahaan) clearErrors('nama_perusahaan');
                                             }}
                                             placeholder="Contoh: PT Sumber Pangan Makmur"
@@ -1158,8 +1159,9 @@ export default function Register({ google_user = null, status = null, acceptance
                                             type="tel"
                                             name="telepon"
                                             value={data.telepon}
+                                            maxLength={20}
                                             onChange={(e) => {
-                                                setData('telepon', e.target.value);
+                                                setData('telepon', e.target.value.slice(0, 20));
                                                 if (errors.telepon) clearErrors('telepon');
                                             }}
                                             onBlur={(e) => {
@@ -1190,9 +1192,10 @@ export default function Register({ google_user = null, status = null, acceptance
                                             id="alamat"
                                             name="alamat"
                                             rows={3}
+                                            maxLength={1000}
                                             value={data.alamat}
                                             onChange={(e) => {
-                                                setData('alamat', e.target.value);
+                                                setData('alamat', e.target.value.slice(0, 1000));
                                                 if (errors.alamat) clearErrors('alamat');
                                             }}
                                             placeholder="Contoh: Jl. Industri Raya No. 45, Kawasan MM2100, Cikarang Barat, Bekasi"
@@ -1249,7 +1252,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                 </div>
 
                                 <div className="space-y-4 pt-1" data-invalid={hasLegalDocumentsError}>
-                                    {errors.legal_documents && (
+                                    {errors.legal_documents && !errors.dokumen_npwp && (
                                         <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs font-medium text-destructive flex items-start gap-2.5">
                                             <AlertCircle className="size-4 shrink-0 mt-0.5 text-destructive" />
                                             <p className="leading-relaxed">{errors.legal_documents}</p>
@@ -1286,19 +1289,17 @@ export default function Register({ google_user = null, status = null, acceptance
                                             <Input
                                                 id="nomor_npwp"
                                                 type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
                                                 name="nomor_npwp"
                                                 value={data.nomor_npwp}
+                                                maxLength={16}
                                                 onChange={(e) => {
-                                                    setData('nomor_npwp', e.target.value);
+                                                    const val = limitNpwpInput(e.target.value);
+                                                    setData('nomor_npwp', val);
                                                     if (errors.nomor_npwp) clearErrors('nomor_npwp');
                                                 }}
-                                                onBlur={(e) => {
-                                                    const formatted = normalizeNpwp(e.target.value);
-                                                    if (formatted && formatted !== e.target.value) {
-                                                        setData('nomor_npwp', formatted);
-                                                    }
-                                                }}
-                                                placeholder="Contoh: 01.234.567.8-901.000 atau 16 digit"
+                                                placeholder="Contoh: 0123456789012345"
                                                 aria-invalid={!!errors.nomor_npwp}
                                                 disabled={processing}
                                                 className={cn(
@@ -1335,12 +1336,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 label="Unggah Berkas NPWP"
                                                 description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
                                             />
-                                            {(errors.dokumen_npwp || errors.file_npwp) && (
-                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
-                                                    <AlertCircle className="size-3.5 shrink-0" />
-                                                    <span>{errors.dokumen_npwp || errors.file_npwp}</span>
-                                                </p>
-                                            )}
+                                            
                                         </div>
                                     </div>
 
@@ -1374,10 +1370,14 @@ export default function Register({ google_user = null, status = null, acceptance
                                             <Input
                                                 id="tenant_nomor_nib"
                                                 type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                maxLength={13}
                                                 placeholder="Contoh: 1234567890123"
                                                 value={data.nomor_nib}
                                                 onChange={(e) => {
-                                                    setData('nomor_nib', e.target.value);
+                                                    const val = limitNibInput(e.target.value);
+                                                    setData('nomor_nib', val);
                                                     if (errors.nomor_nib) clearErrors('nomor_nib');
                                                 }}
                                                 disabled={processing}
@@ -1418,12 +1418,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 label="Unggah Berkas NIB"
                                                 description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
                                             />
-                                            {(errors.dokumen_nib || errors.file_nib) && (
-                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
-                                                    <AlertCircle className="size-3.5 shrink-0" />
-                                                    <span>{errors.dokumen_nib || errors.file_nib}</span>
-                                                </p>
-                                            )}
+                                            
                                         </div>
                                     </div>
 
@@ -1457,10 +1452,14 @@ export default function Register({ google_user = null, status = null, acceptance
                                             <Input
                                                 id="tenant_nomor_ktp"
                                                 type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                maxLength={16}
                                                 placeholder="Contoh: 3171012345670001"
                                                 value={data.nomor_ktp}
                                                 onChange={(e) => {
-                                                    setData('nomor_ktp', e.target.value);
+                                                    const val = limitKtpInput(e.target.value);
+                                                    setData('nomor_ktp', val);
                                                     if (errors.nomor_ktp) clearErrors('nomor_ktp');
                                                 }}
                                                 disabled={processing}
@@ -1501,12 +1500,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 label="Unggah Berkas KTP Penanggung Jawab"
                                                 description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
                                             />
-                                            {(errors.dokumen_ktp || errors.file_ktp) && (
-                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
-                                                    <AlertCircle className="size-3.5 shrink-0" />
-                                                    <span>{errors.dokumen_ktp || errors.file_ktp}</span>
-                                                </p>
-                                            )}
+                                            
                                         </div>
                                     </div>
 
@@ -1566,13 +1560,7 @@ export default function Register({ google_user = null, status = null, acceptance
 
                 {/* Footer Copyright */}
                 <div className="text-center text-xs text-muted-foreground shrink-0 mt-2">
-                    © {new Date().getFullYear()} PAGORA Enterprise E-Procurement ·{' '}
-                    <Link
-                        href="/syarat-dan-ketentuan"
-                        className="underline underline-offset-4 hover:text-foreground transition-colors"
-                    >
-                        Syarat &amp; Ketentuan
-                    </Link>
+                    © {new Date().getFullYear()} PAGORA Enterprise E-Procurement
                 </div>
             </div>
 

@@ -38,7 +38,7 @@ class PerusahaanService
 
             Gate::forUser($user)->authorize('view', $tenant);
 
-            $tenant->loadMissing(['verifiedByUser']);
+            $tenant->loadMissing(['verifiedByUser', 'legalDocuments']);
 
             return [
                 'tipe' => 'tenant',
@@ -49,13 +49,20 @@ class PerusahaanService
                 'address' => $tenant->address,
                 'verification_status' => $tenant->verification_status?->value ?? (string) $tenant->verification_status,
                 'verification_note' => $tenant->verification_note,
-                'has_legal_document' => filled($tenant->legal_document_path),
+                'has_legal_document' => filled($tenant->legal_document_path) || ($tenant->relationLoaded('legalDocuments') && $tenant->legalDocuments->isNotEmpty()),
                 'legal_document_url' => filled($tenant->legal_document_path)
                     ? route('master.tenant.verifikasi-dokumen.download', $tenant->uuid)
                     : null,
                 'verified_at' => $tenant->verified_at?->toISOString(),
                 'verified_by' => $tenant->verifiedByUser?->name,
                 'created_at' => $tenant->created_at?->toISOString(),
+                'documents' => $tenant->legalDocuments->map(fn ($doc) => [
+                    'uuid' => $doc->uuid,
+                    'document_type' => $doc->document_type,
+                    'document_number' => $doc->document_number,
+                    'verification_status' => $doc->verification_status?->value ?? (string) $doc->verification_status,
+                    'file_url' => filled($doc->file_path) ? route('master.tenant.verifikasi-dokumen.download', $doc->uuid) : null,
+                ])->all(),
             ];
         }
 
@@ -133,6 +140,12 @@ class PerusahaanService
 
             $this->perusahaanBuyerRepository->update($tenant, $tenantPayload);
 
+            if ($normalizedTaxNumber !== null) {
+                $tenant->legalDocuments()->where('document_type', 'npwp')->update([
+                    'document_number' => $normalizedTaxNumber,
+                ]);
+            }
+
             return $this->getPerusahaanForUser($user->fresh()) ?? [];
         }
 
@@ -165,6 +178,12 @@ class PerusahaanService
             }
 
             $this->vendorRepository->update($vendor, $updatePayload);
+
+            if ($normalizedTaxNumber !== null) {
+                $vendor->legalDocuments()->where('document_type', 'npwp')->update([
+                    'document_number' => $normalizedTaxNumber,
+                ]);
+            }
 
             return $this->getPerusahaanForUser($user->fresh()) ?? [];
         }

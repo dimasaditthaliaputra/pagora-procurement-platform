@@ -331,13 +331,7 @@ export default function Login({ status, otp = null }) {
                 </div>
 
                 <div className="text-center text-xs text-muted-foreground">
-                    © {new Date().getFullYear()} PAGORA Enterprise E-Procurement ·{' '}
-                    <Link
-                        href="/syarat-dan-ketentuan"
-                        className="underline underline-offset-4 hover:text-foreground transition-colors"
-                    >
-                        Syarat &amp; Ketentuan
-                    </Link>
+                    © {new Date().getFullYear()} PAGORA Enterprise E-Procurement
                 </div>
             </div>
 

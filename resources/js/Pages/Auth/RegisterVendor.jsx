@@ -39,8 +39,12 @@ import {
     isEmail,
     isNpwp,
     isPhoneNumber,
-    normalizeNpwp,
     normalizePhoneNumber,
+    limitNpwpInput,
+    limitNibInput,
+    limitKtpInput,
+    limitSppkpInput,
+    limitAktaInput,
 } from '@/lib/validators';
 
 const STEPS = [
@@ -553,18 +557,16 @@ export default function RegisterVendor({
         clearErrors('tax_number', 'nomor_nib', 'nomor_ktp');
         clearLegalDocumentErrors();
 
-        const normalizedNpwp = normalizeNpwp(data.tax_number);
-        if (!normalizedNpwp) {
+        const rawNpwp = (data.tax_number || '').trim();
+        if (!rawNpwp) {
             setError('tax_number', 'Nomor NPWP perusahaan wajib diisi.');
             hasError = true;
-        } else if (!isNpwp(normalizedNpwp)) {
+        } else if (!isNpwp(rawNpwp)) {
             setError(
                 'tax_number',
-                'Format NPWP tidak valid (15 digit contoh: 01.234.567.8-901.000 atau 16 digit angka).'
+                'Nomor NPWP harus terdiri dari 15 atau 16 digit angka.'
             );
             hasError = true;
-        } else if (normalizedNpwp !== data.tax_number) {
-            setData('tax_number', normalizedNpwp);
         }
 
         if (!validateLegalFile(data.dokumen_npwp, 'dokumen_npwp', 'Dokumen NPWP Perusahaan')) {
@@ -575,8 +577,8 @@ export default function RegisterVendor({
         if (!trimmedNib) {
             setError('nomor_nib', 'Nomor NIB perusahaan wajib diisi.');
             hasError = true;
-        } else if (trimmedNib.length < 3) {
-            setError('nomor_nib', 'Nomor NIB minimal 3 karakter.');
+        } else if (trimmedNib.length !== 13) {
+            setError('nomor_nib', 'Nomor NIB harus terdiri dari 13 digit angka.');
             hasError = true;
         }
 
@@ -588,8 +590,8 @@ export default function RegisterVendor({
         if (!trimmedKtp) {
             setError('nomor_ktp', 'Nomor KTP / NIK penanggung jawab wajib diisi.');
             hasError = true;
-        } else if (trimmedKtp.length < 8) {
-            setError('nomor_ktp', 'Nomor KTP / NIK minimal 8 karakter.');
+        } else if (trimmedKtp.length !== 16) {
+            setError('nomor_ktp', 'Nomor KTP / NIK harus terdiri dari 16 digit angka.');
             hasError = true;
         }
 
@@ -637,7 +639,7 @@ export default function RegisterVendor({
             return;
         }
 
-        if (targetStep >= 3 && !isGoogle) {
+        if (targetStep >= 3 && !isGoogle && !isOtpVerified) {
             const valid2 = await validateStep2();
             if (!valid2) {
                 goToStep(2);
@@ -1030,10 +1032,11 @@ export default function RegisterVendor({
                                         <Input
                                             id="name"
                                             type="text"
+                                            maxLength={255}
                                             placeholder="Contoh: Budi Pratama"
                                             value={data.name}
                                             onChange={(e) => {
-                                                setData('name', e.target.value);
+                                                setData('name', e.target.value.slice(0, 255));
                                                 clearErrors('name');
                                             }}
                                             aria-invalid={!!errors.name}
@@ -1072,10 +1075,11 @@ export default function RegisterVendor({
                                         <Input
                                             id="email"
                                             type="email"
+                                            maxLength={255}
                                             placeholder="Contoh: procurement@perusahaan.co.id"
                                             value={data.email}
                                             onChange={(e) => {
-                                                const val = e.target.value;
+                                                const val = e.target.value.slice(0, 255);
                                                 setData((prev) => ({
                                                     ...prev,
                                                     email: val,
@@ -1249,10 +1253,11 @@ export default function RegisterVendor({
                                             <Input
                                                 id="company_name"
                                                 type="text"
+                                                maxLength={200}
                                                 placeholder="Contoh: PT Sumber Pangan Makmur"
                                                 value={data.company_name}
                                                 onChange={(e) => {
-                                                    setData('company_name', e.target.value);
+                                                    setData('company_name', e.target.value.slice(0, 200));
                                                     clearErrors('company_name');
                                                 }}
                                                 aria-invalid={!!errors.company_name}
@@ -1282,10 +1287,11 @@ export default function RegisterVendor({
                                             <Input
                                                 id="phone"
                                                 type="tel"
+                                                maxLength={20}
                                                 placeholder="Contoh: 081234567890 atau (021) 5551234"
                                                 value={data.phone}
                                                 onChange={(e) => {
-                                                    setData('phone', e.target.value);
+                                                    setData('phone', e.target.value.slice(0, 20));
                                                     clearErrors('phone');
                                                 }}
                                                 onBlur={() => setData('phone', normalizePhoneNumber(data.phone))}
@@ -1315,10 +1321,11 @@ export default function RegisterVendor({
                                         <Textarea
                                             id="address"
                                             rows={2}
+                                            maxLength={1000}
                                             placeholder="Contoh: Jl. Industri Raya No. 45, Kawasan MM2100, Cikarang Barat, Bekasi"
                                             value={data.address}
                                             onChange={(e) => {
-                                                setData('address', e.target.value);
+                                                setData('address', e.target.value.slice(0, 1000));
                                                 clearErrors('address');
                                             }}
                                             aria-invalid={!!errors.address}
@@ -1426,7 +1433,7 @@ export default function RegisterVendor({
                                             </p>
                                         </div>
 
-                                        {errors.legal_documents && (
+                                        {errors.legal_documents && !errors.dokumen_npwp && (
                                             <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs font-medium text-destructive flex items-start gap-2.5">
                                                 <AlertCircle className="size-4 shrink-0 mt-0.5 text-destructive" />
                                                 <p className="leading-relaxed">{errors.legal_documents}</p>
@@ -1463,17 +1470,15 @@ export default function RegisterVendor({
                                                 <Input
                                                     id="tax_number"
                                                     type="text"
-                                                    placeholder="Contoh: 01.234.567.8-901.000 atau 16 digit"
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
+                                                    maxLength={16}
+                                                    placeholder="Contoh: 0123456789012345"
                                                     value={data.tax_number}
                                                     onChange={(e) => {
-                                                        setData('tax_number', e.target.value);
-                                                        clearErrors('tax_number');
-                                                    }}
-                                                    onBlur={(e) => {
-                                                        const formatted = normalizeNpwp(e.target.value);
-                                                        if (formatted && formatted !== e.target.value) {
-                                                            setData('tax_number', formatted);
-                                                        }
+                                                        const val = limitNpwpInput(e.target.value);
+                                                        setData('tax_number', val);
+                                                        if (errors.tax_number) clearErrors('tax_number');
                                                     }}
                                                     aria-invalid={!!errors.tax_number}
                                                     className={cn(
@@ -1513,12 +1518,7 @@ export default function RegisterVendor({
                                                     label="Unggah Berkas NPWP"
                                                     description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
                                                 />
-                                                {(errors.dokumen_npwp || errors.file_npwp) && (
-                                                    <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
-                                                        <AlertCircle className="size-3.5 shrink-0" />
-                                                        <span>{errors.dokumen_npwp || errors.file_npwp}</span>
-                                                    </p>
-                                                )}
+                                                
                                             </div>
                                         </div>
 
@@ -1552,10 +1552,14 @@ export default function RegisterVendor({
                                                 <Input
                                                     id="vendor_nomor_nib"
                                                     type="text"
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
+                                                    maxLength={13}
                                                     placeholder="Contoh: 1234567890123"
                                                     value={data.nomor_nib}
                                                     onChange={(e) => {
-                                                        setData('nomor_nib', e.target.value);
+                                                        const val = limitNibInput(e.target.value);
+                                                        setData('nomor_nib', val);
                                                         if (errors.nomor_nib) clearErrors('nomor_nib');
                                                     }}
                                                     disabled={processing}
@@ -1596,12 +1600,7 @@ export default function RegisterVendor({
                                                     label="Unggah Berkas NIB"
                                                     description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
                                                 />
-                                                {(errors.dokumen_nib || errors.file_nib) && (
-                                                    <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
-                                                        <AlertCircle className="size-3.5 shrink-0" />
-                                                        <span>{errors.dokumen_nib || errors.file_nib}</span>
-                                                    </p>
-                                                )}
+                                                
                                             </div>
                                         </div>
 
@@ -1635,10 +1634,14 @@ export default function RegisterVendor({
                                                 <Input
                                                     id="vendor_nomor_ktp"
                                                     type="text"
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
+                                                    maxLength={16}
                                                     placeholder="Contoh: 3171012345670001"
                                                     value={data.nomor_ktp}
                                                     onChange={(e) => {
-                                                        setData('nomor_ktp', e.target.value);
+                                                        const val = limitKtpInput(e.target.value);
+                                                        setData('nomor_ktp', val);
                                                         if (errors.nomor_ktp) clearErrors('nomor_ktp');
                                                     }}
                                                     disabled={processing}
@@ -1679,12 +1682,7 @@ export default function RegisterVendor({
                                                     label="Unggah Berkas KTP Penanggung Jawab"
                                                     description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
                                                 />
-                                                {(errors.dokumen_ktp || errors.file_ktp) && (
-                                                    <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
-                                                        <AlertCircle className="size-3.5 shrink-0" />
-                                                        <span>{errors.dokumen_ktp || errors.file_ktp}</span>
-                                                    </p>
-                                                )}
+                                                
                                             </div>
                                         </div>
 
@@ -1843,10 +1841,12 @@ export default function RegisterVendor({
                                                     <Input
                                                         id="vendor_nomor_sppkp"
                                                         type="text"
-                                                        placeholder="Contoh: S-123PKP/WPJ.07/KP.0303/2023 atau Nomor Surat Pengukuhan"
+                                                        maxLength={50}
+                                                        placeholder="Contoh: S-123/WPJ.07/KP.0303/2023"
                                                         value={data.nomor_sppkp}
                                                         onChange={(e) => {
-                                                            setData('nomor_sppkp', e.target.value);
+                                                            const val = limitSppkpInput(e.target.value);
+                                                            setData('nomor_sppkp', val);
                                                             if (errors.nomor_sppkp) clearErrors('nomor_sppkp');
                                                         }}
                                                         disabled={processing}
@@ -1887,12 +1887,7 @@ export default function RegisterVendor({
                                                         label="Unggah Berkas SPPKP"
                                                         description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
                                                     />
-                                                    {(errors.dokumen_sppkp || errors.file_sppkp) && (
-                                                        <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
-                                                            <AlertCircle className="size-3.5 shrink-0" />
-                                                            <span>{errors.dokumen_sppkp || errors.file_sppkp}</span>
-                                                        </p>
-                                                    )}
+                                                    
                                                 </div>
                                             </div>
                                         )}
@@ -1934,10 +1929,12 @@ export default function RegisterVendor({
                                                 <Input
                                                     id="vendor_nomor_akta"
                                                     type="text"
-                                                    placeholder="Contoh: AHU-0012345.AH.01.01.TAHUN 2023 atau Nomor Akta Notaris"
+                                                    maxLength={50}
+                                                    placeholder="Contoh: AHU-0012345.AH.01.01.TAHUN 2023 atau No. 12"
                                                     value={data.nomor_akta}
                                                     onChange={(e) => {
-                                                        setData('nomor_akta', e.target.value);
+                                                        const val = limitAktaInput(e.target.value);
+                                                        setData('nomor_akta', val);
                                                         if (errors.nomor_akta) clearErrors('nomor_akta');
                                                     }}
                                                     disabled={processing}
@@ -1978,12 +1975,7 @@ export default function RegisterVendor({
                                                     label="Unggah Berkas Akta Pendirian / SK Kemenkumham"
                                                     description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB (Opsional)"
                                                 />
-                                                {(errors.dokumen_akta || errors.file_akta) && (
-                                                    <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
-                                                        <AlertCircle className="size-3.5 shrink-0" />
-                                                        <span>{errors.dokumen_akta || errors.file_akta}</span>
-                                                    </p>
-                                                )}
+                                                
                                             </div>
                                         </div>
 

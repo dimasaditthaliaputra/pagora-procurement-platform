@@ -87,6 +87,18 @@ class RegisterRequest extends FormRequest
             ]);
         }
 
+        if ($this->has('nomor_nib') && $this->input('nomor_nib') !== null) {
+            $this->merge([
+                'nomor_nib' => trim((string) $this->input('nomor_nib')),
+            ]);
+        }
+
+        if ($this->has('nomor_ktp') && $this->input('nomor_ktp') !== null) {
+            $this->merge([
+                'nomor_ktp' => trim((string) $this->input('nomor_ktp')),
+            ]);
+        }
+
         if ($this->hasFile('file_npwp') && ! $this->hasFile('dokumen_npwp')) {
             $this->files->set('dokumen_npwp', $this->file('file_npwp'));
         }
@@ -108,6 +120,8 @@ class RegisterRequest extends FormRequest
             foreach ($docs as $idx => $doc) {
                 if (is_array($doc) && ($doc['document_type'] ?? null) === 'npwp' && ! empty($doc['document_number'])) {
                     $docs[$idx]['document_number'] = NpwpHelper::normalize($doc['document_number']);
+                } elseif (is_array($doc) && isset($doc['document_number'])) {
+                    $docs[$idx]['document_number'] = trim((string) $doc['document_number']);
                 }
             }
             $this->merge(['legal_documents' => $docs]);
@@ -178,11 +192,11 @@ class RegisterRequest extends FormRequest
             'nomor_npwp' => [
                 'required',
                 'string',
-                'max:30',
+                'max:20',
                 new Npwp,
                 Rule::unique('tenants', 'tax_number')->whereNull('deleted_at'),
             ],
-            'telepon' => ['required', 'string', 'max:30', new PhoneNumber],
+            'telepon' => ['required', 'string', 'max:20', new PhoneNumber],
             'alamat' => ['required', 'string', 'max:1000'],
             'dokumen_npwp' => [
                 'nullable',
@@ -208,11 +222,11 @@ class RegisterRequest extends FormRequest
             'file_npwp' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
             'file_nib' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
             'file_ktp' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
-            'nomor_nib' => ['nullable', 'string', 'max:100'],
-            'nomor_ktp' => ['nullable', 'string', 'max:100'],
+            'nomor_nib' => ['nullable', 'string', 'max:20'],
+            'nomor_ktp' => ['nullable', 'string', 'max:16'],
             'legal_documents' => ['nullable', 'array', 'min:1', 'max:10'],
             'legal_documents.*.document_type' => ['required_with:legal_documents', 'string', Rule::in(['npwp', 'siup', 'nib', 'ktp', 'ktp_penanggung_jawab'])],
-            'legal_documents.*.document_number' => ['nullable', 'string', 'max:100'],
+            'legal_documents.*.document_number' => ['nullable', 'string', 'max:50'],
             'legal_documents.*.file' => [
                 'required_with:legal_documents',
                 'file',

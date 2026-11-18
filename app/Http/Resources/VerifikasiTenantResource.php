@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Models\PerusahaanBuyer;
+use App\Services\RegistrationSecurityGuardService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -24,6 +25,8 @@ class VerifikasiTenantResource extends JsonResource
             ? ($this->users->first(fn ($u) => $u->role?->name === 'owner') ?? $this->users->first())
             : null;
 
+        $duplicateWarnings = app(RegistrationSecurityGuardService::class)->detectTenantDuplicateDocuments($this->resource);
+
         return [
             'uuid' => $this->uuid,
             'company_name' => $this->company_name,
@@ -32,6 +35,8 @@ class VerifikasiTenantResource extends JsonResource
             'address' => $this->address,
             'verification_status' => $this->verification_status->value,
             'verification_note' => $this->verification_note,
+            'has_duplicate_documents' => count($duplicateWarnings) > 0,
+            'duplicate_warnings' => $duplicateWarnings,
             'has_legal_document' => filled($this->legal_document_path) || ($this->relationLoaded('legalDocuments') && $this->legalDocuments->isNotEmpty()),
             'legal_document_url' => filled($this->legal_document_path)
                 ? route('master.tenant.verifikasi-dokumen.download', $this->uuid)

@@ -11,7 +11,6 @@ use App\Models\PerusahaanBuyer;
 use App\Models\User;
 use App\Notifications\GoogleRegistrationPasswordNotification;
 use Database\Seeders\RoleSeeder;
-use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -547,82 +546,116 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
-    public function test_register_fails_when_npwp_already_registered_even_with_different_email(): void
+    public function test_register_allows_same_npwp_for_different_branch_company(): void
     {
         Storage::fake('local');
         $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
 
-        // Tenant 1 registered
+        // Tenant 1 (Pusat) registered and approved
         PerusahaanBuyer::factory()->create([
-            'company_name' => 'PT Perusahaan Pertama',
+            'company_name' => 'PT Perusahaan Pusat',
             'tax_number' => '01.234.567.8-901.000',
+            'is_active' => true,
         ]);
 
-        // Tenant 2 attempts to register with different email but identical NPWP
+        $otp = $this->requestOtp('cabang.surabaya@perusahaan.co.id');
+
+        // Tenant 2 (Cabang) attempts to register with different email and branch name but identical NPWP Pusat
         $response = $this->from('/register')->post('/register', [
-            'name' => 'Calon Owner Lain',
-            'email' => 'beda.email@perusahaan.co.id',
+            'name' => 'Kepala Cabang Surabaya',
+            'email' => 'cabang.surabaya@perusahaan.co.id',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'nama_perusahaan' => 'PT Perusahaan Kedua',
+            'nama_perusahaan' => 'PT Perusahaan Pusat Cabang Surabaya',
             'nomor_npwp' => '01.234.567.8-901.000',
             'telepon' => '081234567890',
-            'alamat' => 'Jl. Lain No. 20, Jakarta',
+            'alamat' => 'Jl. Pemuda No. 45, Surabaya',
             'dokumen_npwp' => $file,
+            'otp' => $otp,
         ]);
 
-        $response->assertRedirect('/register');
-        $response->assertSessionHasErrors([
-            'nomor_npwp' => 'Nomor NPWP ini sudah terdaftar dalam sistem.',
+        $response->assertRedirect('/register/sukses');
+        $this->assertDatabaseHas('tenants', [
+            'company_name' => 'PT Perusahaan Pusat Cabang Surabaya',
+            'tax_number' => '01.234.567.8-901.000',
         ]);
-        $this->assertGuest();
     }
 
-    public function test_register_fails_when_npwp_already_registered_in_unformatted_digits(): void
+    public function test_register_fails_when_legal_document_belongs_to_suspended_entity(): void
     {
         Storage::fake('local');
         $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
 
-        // Tenant 1 registered with formatted NPWP
+        // Suspended tenant
         PerusahaanBuyer::factory()->create([
-            'company_name' => 'PT Perusahaan Terdaftar',
-            'tax_number' => '01.234.567.8-901.000',
+            'company_name' => 'PT Perusahaan Terblokir',
+            'tax_number' => '01.999.888.7-666.000',
+            'is_active' => false,
         ]);
 
-        // Tenant 2 attempts to register with raw unformatted 15 digits
+        $otp = $this->requestOtp('calon@baru.co.id');
+
         $response = $this->from('/register')->post('/register', [
-            'name' => 'User Kedua',
-            'email' => 'user2@perusahaan.co.id',
+            'name' => 'Pendaftar Baru',
+            'email' => 'calon@baru.co.id',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'nama_perusahaan' => 'PT Perusahaan Duplikat',
-            'nomor_npwp' => '012345678901000',
+            'nama_perusahaan' => 'PT Perusahaan Berbeda',
+            'nomor_npwp' => '01.999.888.7-666.000',
             'telepon' => '081234567890',
-            'alamat' => 'Jl. Terusan No. 5, Surabaya',
+            'alamat' => 'Jl. Lain No. 10',
             'dokumen_npwp' => $file,
+            'otp' => $otp,
         ]);
 
         $response->assertRedirect('/register');
-        $response->assertSessionHasErrors([
-            'nomor_npwp' => 'Nomor NPWP ini sudah terdaftar dalam sistem.',
-        ]);
-        $this->assertGuest();
+        $response->assertSessionHasErrors(['nomor_npwp']);
     }
 
-    public function test_database_unique_index_prevents_duplicate_npwp(): void
+    public function test_register_fails_when_same_company_name_and_npwp_already_pending(): void
     {
+        Storage::fake('local');
+        $file = UploadedFile::fake()->create('dokumen-npwp.pdf', 500, 'application/pdf');
+
+        // Pending tenant
         PerusahaanBuyer::factory()->create([
-            'company_name' => 'PT Pertama',
+            'company_name' => 'PT Menunggu Verifikasi',
+            'tax_number' => '01.777.666.5-444.000',
+            'verification_status' => 'pending',
+        ]);
+
+        $otp = $this->requestOtp('spam@pending.co.id');
+
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Spammer Double Submit',
+            'email' => 'spam@pending.co.id',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nama_perusahaan' => 'PT Menunggu Verifikasi',
+            'nomor_npwp' => '01.777.666.5-444.000',
+            'telepon' => '081234567890',
+            'alamat' => 'Jl. Terusan No. 5',
+            'dokumen_npwp' => $file,
+            'otp' => $otp,
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors(['nama_perusahaan']);
+    }
+
+    public function test_database_allows_same_npwp_for_multi_branch_companies(): void
+    {
+        $tenant1 = PerusahaanBuyer::factory()->create([
+            'company_name' => 'PT Pertama Pusat',
             'tax_number' => '01.234.567.8-999.000',
         ]);
 
-        $this->expectException(QueryException::class);
-
-        // Direct DB insertion bypassing Form Request to test DB unique constraint
-        PerusahaanBuyer::factory()->create([
-            'company_name' => 'PT Kedua',
+        $tenant2 = PerusahaanBuyer::factory()->create([
+            'company_name' => 'PT Pertama Cabang Bandung',
             'tax_number' => '01.234.567.8-999.000',
         ]);
+
+        $this->assertSame($tenant1->tax_number, $tenant2->tax_number);
     }
 
     public function test_google_redirect(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\RoleName;
+use App\Http\Resources\VerifikasiVendorResource;
 use App\Mail\OtpMail;
 use App\Models\CommodityCategory;
 use App\Models\DokumenLegalitasVendor;
@@ -12,6 +13,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Notifications\GoogleRegistrationPasswordNotification;
+use App\Services\RegistrationSecurityGuardService;
 use Database\Seeders\CommodityCategorySeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -1038,5 +1040,291 @@ class VendorRegistrationTest extends TestCase
         $this->assertCount(3, $documents);
         $this->assertNotContains('akta', $documents->pluck('document_type')->all());
         $this->assertNotContains('sk_kemenkumham', $documents->pluck('document_type')->all());
+    }
+
+    public function test_vendor_registration_fails_when_sppkp_belongs_to_suspended_vendor(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $category = CommodityCategory::query()->first();
+
+        // Create suspended vendor with SPPKP document
+        $suspendedVendor = Vendor::create([
+            'company_name' => 'PT Suspended PKP',
+            'slug' => 'pt-suspended-pkp',
+            'contact_email' => 'suspended.pkp@test.co.id',
+            'verification_status' => 'rejected',
+            'is_active' => false,
+        ]);
+        DokumenLegalitasVendor::create([
+            'vendor_id' => $suspendedVendor->id,
+            'document_type' => 'sppkp',
+            'document_number' => 'S-999/WPJ.01/KP.01/2022',
+            'file_path' => 'dokumen/sppkp.pdf',
+        ]);
+
+        $code = $this->requestOtp('calon.pkp@test.co.id');
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Budi Penanggung Jawab',
+            'email' => 'calon.pkp@test.co.id',
+            'password' => 'VendorPassword123#',
+            'password_confirmation' => 'VendorPassword123#',
+            'business_entity' => 'pt',
+            'company_name' => 'PT Baru Legal',
+            'tax_number' => '11.222.333.4-555.000',
+            'nomor_nib' => 'NIB-888999111',
+            'nomor_ktp' => '3171012345670008',
+            'phone' => '081299993333',
+            'address' => 'Jl. Kebon Jeruk No. 10',
+            'commodity_category_uuids' => [$category->uuid],
+            'otp' => $code,
+            'pkp_status' => 'ppn',
+            'nomor_sppkp' => 'S-999/WPJ.01/KP.01/2022',
+            'nomor_akta' => 'No. 12 Notaris',
+            'nomor_sk_kemenkumham' => 'AHU-112233',
+            'dokumen_npwp' => UploadedFile::fake()->create('npwp.pdf', 200, 'application/pdf'),
+            'dokumen_nib' => UploadedFile::fake()->create('nib.pdf', 200, 'application/pdf'),
+            'dokumen_ktp' => UploadedFile::fake()->create('ktp.pdf', 200, 'application/pdf'),
+            'dokumen_sppkp' => UploadedFile::fake()->create('sppkp.pdf', 200, 'application/pdf'),
+            'dokumen_akta' => UploadedFile::fake()->create('akta.pdf', 200, 'application/pdf'),
+            'dokumen_sk_kemenkumham' => UploadedFile::fake()->create('sk.pdf', 200, 'application/pdf'),
+        ]);
+
+        $response->assertRedirect('/register/vendor');
+        $response->assertSessionHasErrors(['nomor_sppkp']);
+    }
+
+    public function test_vendor_registration_fails_when_akta_belongs_to_suspended_vendor(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $category = CommodityCategory::query()->first();
+
+        // Create blocked vendor with Akta document
+        $blockedVendor = Vendor::create([
+            'company_name' => 'PT Perusahaan Terblokir',
+            'slug' => 'pt-perusahaan-terblokir',
+            'contact_email' => 'blocked.vendor@test.co.id',
+            'verification_status' => 'approved',
+            'is_active' => true,
+            'blocked_at' => now(),
+        ]);
+        DokumenLegalitasVendor::create([
+            'vendor_id' => $blockedVendor->id,
+            'document_type' => 'akta',
+            'document_number' => 'No. 77 Notaris Terlarang SH',
+            'file_path' => 'dokumen/akta.pdf',
+        ]);
+
+        $code = $this->requestOtp('calon.akta@test.co.id');
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Budi Penanggung Jawab',
+            'email' => 'calon.akta@test.co.id',
+            'password' => 'VendorPassword123#',
+            'password_confirmation' => 'VendorPassword123#',
+            'business_entity' => 'pt',
+            'company_name' => 'PT Perusahaan Berbeda',
+            'tax_number' => '11.222.333.4-555.000',
+            'nomor_nib' => 'NIB-888999111',
+            'nomor_ktp' => '3171012345670008',
+            'phone' => '081299993333',
+            'address' => 'Jl. Kebon Jeruk No. 10',
+            'commodity_category_uuids' => [$category->uuid],
+            'otp' => $code,
+            'pkp_status' => 'non_ppn',
+            'nomor_akta' => 'No. 77 Notaris Terlarang SH',
+            'nomor_sk_kemenkumham' => 'AHU-112233',
+            'dokumen_npwp' => UploadedFile::fake()->create('npwp.pdf', 200, 'application/pdf'),
+            'dokumen_nib' => UploadedFile::fake()->create('nib.pdf', 200, 'application/pdf'),
+            'dokumen_ktp' => UploadedFile::fake()->create('ktp.pdf', 200, 'application/pdf'),
+            'dokumen_akta' => UploadedFile::fake()->create('akta.pdf', 200, 'application/pdf'),
+            'dokumen_sk_kemenkumham' => UploadedFile::fake()->create('sk.pdf', 200, 'application/pdf'),
+        ]);
+
+        $response->assertRedirect('/register/vendor');
+        $response->assertSessionHasErrors(['nomor_akta']);
+    }
+
+    public function test_vendor_registration_fails_when_sk_kemenkumham_belongs_to_suspended_vendor(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $category = CommodityCategory::query()->first();
+
+        // Create suspended vendor with SK Kemenkumham document
+        $suspendedVendor = Vendor::create([
+            'company_name' => 'PT Suspended SK',
+            'slug' => 'pt-suspended-sk',
+            'contact_email' => 'suspended.sk@test.co.id',
+            'verification_status' => 'rejected',
+            'is_active' => false,
+        ]);
+        DokumenLegalitasVendor::create([
+            'vendor_id' => $suspendedVendor->id,
+            'document_type' => 'sk_kemenkumham',
+            'document_number' => 'AHU-SUSPENDED-999.AH.01.01',
+            'file_path' => 'dokumen/sk.pdf',
+        ]);
+
+        $code = $this->requestOtp('calon.sk@test.co.id');
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Budi Penanggung Jawab',
+            'email' => 'calon.sk@test.co.id',
+            'password' => 'VendorPassword123#',
+            'password_confirmation' => 'VendorPassword123#',
+            'business_entity' => 'pt',
+            'company_name' => 'PT Baru Beda Nama',
+            'tax_number' => '11.222.333.4-555.000',
+            'nomor_nib' => 'NIB-888999111',
+            'nomor_ktp' => '3171012345670008',
+            'phone' => '081299993333',
+            'address' => 'Jl. Kebon Jeruk No. 10',
+            'commodity_category_uuids' => [$category->uuid],
+            'otp' => $code,
+            'pkp_status' => 'non_ppn',
+            'nomor_akta' => 'No. 88 Notaris Bagus',
+            'nomor_sk_kemenkumham' => 'AHU-SUSPENDED-999.AH.01.01',
+            'dokumen_npwp' => UploadedFile::fake()->create('npwp.pdf', 200, 'application/pdf'),
+            'dokumen_nib' => UploadedFile::fake()->create('nib.pdf', 200, 'application/pdf'),
+            'dokumen_ktp' => UploadedFile::fake()->create('ktp.pdf', 200, 'application/pdf'),
+            'dokumen_akta' => UploadedFile::fake()->create('akta.pdf', 200, 'application/pdf'),
+            'dokumen_sk_kemenkumham' => UploadedFile::fake()->create('sk.pdf', 200, 'application/pdf'),
+        ]);
+
+        $response->assertRedirect('/register/vendor');
+        $response->assertSessionHasErrors(['nomor_sk_kemenkumham']);
+    }
+
+    public function test_vendor_registration_fails_when_same_company_name_and_akta_already_pending(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $category = CommodityCategory::query()->first();
+
+        // Create pending vendor with Akta
+        $pendingVendor = Vendor::create([
+            'company_name' => 'PT Menunggu Verifikasi Bersama',
+            'slug' => 'pt-menunggu-verifikasi-bersama',
+            'contact_email' => 'menunggu.bersama@test.co.id',
+            'verification_status' => 'pending',
+            'is_active' => true,
+        ]);
+        DokumenLegalitasVendor::create([
+            'vendor_id' => $pendingVendor->id,
+            'document_type' => 'akta',
+            'document_number' => 'No. 123 Akta Pending',
+            'file_path' => 'dokumen/akta.pdf',
+        ]);
+
+        $code = $this->requestOtp('spam.vendor@test.co.id');
+
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Spammer Double Submit',
+            'email' => 'spam.vendor@test.co.id',
+            'password' => 'VendorPassword123#',
+            'password_confirmation' => 'VendorPassword123#',
+            'business_entity' => 'pt',
+            'company_name' => 'PT Menunggu Verifikasi Bersama',
+            'tax_number' => '11.999.888.7-666.000',
+            'nomor_nib' => 'NIB-999000111',
+            'nomor_ktp' => '3171012345679999',
+            'phone' => '081299994444',
+            'address' => 'Jl. Spam No. 1',
+            'commodity_category_uuids' => [$category->uuid],
+            'otp' => $code,
+            'pkp_status' => 'non_ppn',
+            'nomor_akta' => 'No. 123 Akta Pending',
+            'nomor_sk_kemenkumham' => 'AHU-999888777',
+            'dokumen_npwp' => UploadedFile::fake()->create('npwp.pdf', 200, 'application/pdf'),
+            'dokumen_nib' => UploadedFile::fake()->create('nib.pdf', 200, 'application/pdf'),
+            'dokumen_ktp' => UploadedFile::fake()->create('ktp.pdf', 200, 'application/pdf'),
+            'dokumen_akta' => UploadedFile::fake()->create('akta.pdf', 200, 'application/pdf'),
+            'dokumen_sk_kemenkumham' => UploadedFile::fake()->create('sk.pdf', 200, 'application/pdf'),
+        ]);
+
+        $response->assertRedirect('/register/vendor');
+        $response->assertSessionHasErrors(['company_name']);
+    }
+
+    public function test_vendor_registration_allows_duplicate_documents_for_branch_and_detects_for_admin(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $category = CommodityCategory::query()->first();
+
+        // Create approved vendor 1 (Induk) with Akta and SK Kemenkumham
+        $indukVendor = Vendor::create([
+            'company_name' => 'PT Maju Bersama Pusat',
+            'slug' => 'pt-maju-bersama-pusat',
+            'contact_email' => 'pusat@majubersama.co.id',
+            'verification_status' => 'approved',
+            'is_active' => true,
+        ]);
+        DokumenLegalitasVendor::create([
+            'vendor_id' => $indukVendor->id,
+            'document_type' => 'akta',
+            'document_number' => 'No. 88 Akta Notaris Bersama',
+            'file_path' => 'dokumen/akta.pdf',
+        ]);
+        DokumenLegalitasVendor::create([
+            'vendor_id' => $indukVendor->id,
+            'document_type' => 'sk_kemenkumham',
+            'document_number' => 'AHU-SHARED-8888.AH.01.01',
+            'file_path' => 'dokumen/sk.pdf',
+        ]);
+
+        $code = $this->requestOtp('cabang.medan@majubersama.co.id');
+
+        // Vendor 2 (Cabang Medan) registers with identical Akta and SK Kemenkumham but different company name
+        $response = $this->from('/register/vendor')->post('/register/vendor', [
+            'name' => 'Kepala Cabang Medan',
+            'email' => 'cabang.medan@majubersama.co.id',
+            'password' => 'VendorPassword123#',
+            'password_confirmation' => 'VendorPassword123#',
+            'business_entity' => 'pt',
+            'company_name' => 'PT Maju Bersama Cabang Medan',
+            'tax_number' => '12.345.678.9-012.000',
+            'nomor_nib' => 'NIB-MEDAN-123',
+            'nomor_ktp' => '3171012345671111',
+            'phone' => '081299995555',
+            'address' => 'Jl. Gatot Subroto No. 50, Medan',
+            'commodity_category_uuids' => [$category->uuid],
+            'otp' => $code,
+            'pkp_status' => 'non_ppn',
+            'nomor_akta' => 'No. 88 Akta Notaris Bersama',
+            'nomor_sk_kemenkumham' => 'AHU-SHARED-8888.AH.01.01',
+            'dokumen_npwp' => UploadedFile::fake()->create('npwp.pdf', 200, 'application/pdf'),
+            'dokumen_nib' => UploadedFile::fake()->create('nib.pdf', 200, 'application/pdf'),
+            'dokumen_ktp' => UploadedFile::fake()->create('ktp.pdf', 200, 'application/pdf'),
+            'dokumen_akta' => UploadedFile::fake()->create('akta.pdf', 200, 'application/pdf'),
+            'dokumen_sk_kemenkumham' => UploadedFile::fake()->create('sk.pdf', 200, 'application/pdf'),
+        ]);
+
+        $response->assertRedirect(route('register.success'));
+
+        $cabangVendor = Vendor::where('company_name', 'PT Maju Bersama Cabang Medan')->first();
+        $this->assertNotNull($cabangVendor);
+
+        // Verify detection of duplicate documents for admin
+        $warnings = app(RegistrationSecurityGuardService::class)->detectVendorDuplicateDocuments($cabangVendor);
+        $this->assertNotEmpty($warnings);
+
+        $docTypes = collect($warnings)->pluck('document_type')->all();
+        $this->assertContains('akta', $docTypes);
+        $this->assertContains('sk_kemenkumham', $docTypes);
+
+        $aktaWarning = collect($warnings)->firstWhere('document_type', 'akta');
+        $this->assertSame('Akta Pendirian Perusahaan', $aktaWarning['document_label']);
+        $this->assertSame('No. 88 Akta Notaris Bersama', $aktaWarning['document_number']);
+        $this->assertNotEmpty($aktaWarning['matches']);
+        $this->assertSame('PT Maju Bersama Pusat', $aktaWarning['matches'][0]['company_name']);
+
+        // Verify resource output for admin
+        $resource = (new VerifikasiVendorResource($cabangVendor))->resolve();
+        $this->assertTrue($resource['has_duplicate_documents']);
+        $this->assertCount(2, $resource['duplicate_warnings']);
     }
 }

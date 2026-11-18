@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Models\Vendor;
+use App\Services\RegistrationSecurityGuardService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,6 +23,8 @@ class VerifikasiVendorResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $duplicateWarnings = app(RegistrationSecurityGuardService::class)->detectVendorDuplicateDocuments($this->resource);
+
         return [
             'uuid' => $this->uuid,
             'company_name' => $this->company_name,
@@ -32,6 +35,8 @@ class VerifikasiVendorResource extends JsonResource
             'address' => $this->address,
             'kategori_komoditas' => $this->kategori_komoditas,
             'verification_status' => $this->verification_status->value,
+            'has_duplicate_documents' => count($duplicateWarnings) > 0,
+            'duplicate_warnings' => $duplicateWarnings,
             'created_at' => $this->created_at?->toISOString(),
             'documents' => DokumenLegalitasVendorResource::collection($this->whenLoaded('legalDocuments')),
         ];

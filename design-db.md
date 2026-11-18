@@ -171,7 +171,7 @@ Aturan (di Service/Form Request): role `vendor` ⇒ `vendor_id` terisi & `tenant
 | Kolom | Tipe | Saat ini | Catatan |
 |---|---|---|---|
 | company_name | string(200) NN | `nama_perusahaan` | |
-| tax_number | string(30) U null | `nomor_npwp` | NPWP (indeks unik aktif: `ux_tenants_tax_number`) |
+| tax_number | string(30) null | `nomor_npwp` | NPWP (indeks unik mutlak di-drop via migration 2026_11_19_000001 untuk mengakomodasi kantor cabang; fraud/spam dimitigasi via Pre-Registration Guard & Admin Duplication Flags) |
 | phone | string(30) null | [baru] | Nomor telepon perusahaan (E.164) |
 | legal_document_path | string(500) null | `file_url` | Berkas legalitas NPWP/SIUP tenant (format PDF, maks 5 MB) |
 | address | text null | `alamat` | |
@@ -206,7 +206,7 @@ Aturan (di Service/Form Request): role `vendor` ⇒ `vendor_id` terisi & `tenant
 |---|---|---|---|
 | vendor_id | FK→vendors NN, idx | | |
 | document_type | string(50) NN | `jenis_dokumen` | `npwp`, `nib`, `ktp`, `sppkp`, `akta`, `sk_kemenkumham`, `siup` |
-| document_number | string(100) null | `nomor_dokumen` | |
+| document_number | string(100) null | `nomor_dokumen` | Non-unique mutlak di database untuk mengakomodasi multi-cabang/sister company; mitigasi fraud/spam ditangani via `RegistrationSecurityGuardService` & warning duplikasi verifikasi admin (UC-02, UC-21) |
 | file_path | string(500) NN | `file_url` | Disk privat |
 | verification_status | string(30) NN default `pending` | `status_verifikasi` | `pending`, `approved`, `rejected` |
 | rejection_reason | text null | `alasan_penolakan` | |
@@ -725,6 +725,7 @@ Cocok bila untuk setiap item: `invoice_items.quantity ≤ kuantitas diterima yan
 | 2026-11-16 | Tambah kolom `phone` di tabel `tenants` (string(30) nullable) untuk nomor telepon perusahaan pembeli (PRD UC-01, FR-01) | — |
 | 2026-11-17 | Tambah kolom `is_pkp` di tabel `vendors` (boolean default false) untuk status PKP (PPN / Non PPN), serta tipe dokumen `sppkp` dan `akta` di `vendor_legal_documents` (PRD UC-02, FR-02) | — |
 | 2026-11-18 | Tambah kolom `business_entity` di tabel `vendors` (string(30) default `pt`) untuk Bentuk Badan Usaha (`pt`, `cv`, `firma`, `koperasi`, `perorangan`), serta pemisahan tipe dokumen `akta` (Akta Pendirian) dan `sk_kemenkumham` (SK Kemenkumham) di `vendor_legal_documents` (Wajib bila badan hukum, disembunyikan bila Perorangan/UD) | — |
+| 2026-11-19 | Drop constraint UNIQUE pada `tenants.tax_number` via migration 2026_11_19_000001 untuk skenario kantor cabang; implementasi `RegistrationSecurityGuardService` (Pre-Registration Blacklist Guard & Pending Spam Guard) serta sistem peringatan flag duplikasi dokumen legalitas untuk Admin Verifikator (Tenant & Vendor) | — |
 
 ## 12. Keputusan Teknis (2026-10-31)
 

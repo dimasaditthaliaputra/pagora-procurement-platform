@@ -119,8 +119,8 @@ Seluruh aktivitas selain registrasi, konfirmasi undangan, dan reset kata sandi w
   6. Guest mengonfirmasi pendaftaran; sistem memvalidasi kelengkapan data & berkas.
   7. Sistem menyimpan profil ke `users` (role `owner`) dan perusahaan ke `tenants` dengan status **menunggu verifikasi**.
   8. Sistem mengarahkan ke halaman "Pendaftaran sukses".
-- **Alternatif/error**: 6a. Data tidak valid (kolom wajib kosong, email terdaftar, berkas bukan PDF / > 5 MB) → tolak, tampilkan error di kolom terkait, tetap di form.
-- **Hasil**: data Owner & Tenant tersimpan; Tenant aktif setelah diverifikasi Superadmin (UC-21).
+- **Alternatif/error**: 6a. Data tidak valid (kolom wajib kosong, email terdaftar, berkas bukan PDF / > 5 MB) → tolak, tampilkan error di kolom terkait, tetap di form. 6b. Nomor identitas/dokumen legalitas (NPWP/NIB/NIK) terkait entitas berstatus ditangguhkan/diblokir (Pre-Registration Blacklist Guard) → tolak pendaftaran otomatis. 6c. Pengajuan dengan nama perusahaan dan dokumen legalitas sama persis sedang berstatus pending (Pending Spam Guard) → tolak pendaftaran ganda dan minta menunggu proses verifikasi.
+- **Hasil**: data Owner & Tenant tersimpan; Tenant aktif setelah diverifikasi Superadmin (UC-21). Nomor dokumen NPWP/NIB/NIK tidak unik mutlak untuk mendukung pendaftaran kantor cabang/grup usaha, dengan mitigasi verifikasi ekstra.
 
 ### UC-02 Registrasi Akun Vendor
 - **Aktor**: Guest (calon Vendor), mandiri **atau** lewat tautan undangan (UC-20). **Prasyarat**: belum login / belum punya akun.
@@ -139,8 +139,8 @@ Seluruh aktivitas selain registrasi, konfirmasi undangan, dan reset kata sandi w
   7. Guest mengonfirmasi persetujuan Syarat & Ketentuan dan mengirimkan pendaftaran; sistem memvalidasi kelengkapan data & seluruh berkas.
   8. Sistem menyimpan ke `users` (role `vendor`, `email_verified_at` terisi), `vendors` (termasuk kolom `business_entity`, `is_pkp`, status **pending**), `vendor_commodity_categories`, dan `vendor_legal_documents` (status **pending**).
   9. Sistem mengarahkan ke halaman "Pendaftaran sukses".
-- **Alternatif/error**: 3a/7a. Data tidak valid (kolom kosong, format email/NPWP salah, email bisnis sudah terdaftar, OTP salah/kedaluwarsa, kategori belum dipilih, status PKP belum dipilih, berkas wajib/SPPKP belum diunggah, berkas tidak sesuai / > 5 MB) → tolak, tampilkan error di tab/kolom terkait, tetap di form. 1a. Tautan undangan kedaluwarsa / tidak valid → pesan error.
-- **Hasil**: data Vendor & berkas legalitas tersimpan; menunggu verifikasi Superadmin (UC-21).
+- **Alternatif/error**: 3a/7a. Data tidak valid (kolom kosong, format email/NPWP salah, email bisnis sudah terdaftar, OTP salah/kedaluwarsa, kategori belum dipilih, status PKP belum dipilih, berkas wajib/SPPKP belum diunggah, berkas tidak sesuai / > 5 MB) → tolak, tampilkan error di tab/kolom terkait, tetap di form. 7b. Nomor identitas/dokumen legalitas (NPWP, NIB, KTP, SPPKP, Akta Pendirian, SK Kemenkumham) terkait entitas berstatus ditangguhkan/diblokir (Pre-Registration Blacklist Guard) → tolak pendaftaran otomatis. 7c. Pengajuan dengan nama perusahaan dan dokumen legalitas sama persis sedang berstatus pending (Pending Spam Guard) → tolak pendaftaran ganda dan minta menunggu proses verifikasi. 1a. Tautan undangan kedaluwarsa / tidak valid → pesan error.
+- **Hasil**: data Vendor & berkas legalitas tersimpan; menunggu verifikasi Superadmin (UC-21). Seluruh dokumen legalitas (NPWP, NIB, KTP, SPPKP, Akta Pendirian, SK Kemenkumham) tidak dibuat unik mutlak di database untuk mendukung pendaftaran kantor cabang/grup usaha/sister company, dengan mitigasi verifikasi ekstra berupa warning badge pada tabel dan rincian alert duplikasi pada detail verifikasi admin.
 
 ### UC-03 Menerima Ajakan Perusahaan
 - **Aktor**: Guest (calon staf internal Tenant). **Prasyarat**: Owner telah mengirim undangan; Guest punya akses ke inbox email.
@@ -375,8 +375,8 @@ Invoice **hanya untuk item yang lolos QC** [Keputusan Q-10b].
 ### UC-21 Verifikasi Akun Tenant & Vendor  [Keputusan]
 - **Aktor**: Superadmin. **Prasyarat**: login; ada registrasi Tenant atau dokumen legalitas Vendor berstatus `pending`.
 - **Alur utama**:
-  1. Buka menu verifikasi; sistem memuat daftar Tenant/Vendor menunggu verifikasi; cari/filter [SF].
-  2. Pilih entri; sistem memuat detail dan dokumen legalitas (dapat diunduh).
+  1. Buka menu verifikasi; sistem memuat daftar Tenant/Vendor menunggu verifikasi; cari/filter [SF]. Bila terdapat entitas yang mendaftar dengan nomor NPWP, NIB, atau NIK/KTP yang sama dengan entitas lain, sistem menampilkan **warning badge duplikasi dokumen**.
+  2. Pilih entri; sistem memuat detail dan dokumen legalitas (dapat diunduh). Pada pendaftaran dengan duplikasi dokumen, sistem menampilkan **peringatan detail duplikasi dokumen** beserta daftar entitas lain yang menggunakan nomor dokumen tersebut agar Superadmin dapat memvalidasi keabsahan hubungan (kantor cabang / grup usaha) dan mencegah impersonation.
   3. **Setujui** → status `approved`/aktif, catat verifikator & waktu, kirim notifikasi email.
 - **Alternatif**: 3a. **Tolak** + alasan → `rejected`, notifikasi email berisi alasan.
 - **Hasil**: Tenant/Vendor aktif dan dapat login, atau ditolak.

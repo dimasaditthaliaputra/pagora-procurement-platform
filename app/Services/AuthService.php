@@ -414,6 +414,14 @@ class AuthService
             ? trim((string) $request->input('alamat'))
             : ($request->filled('address') ? trim((string) $request->input('address')) : null);
 
+        app(RegistrationSecurityGuardService::class)->validatePreRegistration(
+            entityType: 'tenant',
+            companyName: $namaPerusahaan,
+            taxNumber: $nomorNpwp,
+            nib: $request->filled('nomor_nib') ? (string) $request->input('nomor_nib') : null,
+            ktp: $request->filled('nomor_ktp') ? (string) $request->input('nomor_ktp') : null
+        );
+
         $timestamp = now()->timestamp;
         $tenantFieldMap = [
             'npwp' => [

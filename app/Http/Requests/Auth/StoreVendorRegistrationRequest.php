@@ -71,6 +71,18 @@ class StoreVendorRegistrationRequest extends FormRequest
             ]);
         }
 
+        if ($this->has('nomor_sk_kemenkumham') && $this->input('nomor_sk_kemenkumham') !== null) {
+            $this->merge([
+                'nomor_sk_kemenkumham' => trim((string) $this->input('nomor_sk_kemenkumham')),
+            ]);
+        }
+
+        if ($this->has('business_entity') && filled($this->input('business_entity'))) {
+            $this->merge([
+                'business_entity' => strtolower(trim((string) $this->input('business_entity'))),
+            ]);
+        }
+
         $rawEmail = $this->has('email') && filled($this->input('email'))
             ? strtolower(trim($this->string('email')->toString()))
             : null;
@@ -107,6 +119,10 @@ class StoreVendorRegistrationRequest extends FormRequest
 
         if ($this->hasFile('file_akta') && ! $this->hasFile('dokumen_akta')) {
             $this->files->set('dokumen_akta', $this->file('file_akta'));
+        }
+
+        if ($this->hasFile('file_sk_kemenkumham') && ! $this->hasFile('dokumen_sk_kemenkumham')) {
+            $this->files->set('dokumen_sk_kemenkumham', $this->file('file_sk_kemenkumham'));
         }
 
         if ($this->has('pkp_status')) {
@@ -222,6 +238,7 @@ class StoreVendorRegistrationRequest extends FormRequest
                     ->where('is_active', true)
                     ->whereNull('deleted_at'),
             ],
+            'business_entity' => ['nullable', 'string', Rule::in(['pt', 'cv', 'firma', 'koperasi', 'perorangan', 'ud'])],
             'dokumen_npwp' => [
                 'required_without:legal_documents',
                 'file',
@@ -256,13 +273,16 @@ class StoreVendorRegistrationRequest extends FormRequest
             'dokumen_akta' => ['nullable', 'file', 'mimes:pdf', 'min:1', 'max:5120'],
             'file_akta' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
             'nomor_akta' => ['nullable', 'string', 'max:50'],
+            'dokumen_sk_kemenkumham' => ['nullable', 'file', 'mimes:pdf', 'min:1', 'max:5120'],
+            'file_sk_kemenkumham' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'nomor_sk_kemenkumham' => ['nullable', 'string', 'max:50'],
             'legal_documents' => [
                 'required_without_all:dokumen_npwp,file_npwp',
                 'array',
                 'min:1',
                 'max:10',
             ],
-            'legal_documents.*.document_type' => ['required_with:legal_documents', 'string', Rule::in(['npwp', 'siup', 'nib', 'ktp', 'ktp_penanggung_jawab', 'sppkp', 'akta', 'akta_pendirian'])],
+            'legal_documents.*.document_type' => ['required_with:legal_documents', 'string', Rule::in(['npwp', 'siup', 'nib', 'ktp', 'ktp_penanggung_jawab', 'sppkp', 'akta', 'akta_pendirian', 'sk_kemenkumham'])],
             'legal_documents.*.document_number' => ['nullable', 'string', 'max:50'],
             'legal_documents.*.file' => [
                 'required_with:legal_documents',
@@ -339,6 +359,49 @@ class StoreVendorRegistrationRequest extends FormRequest
                     );
                 }
             }
+
+            $entity = strtolower(trim((string) $this->input('business_entity', '')));
+            $isIncorporated = in_array($entity, ['pt', 'cv', 'firma', 'koperasi'], true);
+
+            if ($isIncorporated) {
+                $hasAkta = $this->hasFile('dokumen_akta')
+                    || $this->hasFile('file_akta')
+                    || (is_array($docs) && collect($docs)->contains(function ($doc): bool {
+                        return is_array($doc) && in_array($doc['document_type'] ?? null, ['akta', 'akta_pendirian'], true);
+                    }));
+
+                if (! $hasAkta) {
+                    $validator->errors()->add(
+                        'dokumen_akta',
+                        'Dokumen Akta Pendirian wajib diunggah untuk badan usaha '.strtoupper($entity).'.'
+                    );
+                }
+                if (! $this->filled('nomor_akta')) {
+                    $validator->errors()->add(
+                        'nomor_akta',
+                        'Nomor Akta Pendirian wajib diisi untuk badan usaha '.strtoupper($entity).'.'
+                    );
+                }
+
+                $hasSk = $this->hasFile('dokumen_sk_kemenkumham')
+                    || $this->hasFile('file_sk_kemenkumham')
+                    || (is_array($docs) && collect($docs)->contains(function ($doc): bool {
+                        return is_array($doc) && ($doc['document_type'] ?? null) === 'sk_kemenkumham';
+                    }));
+
+                if (! $hasSk) {
+                    $validator->errors()->add(
+                        'dokumen_sk_kemenkumham',
+                        'Dokumen SK Kemenkumham wajib diunggah untuk badan usaha '.strtoupper($entity).'.'
+                    );
+                }
+                if (! $this->filled('nomor_sk_kemenkumham')) {
+                    $validator->errors()->add(
+                        'nomor_sk_kemenkumham',
+                        'Nomor SK Kemenkumham wajib diisi untuk badan usaha '.strtoupper($entity).'.'
+                    );
+                }
+            }
         });
     }
 
@@ -368,6 +431,9 @@ class StoreVendorRegistrationRequest extends FormRequest
             'company_name.string' => 'Nama perusahaan harus berupa teks.',
             'company_name.min' => 'Nama perusahaan minimal 3 karakter.',
             'company_name.max' => 'Nama perusahaan tidak boleh lebih dari 200 karakter.',
+
+            'business_entity.required' => 'Bentuk badan usaha wajib dipilih.',
+            'business_entity.in' => 'Bentuk badan usaha harus berupa PT, CV, Firma, Koperasi, atau Perorangan/UD.',
 
             'tax_number.required' => 'Nomor NPWP perusahaan wajib diisi.',
             'tax_number.max' => 'Nomor NPWP tidak boleh lebih dari 30 karakter.',
@@ -441,12 +507,20 @@ class StoreVendorRegistrationRequest extends FormRequest
             'nomor_akta.string' => 'Nomor akta pendirian harus berupa teks.',
             'nomor_akta.max' => 'Nomor akta pendirian tidak boleh lebih dari :max karakter.',
 
+            'dokumen_sk_kemenkumham.file' => 'Berkas dokumen SK Kemenkumham harus berupa file yang valid.',
+            'dokumen_sk_kemenkumham.mimes' => 'Format berkas dokumen SK Kemenkumham harus berupa PDF (.pdf).',
+            'dokumen_sk_kemenkumham.min' => 'Berkas dokumen SK Kemenkumham tidak boleh kosong (minimal 1 KB).',
+            'dokumen_sk_kemenkumham.max' => 'Ukuran berkas dokumen SK Kemenkumham tidak boleh lebih dari 5 MB.',
+
+            'nomor_sk_kemenkumham.string' => 'Nomor SK Kemenkumham harus berupa teks.',
+            'nomor_sk_kemenkumham.max' => 'Nomor SK Kemenkumham tidak boleh lebih dari :max karakter.',
+
             'legal_documents.required' => 'Unggah minimal satu dokumen legalitas (NPWP/SIUP/NIB) berformat PDF.',
             'legal_documents.array' => 'Format daftar dokumen legalitas tidak valid.',
             'legal_documents.min' => 'Unggah minimal satu dokumen legalitas (NPWP/SIUP/NIB) berformat PDF.',
             'legal_documents.max' => 'Maksimal 10 dokumen legalitas yang dapat diunggah.',
             'legal_documents.*.document_type.required' => 'Jenis dokumen legalitas wajib dipilih.',
-            'legal_documents.*.document_type.in' => 'Jenis dokumen legalitas harus berupa NPWP, SIUP, NIB, KTP, SPPKP, atau Akta Pendirian.',
+            'legal_documents.*.document_type.in' => 'Jenis dokumen legalitas harus berupa NPWP, SIUP, NIB, KTP, SPPKP, Akta Pendirian, atau SK Kemenkumham.',
             'legal_documents.*.document_number.max' => 'Nomor dokumen tidak boleh lebih dari 100 karakter.',
             'legal_documents.*.file.required' => 'File dokumen legalitas wajib diunggah.',
             'legal_documents.*.file.file' => 'Dokumen legalitas harus berupa file yang valid.',

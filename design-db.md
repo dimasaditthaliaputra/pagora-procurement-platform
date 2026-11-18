@@ -187,6 +187,7 @@ Aturan (di Service/Form Request): role `vendor` ⇒ `vendor_id` terisi & `tenant
 |---|---|---|---|
 | slug | string(160) U NN | | |
 | company_name | string(200) NN | `nama_perusahaan` | |
+| business_entity | string(30) NN default `pt` | [baru] | Bentuk Badan Usaha: `pt`, `cv`, `firma`, `koperasi`, `perorangan` |
 | tax_number | string(30) null | [baru] | NPWP (wajib di form registrasi baru) |
 | is_pkp | boolean NN default false | [baru] | Status PKP: true = PKP (menagih PPN), false = Non-PKP (Non PPN) |
 | contact_email | string(150) U NN | `email_kontak` | |
@@ -204,7 +205,7 @@ Aturan (di Service/Form Request): role `vendor` ⇒ `vendor_id` terisi & `tenant
 | Kolom | Tipe | Saat ini | Catatan |
 |---|---|---|---|
 | vendor_id | FK→vendors NN, idx | | |
-| document_type | string(50) NN | `jenis_dokumen` | `npwp`, `nib`, `ktp`, `sppkp`, `akta`, `siup` |
+| document_type | string(50) NN | `jenis_dokumen` | `npwp`, `nib`, `ktp`, `sppkp`, `akta`, `sk_kemenkumham`, `siup` |
 | document_number | string(100) null | `nomor_dokumen` | |
 | file_path | string(500) NN | `file_url` | Disk privat |
 | verification_status | string(30) NN default `pending` | `status_verifikasi` | `pending`, `approved`, `rejected` |
@@ -723,6 +724,7 @@ Cocok bila untuk setiap item: `invoice_items.quantity ≤ kuantitas diterima yan
 | 2026-11-05 | **Modul 7 (`goods_receipts`, `goods_receipt_items`) + kolom sengketa QC selesai**: `penerimaan_barang` → `goods_receipts` (`shipment_id` FK ke `shipments`, `inspected_by`, `matched_plate_number`, `inspected_at`, `notes`); `penerimaan_barang_item` → `goods_receipt_items` (`goods_receipt_id`, `purchase_order_item_id`, `received_quantity`, `status` `accepted`/`rejected`, `notes`, `rejection_photos` JSON array immutable); tambah kolom `purchase_order_id`, `purchase_order_item_id`, `trigger_type`, `reason` di `sengketa` dan `type` di `log_sengketa`; permission `penerimaan_barang.view_any` & `penerimaan_barang.create` (UC-15, FR-24..26, BR-09, BR-10, BR-17) | — |
 | 2026-11-16 | Tambah kolom `phone` di tabel `tenants` (string(30) nullable) untuk nomor telepon perusahaan pembeli (PRD UC-01, FR-01) | — |
 | 2026-11-17 | Tambah kolom `is_pkp` di tabel `vendors` (boolean default false) untuk status PKP (PPN / Non PPN), serta tipe dokumen `sppkp` dan `akta` di `vendor_legal_documents` (PRD UC-02, FR-02) | — |
+| 2026-11-18 | Tambah kolom `business_entity` di tabel `vendors` (string(30) default `pt`) untuk Bentuk Badan Usaha (`pt`, `cv`, `firma`, `koperasi`, `perorangan`), serta pemisahan tipe dokumen `akta` (Akta Pendirian) dan `sk_kemenkumham` (SK Kemenkumham) di `vendor_legal_documents` (Wajib bila badan hukum, disembunyikan bila Perorangan/UD) | — |
 
 ## 12. Keputusan Teknis (2026-10-31)
 

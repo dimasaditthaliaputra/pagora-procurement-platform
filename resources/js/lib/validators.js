@@ -74,7 +74,7 @@ export function limitSppkpInput(value) {
 }
 
 /**
- * Pembatasan input nomor Akta Pendirian / SK Kemenkumham:
+ * Pembatasan input nomor Akta Pendirian:
  * - Mengizinkan alfanumerik, garis miring, titik, strip, koma, spasi.
  * - Maksimal 50 karakter.
  */
@@ -83,6 +83,28 @@ export function limitAktaInput(value) {
     return String(value)
         .replace(/[^a-zA-Z0-9\/\.\-\,\s]/g, '')
         .slice(0, 50);
+}
+
+/**
+ * Pembatasan input nomor SK Pengesahan Kemenkumham:
+ * - Mengizinkan alfanumerik, garis miring, titik, strip, koma, spasi.
+ * - Maksimal 50 karakter (contoh: AHU-0012345.AH.01.01.TAHUN 2023).
+ */
+export function limitSkKemenkumhamInput(value) {
+    if (!value) return '';
+    return String(value)
+        .replace(/[^a-zA-Z0-9\/\.\-\,\s]/g, '')
+        .slice(0, 50);
+}
+
+/**
+ * Pembatasan input nomor telepon (hanya angka murni):
+ * - Hanya mengizinkan digit angka (0-9).
+ * - Maksimal 15 digit angka sesuai standar E.164.
+ */
+export function limitPhoneInput(value) {
+    if (!value) return '';
+    return String(value).replace(/\D/g, '').slice(0, 15);
 }
 
 /**

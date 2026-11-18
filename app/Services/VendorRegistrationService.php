@@ -203,6 +203,7 @@ class VendorRegistrationService
 
                 $vendor = $this->vendorRepository->create([
                     'company_name' => trim((string) $data['company_name']),
+                    'business_entity' => strtolower(trim((string) ($data['business_entity'] ?? 'pt'))),
                     'slug' => $baseSlug.'-'.Str::lower(Str::random(6)),
                     'tax_number' => NpwpHelper::normalize((string) $data['tax_number']),
                     'is_pkp' => filter_var($data['is_pkp'] ?? false, FILTER_VALIDATE_BOOLEAN),
@@ -292,6 +293,7 @@ class VendorRegistrationService
             'ktp' => $data['dokumen_ktp'] ?? $data['file_ktp'] ?? null,
             'sppkp' => $data['dokumen_sppkp'] ?? $data['file_sppkp'] ?? null,
             'akta' => $data['dokumen_akta'] ?? $data['file_akta'] ?? null,
+            'sk_kemenkumham' => $data['dokumen_sk_kemenkumham'] ?? $data['file_sk_kemenkumham'] ?? null,
         ];
 
         try {
@@ -314,6 +316,7 @@ class VendorRegistrationService
                         'ktp' => ! empty($data['nomor_ktp']) ? trim((string) $data['nomor_ktp']) : null,
                         'sppkp' => ! empty($data['nomor_sppkp']) ? trim((string) $data['nomor_sppkp']) : null,
                         'akta' => ! empty($data['nomor_akta']) ? trim((string) $data['nomor_akta']) : null,
+                        'sk_kemenkumham' => ! empty($data['nomor_sk_kemenkumham']) ? trim((string) $data['nomor_sk_kemenkumham']) : null,
                         default => null,
                     };
 

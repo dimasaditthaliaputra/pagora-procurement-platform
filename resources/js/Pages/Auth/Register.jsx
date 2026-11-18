@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -23,7 +23,7 @@ import { useCountdown } from '@/hooks/use-countdown';
 import { FlashHandler } from '@/Components/flash-handler';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
-import { isEmail, isNpwp, isPhoneNumber, normalizePhoneNumber, limitNpwpInput, limitNibInput, limitKtpInput } from '@/lib/validators';
+import { isEmail, isNpwp, isPhoneNumber, normalizePhoneNumber, limitNpwpInput, limitNibInput, limitKtpInput, limitPhoneInput } from '@/lib/validators';
 import {
     Building2,
     ArrowRight,
@@ -120,7 +120,39 @@ export default function Register({ google_user = null, status = null, acceptance
     const [verifiedOtpInfo, setVerifiedOtpInfo] = useState(null);
     const [verifyingOtp, setVerifyingOtp] = useState(false);
     const [sendingOtp, setSendingOtp] = useState(false);
+    const [otpSentAt, setOtpSentAt] = useState(null);
+    const [isOtpExpired, setIsOtpExpired] = useState(false);
     const resend = useCountdown();
+
+    const OTP_TTL_MS = 10 * 60 * 1000; // 10 menit
+
+    useEffect(() => {
+        const originalBodyOverflow = document.body.style.overflow;
+        const originalHtmlOverflow = document.documentElement.style.overflow;
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = originalBodyOverflow;
+            document.documentElement.style.overflow = originalHtmlOverflow;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!otpSentAt || isGoogle) {
+            return;
+        }
+
+        const checkExpiry = () => {
+            if (Date.now() - otpSentAt >= OTP_TTL_MS) {
+                setIsOtpExpired(true);
+            }
+        };
+
+        checkExpiry();
+        const interval = setInterval(checkExpiry, 5000);
+        return () => clearInterval(interval);
+    }, [otpSentAt, isGoogle]);
 
     const clearLegalDocumentErrors = () => {
         const docErrorKeys = Object.keys(errors).filter(
@@ -183,17 +215,21 @@ export default function Register({ google_user = null, status = null, acceptance
 
     const hasLegalDocumentsError = Object.keys(errors).some(
         (key) =>
+            key === 'dokumen_npwp' ||
+            key === 'file_npwp' ||
+            key === 'dokumen_nib' ||
+            key === 'file_nib' ||
+            key === 'dokumen_ktp' ||
+            key === 'file_ktp' ||
+            key === 'nomor_nib' ||
+            key === 'nomor_ktp' ||
             key === 'legal_documents' ||
             key.startsWith('legal_documents.') ||
-            key === 'dokumen_npwp' ||
-            key === 'dokumen_nib' ||
-            key === 'dokumen_ktp' ||
-            key === 'file_npwp' ||
-            key === 'file_nib' ||
-            key === 'file_ktp'
+            key === 'terms_accepted'
     );
 
     const isOtpVerified = isGoogle || Boolean(
+        !isOtpExpired &&
         verifiedOtpInfo &&
         verifiedOtpInfo.email === data.email.trim().toLowerCase() &&
         verifiedOtpInfo.otp === data.otp &&
@@ -216,6 +252,8 @@ export default function Register({ google_user = null, status = null, acceptance
 
         clearErrors('email', 'otp');
         setVerifiedOtpInfo(null);
+        setOtpSentAt(null);
+        setIsOtpExpired(false);
         setData('otp', '');
         setSendingOtp(true);
 
@@ -239,6 +277,9 @@ export default function Register({ google_user = null, status = null, acceptance
             if (response.ok && result.success) {
                 setOtpSent(true);
                 setLastOtpEmail(trimmedEmail.toLowerCase());
+                setOtpSentAt(Date.now());
+                setIsOtpExpired(false);
+                clearErrors('otp');
                 resend.start(60);
                 notify.success(result.message || 'Kode OTP telah dikirim ke email bisnis Anda.');
                 if (typeof onSuccessCallback === 'function') {
@@ -438,6 +479,14 @@ export default function Register({ google_user = null, status = null, acceptance
             return;
         }
 
+        const otpExpiredNow = !isGoogle && otpSentAt && (Date.now() - otpSentAt >= OTP_TTL_MS);
+        if (isOtpExpired || otpExpiredNow) {
+            setIsOtpExpired(true);
+            setError('otp', 'Kode OTP Anda telah kedaluwarsa (lebih dari 10 menit). Silakan ajukan kode baru.');
+            notify.error('Sesi verifikasi OTP Anda telah berakhir (lebih dari 10 menit). Silakan ajukan kode baru.');
+            return;
+        }
+
         if (isOtpVerified) {
             setStep(3);
             return;
@@ -462,18 +511,16 @@ export default function Register({ google_user = null, status = null, acceptance
             hasError = true;
         }
 
-        const normalizedTelepon = normalizePhoneNumber(data.telepon);
-        if (!normalizedTelepon) {
+        const rawTelepon = (data.telepon || '').trim();
+        if (!rawTelepon) {
             setError('telepon', 'Nomor telepon perusahaan wajib diisi.');
             hasError = true;
-        } else if (!isPhoneNumber(normalizedTelepon)) {
+        } else if (!isPhoneNumber(rawTelepon)) {
             setError(
                 'telepon',
                 'Format nomor telepon tidak valid. Gunakan 8–15 digit angka, contoh: 081234567890.'
             );
             hasError = true;
-        } else if (normalizedTelepon !== data.telepon) {
-            setData('telepon', normalizedTelepon);
         }
 
         const trimmedAlamat = data.alamat.trim();
@@ -601,6 +648,17 @@ export default function Register({ google_user = null, status = null, acceptance
             return;
         }
 
+        if (!isGoogle) {
+            const otpExpiredNow = otpSentAt && (Date.now() - otpSentAt >= OTP_TTL_MS);
+            if (isOtpExpired || otpExpiredNow) {
+                setIsOtpExpired(true);
+                setError('otp', 'Kode OTP Anda telah kedaluwarsa (lebih dari 10 menit). Silakan ajukan kode baru.');
+                notify.error('Sesi verifikasi OTP Anda telah berakhir (lebih dari 10 menit). Silakan ajukan kode baru.');
+                setStep(2);
+                return;
+            }
+        }
+
         if (!isOtpVerified) {
             setStep(2);
             setError('otp', 'Silakan verifikasi email bisnis Anda dengan kode OTP terlebih dahulu.');
@@ -629,6 +687,7 @@ export default function Register({ google_user = null, status = null, acceptance
                 if (errs.name || errs.email || errs.password || errs.password_confirmation) {
                     setStep(1);
                 } else if (errs.otp && !isGoogle) {
+                    setIsOtpExpired(true);
                     setVerifiedOtpInfo(null);
                     setStep(2);
                 } else if (errs.nama_perusahaan || errs.telepon || errs.alamat) {
@@ -644,8 +703,15 @@ export default function Register({ google_user = null, status = null, acceptance
         });
     };
 
+    const stepRawErrors = {
+        1: !!(errors.name || errors.email || errors.password || errors.password_confirmation),
+        2: !isGoogle && !!(errors.otp || isOtpExpired),
+        3: !!(errors.nama_perusahaan || errors.telepon || errors.alamat),
+        4: hasLegalDocumentsError,
+    };
+
     return (
-        <div className="grid min-h-screen lg:h-screen lg:overflow-hidden lg:grid-cols-2 bg-background text-foreground">
+        <div className="fixed inset-0 h-dvh w-full overflow-hidden grid lg:grid-cols-2 bg-background text-foreground">
             <Head title="Pendaftaran Akun Tenant - PAGORA" />
             <FlashHandler />
 
@@ -676,7 +742,16 @@ export default function Register({ google_user = null, status = null, acceptance
                         <div className="grid grid-cols-4 gap-1 sm:gap-1.5 mb-5 p-1 rounded-xl bg-muted/50 border border-border/70 text-xs select-none">
                             {STEPS.map((item) => {
                                 const isActive = step === item.id;
-                                const isCompleted = step > item.id || (isGoogle && item.id < 3);
+                                const isTabBeingAccessed = step === item.id;
+                                const isOtpExpiredAfter10Mins =
+                                    item.id === 2 &&
+                                    !isGoogle &&
+                                    (isOtpExpired || (otpSentAt && Date.now() - otpSentAt >= OTP_TTL_MS) || (Boolean(errors.otp) && !isTabBeingAccessed));
+                                const hasErr =
+                                    (isTabBeingAccessed && Boolean(stepRawErrors[item.id])) || isOtpExpiredAfter10Mins;
+                                const isCompleted =
+                                    (step > item.id && !hasErr && (item.id !== 2 || (isOtpVerified && !isOtpExpiredAfter10Mins))) ||
+                                    (isGoogle && item.id < 3);
 
                                 return (
                                     <button
@@ -694,23 +769,26 @@ export default function Register({ google_user = null, status = null, acceptance
                                             'flex items-center justify-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1.5 rounded-lg font-medium transition-all text-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 text-[11px] sm:text-xs',
                                             isActive
                                                 ? 'bg-background text-foreground shadow-xs'
-                                                : 'text-muted-foreground hover:text-foreground'
+                                                : 'text-muted-foreground hover:text-foreground',
+                                            hasErr && 'text-destructive'
                                         )}
                                     >
                                         <span
                                             className={cn(
                                                 'flex items-center justify-center size-5 rounded-full text-[11px] font-semibold shrink-0',
-                                                isActive
-                                                    ? 'bg-primary text-primary-foreground'
-                                                    : isCompleted
-                                                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                                                        : 'bg-muted-foreground/20 text-muted-foreground'
+                                                hasErr
+                                                    ? 'bg-destructive text-destructive-foreground'
+                                                    : isActive
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : isCompleted
+                                                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                                                            : 'bg-muted-foreground/20 text-muted-foreground'
                                             )}
                                         >
-                                            {isCompleted ? <CheckCircle2 className="size-3.5" /> : item.id}
+                                            {hasErr ? '!' : isCompleted ? <CheckCircle2 className="size-3.5" /> : item.id}
                                         </span>
                                         <span className="truncate">
-                                            {isGoogle && item.id === 2 ? 'Verifikasi (Auto)' : item.label}
+                                            {item.label}
                                         </span>
                                     </button>
                                 );
@@ -1157,20 +1235,17 @@ export default function Register({ google_user = null, status = null, acceptance
                                         <Input
                                             id="telepon"
                                             type="tel"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
                                             name="telepon"
                                             value={data.telepon}
-                                            maxLength={20}
+                                            maxLength={15}
                                             onChange={(e) => {
-                                                setData('telepon', e.target.value.slice(0, 20));
+                                                const val = limitPhoneInput(e.target.value);
+                                                setData('telepon', val);
                                                 if (errors.telepon) clearErrors('telepon');
                                             }}
-                                            onBlur={(e) => {
-                                                const formatted = normalizePhoneNumber(e.target.value);
-                                                if (formatted && formatted !== e.target.value) {
-                                                    setData('telepon', formatted);
-                                                }
-                                            }}
-                                            placeholder="Contoh: 081234567890 atau (021) 5551234"
+                                            placeholder="Contoh: 081234567890"
                                             aria-invalid={!!errors.telepon}
                                             disabled={processing}
                                             className={cn(

@@ -1239,7 +1239,13 @@ export default function Register({ google_user = null, status = null, acceptance
                                             pattern="[0-9]*"
                                             name="telepon"
                                             value={data.telepon}
-                                            maxLength={15}
+                                            onPaste={(e) => {
+                                                e.preventDefault();
+                                                const text = e.clipboardData.getData('text');
+                                                const val = limitPhoneInput(text);
+                                                setData('telepon', val);
+                                                if (errors.telepon) clearErrors('telepon');
+                                            }}
                                             onChange={(e) => {
                                                 const val = limitPhoneInput(e.target.value);
                                                 setData('telepon', val);
@@ -1334,7 +1340,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                         </div>
                                     )}
 
-                                    {/* 1. Card Dokumen NPWP Perusahaan */}
+                                    {/* Card Dokumen NPWP Perusahaan */}
                                     <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
                                         <div className="flex items-center justify-between gap-2">
                                             <Label
@@ -1346,7 +1352,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                                         : 'text-muted-foreground'
                                                 )}
                                             >
-                                                1. Dokumen NPWP Perusahaan <span className="text-destructive">*</span>
+                                                Dokumen NPWP Perusahaan <span className="text-destructive">*</span>
                                             </Label>
                                         </div>
 
@@ -1368,7 +1374,13 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 pattern="[0-9]*"
                                                 name="nomor_npwp"
                                                 value={data.nomor_npwp}
-                                                maxLength={16}
+                                                onPaste={(e) => {
+                                                    e.preventDefault();
+                                                    const text = e.clipboardData.getData('text');
+                                                    const val = limitNpwpInput(text);
+                                                    setData('nomor_npwp', val);
+                                                    if (errors.nomor_npwp) clearErrors('nomor_npwp');
+                                                }}
                                                 onChange={(e) => {
                                                     const val = limitNpwpInput(e.target.value);
                                                     setData('nomor_npwp', val);
@@ -1399,7 +1411,6 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 }}
                                                 onError={(msg) => {
                                                     setError('dokumen_npwp', msg);
-                                                    notify.error(msg);
                                                 }}
                                                 error={errors.dokumen_npwp || errors.file_npwp}
                                                 accept={PDF_ACCEPT}
@@ -1415,7 +1426,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                         </div>
                                     </div>
 
-                                    {/* 2. Card Dokumen NIB Perusahaan */}
+                                    {/* Card Dokumen NIB Perusahaan */}
                                     <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
                                         <div className="flex items-center justify-between gap-2">
                                             <Label
@@ -1427,7 +1438,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                                         : 'text-muted-foreground'
                                                 )}
                                             >
-                                                2. Dokumen NIB (Nomor Induk Berusaha) <span className="text-destructive">*</span>
+                                                Dokumen NIB (Nomor Induk Berusaha) <span className="text-destructive">*</span>
                                             </Label>
                                         </div>
 
@@ -1447,9 +1458,15 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 type="text"
                                                 inputMode="numeric"
                                                 pattern="[0-9]*"
-                                                maxLength={13}
                                                 placeholder="Contoh: 1234567890123"
                                                 value={data.nomor_nib}
+                                                onPaste={(e) => {
+                                                    e.preventDefault();
+                                                    const text = e.clipboardData.getData('text');
+                                                    const val = limitNibInput(text);
+                                                    setData('nomor_nib', val);
+                                                    if (errors.nomor_nib) clearErrors('nomor_nib');
+                                                }}
                                                 onChange={(e) => {
                                                     const val = limitNibInput(e.target.value);
                                                     setData('nomor_nib', val);
@@ -1481,7 +1498,6 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 }}
                                                 onError={(msg) => {
                                                     setError('dokumen_nib', msg);
-                                                    notify.error(msg);
                                                 }}
                                                 error={errors.dokumen_nib || errors.file_nib}
                                                 accept={PDF_ACCEPT}
@@ -1497,7 +1513,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                         </div>
                                     </div>
 
-                                    {/* 3. Card Dokumen KTP Penanggung Jawab */}
+                                    {/* Card Dokumen KTP Penanggung Jawab */}
                                     <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
                                         <div className="flex items-center justify-between gap-2">
                                             <Label
@@ -1509,7 +1525,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                                         : 'text-muted-foreground'
                                                 )}
                                             >
-                                                3. Dokumen KTP Penanggung Jawab <span className="text-destructive">*</span>
+                                                Dokumen KTP Penanggung Jawab <span className="text-destructive">*</span>
                                             </Label>
                                         </div>
 
@@ -1529,9 +1545,15 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 type="text"
                                                 inputMode="numeric"
                                                 pattern="[0-9]*"
-                                                maxLength={16}
                                                 placeholder="Contoh: 3171012345670001"
                                                 value={data.nomor_ktp}
+                                                onPaste={(e) => {
+                                                    e.preventDefault();
+                                                    const text = e.clipboardData.getData('text');
+                                                    const val = limitKtpInput(text);
+                                                    setData('nomor_ktp', val);
+                                                    if (errors.nomor_ktp) clearErrors('nomor_ktp');
+                                                }}
                                                 onChange={(e) => {
                                                     const val = limitKtpInput(e.target.value);
                                                     setData('nomor_ktp', val);
@@ -1563,7 +1585,6 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 }}
                                                 onError={(msg) => {
                                                     setError('dokumen_ktp', msg);
-                                                    notify.error(msg);
                                                 }}
                                                 error={errors.dokumen_ktp || errors.file_ktp}
                                                 accept={PDF_ACCEPT}

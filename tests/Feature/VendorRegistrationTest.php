@@ -1327,4 +1327,55 @@ class VendorRegistrationTest extends TestCase
         $this->assertTrue($resource['has_duplicate_documents']);
         $this->assertCount(2, $resource['duplicate_warnings']);
     }
+
+    public function test_manual_vendor_registration_clears_google_data_even_if_stale_google_session_was_present(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $code = $this->requestOtp('manual.vendor@perusahaan.com');
+        $category = CommodityCategory::firstOrFail();
+
+        $googleSessionData = [
+            'name' => 'Stale Google Vendor User',
+            'email' => 'stale_google_vendor@gmail.com',
+            'google_id' => 'stale-vendor-google-id-999',
+            'avatar' => 'https://lh3.googleusercontent.com/stale_vendor.jpg',
+        ];
+
+        $response = $this->withSession(['google_user' => $googleSessionData])
+            ->post('/register/vendor', [
+                'name' => 'Direktur Manual Vendor',
+                'email' => 'manual.vendor@perusahaan.com',
+                'contact_email' => 'manual.vendor@perusahaan.com',
+                'company_name' => 'PT Manual Vendor Sejahtera',
+                'business_entity' => 'pt',
+                'tax_number' => '08.678.901.2-345.000',
+                'nomor_npwp' => '08.678.901.2-345.000',
+                'nomor_nib' => 'NIB-MANUAL-123',
+                'nomor_ktp' => '3171012345672222',
+                'nomor_akta' => 'No. 89 Akta Notaris',
+                'nomor_sk_kemenkumham' => 'AHU-SHARED-9999.AH.01.01',
+                'phone' => '081288889999',
+                'address' => 'Jl. Vendor No. 1, Jakarta',
+                'commodity_category_uuids' => [$category->uuid],
+                'otp' => $code,
+                'password' => 'ManualVendorPassword123#',
+                'password_confirmation' => 'ManualVendorPassword123#',
+                'pkp_status' => 'non_ppn',
+                'google_id' => 'stale-vendor-google-id-999',
+                'avatar' => 'https://lh3.googleusercontent.com/stale_vendor.jpg',
+                'dokumen_npwp' => UploadedFile::fake()->create('npwp.pdf', 200, 'application/pdf'),
+                'dokumen_nib' => UploadedFile::fake()->create('nib.pdf', 200, 'application/pdf'),
+                'dokumen_ktp' => UploadedFile::fake()->create('ktp.pdf', 200, 'application/pdf'),
+                'dokumen_akta' => UploadedFile::fake()->create('akta.pdf', 200, 'application/pdf'),
+                'dokumen_sk_kemenkumham' => UploadedFile::fake()->create('sk.pdf', 200, 'application/pdf'),
+            ]);
+
+        $response->assertRedirect(route('register.success'));
+
+        $user = User::where('email', 'manual.vendor@perusahaan.com')->firstOrFail();
+        $this->assertNull($user->google_id);
+        $this->assertNull($user->avatar);
+        $this->assertFalse(session()->has('google_user'));
+    }
 }

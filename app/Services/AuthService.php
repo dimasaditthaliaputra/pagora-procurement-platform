@@ -378,21 +378,25 @@ class AuthService
      */
     public function register(RegisterRequest $request): array
     {
-        $isGoogleRegistration = $request->boolean('is_google_registration')
-            || session()->has('google_user')
-            || filled($request->input('google_id'));
+        $email = strtolower(trim((string) $request->input('email')));
+        $googleUser = session('google_user');
+        $hasGoogleSession = is_array($googleUser) && ! empty($googleUser['google_id']) && ! empty($googleUser['email']);
+        $sessionGoogleEmail = $hasGoogleSession ? strtolower(trim((string) $googleUser['email'])) : null;
+
+        $isGoogleRegistration = $hasGoogleSession && ($email === $sessionGoogleEmail);
 
         $name = (string) ($request->input('name') ?? $request->input('nama_lengkap'));
-        $email = strtolower(trim((string) $request->input('email')));
-        $googleUser = session('google_user', []);
-        $googleId = (string) ($request->input('google_id') ?? ($googleUser['google_id'] ?? null));
-        $avatar = (string) ($request->input('avatar') ?? ($googleUser['avatar'] ?? null));
+        $googleId = $isGoogleRegistration ? (string) $googleUser['google_id'] : null;
+        $avatar = $isGoogleRegistration ? (string) ($googleUser['avatar'] ?? null) : null;
 
         $defaultPassword = null;
         if ($isGoogleRegistration) {
             $defaultPassword = (string) ($request->input('default_password') ?? ('Pagora#'.Str::random(10)));
             $password = $defaultPassword;
         } else {
+            if ($hasGoogleSession) {
+                session()->forget(['google_user', 'google_auth_flow']);
+            }
             $password = (string) $request->input('password');
             $otp = (string) $request->input('otp');
 
@@ -687,6 +691,25 @@ class AuthService
 
         // 2. Cari akun aktif
         $user = $this->userRepository->findByGoogleId($googleId);
+
+        // Validasi integritas akun: jika user ditemukan via google_id namun email di DB berbeda,
+        // berarti terjadi anomali asosiasi (misal akun manual yang tidak sengaja menyimpan google_id).
+        // Lepaskan google_id dari user lama tersebut agar tidak memblokir pemilik asli akun Google.
+        if ($user && strtolower(trim((string) $user->email)) !== $email) {
+            Log::warning('Google ID mismatch detected: google_id dilepas dari user manual.', [
+                'google_id' => $googleId,
+                'google_email' => $email,
+                'db_user_id' => $user->id,
+                'db_user_email' => $user->email,
+            ]);
+
+            $user->google_id = null;
+            if ($user->avatar === $avatar) {
+                $user->avatar = null;
+            }
+            $user->save();
+            $user = null;
+        }
 
         if (! $user && ! empty($email)) {
             $user = $this->userRepository->findByEmail($email);

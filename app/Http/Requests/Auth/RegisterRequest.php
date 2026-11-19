@@ -129,24 +129,28 @@ class RegisterRequest extends FormRequest
             $this->merge(['legal_documents' => $docs]);
         }
 
-        $isGoogleRegistration = $this->boolean('is_google_registration')
-            || session()->has('google_user')
-            || filled($this->input('google_id'));
+        $googleUser = session('google_user');
+        $hasGoogleSession = is_array($googleUser) && ! empty($googleUser['google_id']) && ! empty($googleUser['email']);
+        $sessionGoogleEmail = $hasGoogleSession ? strtolower(trim((string) $googleUser['email'])) : null;
+        $submittedEmail = strtolower(trim((string) $this->input('email', '')));
+
+        // Registrasi Google hanya diakui jika ada sesi Google aktif DAN
+        // email yang didaftarkan kosong (akan diisi dari Google) atau sama persis dengan email akun Google tersebut.
+        $isGoogleRegistration = $hasGoogleSession
+            && ($submittedEmail === '' || $submittedEmail === $sessionGoogleEmail);
 
         if ($isGoogleRegistration) {
-            $googleUser = session('google_user', []);
             if (! $this->filled('name') && ! empty($googleUser['name'])) {
                 $this->merge(['name' => $googleUser['name']]);
             }
-            if (! $this->filled('email') && ! empty($googleUser['email'])) {
-                $this->merge(['email' => strtolower(trim((string) $googleUser['email']))]);
+            if (! empty($sessionGoogleEmail)) {
+                $this->merge(['email' => $sessionGoogleEmail]);
             }
-            if (! $this->filled('google_id') && ! empty($googleUser['google_id'])) {
-                $this->merge(['google_id' => $googleUser['google_id']]);
-            }
-            if (! $this->filled('avatar') && ! empty($googleUser['avatar'])) {
-                $this->merge(['avatar' => $googleUser['avatar']]);
-            }
+            $this->merge([
+                'google_id' => $googleUser['google_id'],
+                'avatar' => $googleUser['avatar'] ?? null,
+                'is_google_registration' => true,
+            ]);
 
             if (! $this->filled('password')) {
                 $generatedPassword = 'Pagora#'.Str::random(10);
@@ -154,16 +158,25 @@ class RegisterRequest extends FormRequest
                     'password' => $generatedPassword,
                     'password_confirmation' => $generatedPassword,
                     'default_password' => $generatedPassword,
-                    'is_google_registration' => true,
                 ]);
             }
 
             if (! $this->filled('otp')) {
                 $this->merge([
                     'otp' => '000000',
-                    'is_google_registration' => true,
                 ]);
             }
+        } else {
+            // Jika BUKAN registrasi Google (misal user membatalkan atau mendaftar manual dengan email lain):
+            // Bersihkan sesi Google dan pastikan google_id serta avatar tidak ikut tersimpan ke database.
+            if ($hasGoogleSession) {
+                session()->forget(['google_user', 'google_auth_flow']);
+            }
+            $this->merge([
+                'google_id' => null,
+                'avatar' => null,
+                'is_google_registration' => false,
+            ]);
         }
     }
 
@@ -174,9 +187,13 @@ class RegisterRequest extends FormRequest
      */
     public function rules(): array
     {
-        $isGoogleRegistration = $this->boolean('is_google_registration')
-            || session()->has('google_user')
-            || filled($this->input('google_id'));
+        $googleUser = session('google_user');
+        $hasGoogleSession = is_array($googleUser) && ! empty($googleUser['google_id']) && ! empty($googleUser['email']);
+        $sessionGoogleEmail = $hasGoogleSession ? strtolower(trim((string) $googleUser['email'])) : null;
+        $submittedEmail = strtolower(trim((string) $this->input('email', '')));
+
+        $isGoogleRegistration = $hasGoogleSession
+            && ($submittedEmail === '' || $submittedEmail === $sessionGoogleEmail);
 
         return [
             'name' => ['required', 'string', 'min:3', 'max:255'],

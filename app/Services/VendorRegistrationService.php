@@ -139,14 +139,21 @@ class VendorRegistrationService
      */
     public function register(array $data): Vendor
     {
-        $isGoogleRegistration = ! empty($data['is_google_registration'])
-            || ! empty($data['google_id'])
-            || session()->has('google_user');
+        $contactEmail = strtolower(trim((string) ($data['contact_email'] ?? '')));
+        $accountEmail = strtolower(trim((string) ($data['email'] ?? $data['contact_email'] ?? '')));
+        $googleUser = session('google_user');
+        $hasGoogleSession = is_array($googleUser) && ! empty($googleUser['google_id']) && ! empty($googleUser['email']);
+        $sessionGoogleEmail = $hasGoogleSession ? strtolower(trim((string) $googleUser['email'])) : null;
+
+        $isGoogleRegistration = $hasGoogleSession && ($accountEmail === $sessionGoogleEmail || $contactEmail === $sessionGoogleEmail);
 
         if (! $isGoogleRegistration) {
+            if ($hasGoogleSession) {
+                session()->forget(['google_user', 'google_auth_flow']);
+            }
             $this->otpService->verify(
                 OtpService::PURPOSE_VENDOR_REGISTRATION,
-                strtolower(trim((string) $data['contact_email'])),
+                $contactEmail !== '' ? $contactEmail : $accountEmail,
                 (string) ($data['otp'] ?? '')
             );
         }
@@ -231,7 +238,8 @@ class VendorRegistrationService
             $accountPassword,
             $invitationToken,
             $storedDocuments,
-            $isGoogleRegistration
+            $isGoogleRegistration,
+            $googleUser
         ): Vendor {
             return DB::transaction(function () use (
                 $data,
@@ -241,7 +249,8 @@ class VendorRegistrationService
                 $accountPassword,
                 $invitationToken,
                 $storedDocuments,
-                $isGoogleRegistration
+                $isGoogleRegistration,
+                $googleUser
             ): Vendor {
                 $baseSlug = Str::slug((string) $data['company_name']);
 
@@ -274,9 +283,11 @@ class VendorRegistrationService
                 ];
 
                 if ($isGoogleRegistration) {
-                    $googleUser = session('google_user', []);
-                    $userData['google_id'] = $data['google_id'] ?? $googleUser['google_id'] ?? null;
-                    $userData['avatar'] = $data['avatar'] ?? $googleUser['avatar'] ?? null;
+                    $userData['google_id'] = $data['google_id'] ?? ($googleUser['google_id'] ?? null);
+                    $userData['avatar'] = $data['avatar'] ?? ($googleUser['avatar'] ?? null);
+                } else {
+                    $userData['google_id'] = null;
+                    $userData['avatar'] = null;
                 }
 
                 $user = $this->userRepository->create($userData);

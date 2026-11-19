@@ -50,11 +50,11 @@ import {
 } from '@/lib/validators';
 
 const BUSINESS_ENTITIES = [
-    { value: 'cv', label: 'CV (Commanditaire Vennootschap)', short: 'CV', isIncorporated: true },
+    { value: 'cv', label: 'Commanditaire Vennootschap', short: 'CV', isIncorporated: true },
     { value: 'firma', label: 'Firma', short: 'Firma', isIncorporated: true },
     { value: 'koperasi', label: 'Koperasi', short: 'Koperasi', isIncorporated: true },
-    { value: 'perorangan', label: 'Perorangan / UD (Usaha Dagang)', short: 'Perorangan/UD', isIncorporated: false },
-    { value: 'pt', label: 'PT (Perseroan Terbatas)', short: 'PT', isIncorporated: true },
+    { value: 'perorangan', label: 'Perorangan', short: 'Perorangan', isIncorporated: false },
+    { value: 'pt', label: 'Perseroan Terbatas', short: 'PT', isIncorporated: true },
 ];
 
 const STEPS = [
@@ -503,10 +503,24 @@ export default function RegisterVendor({
 
     const validateStep3 = () => {
         let hasError = false;
-        clearErrors('business_entity', 'company_name', 'contact_email', 'phone', 'address', 'commodity_category_uuids');
+        clearErrors(
+            'business_entity',
+            'company_name',
+            'contact_email',
+            'phone',
+            'address',
+            'commodity_category_uuids',
+            'pkp_status',
+            'is_pkp'
+        );
 
         if (!data.business_entity || data.business_entity === '__placeholder__') {
             setError('business_entity', 'Bentuk badan usaha wajib dipilih.');
+            hasError = true;
+        }
+
+        if (!data.pkp_status) {
+            setError('pkp_status', 'Status PKP perusahaan wajib dipilih.');
             hasError = true;
         }
 
@@ -853,7 +867,9 @@ export default function RegisterVendor({
                     errs.contact_email ||
                     errs.phone ||
                     errs.address ||
-                    errs.commodity_category_uuids
+                    errs.commodity_category_uuids ||
+                    errs.pkp_status ||
+                    errs.is_pkp
                 ) {
                     goToStep(3);
                 } else {
@@ -892,8 +908,6 @@ export default function RegisterVendor({
             key === 'file_akta' ||
             key === 'dokumen_sk_kemenkumham' ||
             key === 'file_sk_kemenkumham' ||
-            key === 'pkp_status' ||
-            key === 'is_pkp' ||
             key === 'legal_documents' ||
             key.startsWith('legal_documents.') ||
             key === 'terms_accepted'
@@ -908,7 +922,9 @@ export default function RegisterVendor({
             errors.contact_email ||
             errors.phone ||
             errors.address ||
-            errors.commodity_category_uuids
+            errors.commodity_category_uuids ||
+            errors.pkp_status ||
+            errors.is_pkp
         ),
         4: hasLegalDocumentsError,
     };
@@ -1407,9 +1423,15 @@ export default function RegisterVendor({
                                                 type="tel"
                                                 inputMode="numeric"
                                                 pattern="[0-9]*"
-                                                maxLength={15}
                                                 placeholder="Contoh: 081234567890"
                                                 value={data.phone}
+                                                onPaste={(e) => {
+                                                    e.preventDefault();
+                                                    const text = e.clipboardData.getData('text');
+                                                    const val = limitPhoneInput(text);
+                                                    setData('phone', val);
+                                                    if (errors.phone) clearErrors('phone');
+                                                }}
                                                 onChange={(e) => {
                                                     const val = limitPhoneInput(e.target.value);
                                                     setData('phone', val);
@@ -1477,10 +1499,19 @@ export default function RegisterVendor({
                                             value={data.business_entity || undefined}
                                             onValueChange={(val) => {
                                                 if (val && val !== '__placeholder__') {
-                                                    setData('business_entity', val);
-                                                    clearErrors('business_entity');
                                                     if (val === 'perorangan') {
-                                                        clearErrors('dokumen_akta', 'nomor_akta', 'dokumen_sk_kemenkumham', 'nomor_sk_kemenkumham');
+                                                        setData((prev) => ({
+                                                            ...prev,
+                                                            business_entity: val,
+                                                            dokumen_akta: null,
+                                                            nomor_akta: '',
+                                                            dokumen_sk_kemenkumham: null,
+                                                            nomor_sk_kemenkumham: '',
+                                                        }));
+                                                        clearErrors('business_entity', 'dokumen_akta', 'nomor_akta', 'dokumen_sk_kemenkumham', 'nomor_sk_kemenkumham');
+                                                    } else {
+                                                        setData('business_entity', val);
+                                                        clearErrors('business_entity');
                                                     }
                                                 }
                                             }}
@@ -1512,10 +1543,121 @@ export default function RegisterVendor({
                                         <p className="text-[11px] text-muted-foreground">
                                             {data.business_entity
                                                 ? isIncorporated
-                                                    ? 'Badan usaha berbadan hukum (PT, CV, Firma, Koperasi) wajib melampirkan Akta Pendirian & SK Pengesahan Kemenkumham pada tahap legalitas.'
-                                                    : 'Bentuk usaha Perorangan / UD tidak diwajibkan melampirkan Akta Pendirian dan SK Kemenkumham.'
-                                                : 'Pilih bentuk badan usaha untuk menentukan kewajiban dokumen legalitas (Akta & SK Kemenkumham).'}
+                                                    ? 'Badan usaha berbadan hukum wajib melampirkan Akta Pendirian dan SK Pengesahan Kemenkumham pada tahap legalitas.'
+                                                    : 'Bentuk usaha perorangan tidak diwajibkan melampirkan Akta Pendirian dan SK Pengesahan Kemenkumham.'
+                                                : 'Pilih bentuk badan usaha untuk menentukan kewajiban dokumen legalitas seperti Akta Pendirian dan SK Pengesahan Kemenkumham.'}
                                         </p>
+                                    </div>
+
+                                    {/* Status PKP Perusahaan (Hanya di Tab 3 Profil Perusahaan) */}
+                                    <div className="space-y-2 pt-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <Label
+                                                className={cn(
+                                                    'text-sm font-medium',
+                                                    (errors.pkp_status || errors.is_pkp) && 'text-destructive'
+                                                )}
+                                            >
+                                                Status PKP Perusahaan <span className="text-destructive">*</span>
+                                            </Label>
+                                            <Badge
+                                                variant={data.is_pkp ? 'default' : 'secondary'}
+                                                className="text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5"
+                                            >
+                                                {data.is_pkp ? 'PPN (PKP)' : 'Non PPN'}
+                                            </Badge>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                            {/* Opsi 1: PPN / PKP */}
+                                            <label
+                                                className={cn(
+                                                    'flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none',
+                                                    data.pkp_status === 'ppn' || data.is_pkp === true
+                                                        ? 'border-primary bg-primary/5 shadow-2xs'
+                                                        : 'border-border/80 bg-background hover:bg-muted/30 hover:border-border'
+                                                )}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="vendor_pkp_status"
+                                                    value="ppn"
+                                                    checked={data.pkp_status === 'ppn' || data.is_pkp === true}
+                                                    onChange={() => {
+                                                        setData((prev) => ({
+                                                            ...prev,
+                                                            pkp_status: 'ppn',
+                                                            is_pkp: true,
+                                                        }));
+                                                        clearErrors('pkp_status', 'is_pkp');
+                                                    }}
+                                                    disabled={processing}
+                                                    className="mt-0.5 text-primary focus:ring-primary size-4 shrink-0"
+                                                />
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-xs sm:text-sm font-semibold text-foreground">
+                                                            PPN (Pengusaha Kena Pajak)
+                                                        </span>
+                                                        <Badge variant="outline" className="text-[10px] font-medium border-primary/40 text-primary">
+                                                            PKP
+                                                        </Badge>
+                                                    </div>
+                                                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                                        Perusahaan berhak menagih PPN dan menerbitkan Faktur Pajak. Wajib melampirkan berkas SPPKP resmi pada tahap legalitas.
+                                                    </p>
+                                                </div>
+                                            </label>
+
+                                            {/* Opsi 2: Non PPN / Non-PKP */}
+                                            <label
+                                                className={cn(
+                                                    'flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none',
+                                                    data.pkp_status === 'non_ppn' && data.is_pkp === false
+                                                        ? 'border-primary bg-primary/5 shadow-2xs'
+                                                        : 'border-border/80 bg-background hover:bg-muted/30 hover:border-border'
+                                                )}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="vendor_pkp_status"
+                                                    value="non_ppn"
+                                                    checked={data.pkp_status === 'non_ppn' && data.is_pkp === false}
+                                                    onChange={() => {
+                                                        setData((prev) => ({
+                                                            ...prev,
+                                                            pkp_status: 'non_ppn',
+                                                            is_pkp: false,
+                                                            dokumen_sppkp: null,
+                                                            nomor_sppkp: '',
+                                                        }));
+                                                        clearErrors('pkp_status', 'is_pkp', 'dokumen_sppkp', 'file_sppkp');
+                                                    }}
+                                                    disabled={processing}
+                                                    className="mt-0.5 text-primary focus:ring-primary size-4 shrink-0"
+                                                />
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-xs sm:text-sm font-semibold text-foreground">
+                                                            Non PPN (Bukan PKP)
+                                                        </span>
+                                                        <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground">
+                                                            Non-PKP
+                                                        </Badge>
+                                                    </div>
+                                                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                                        Perusahaan UMKM/Non-PKP dan tidak memungut komponen PPN pada invoice atau penawaran harga.
+                                                    </p>
+                                                </div>
+                                            </label>
+                                        </div>
+
+                                        {(errors.pkp_status || errors.is_pkp) && (
+                                            <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
+                                                <AlertCircle className="size-3.5 shrink-0" />
+                                                <span>{errors.pkp_status || errors.is_pkp}</span>
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Pilih >= 1 Kategori Komoditas (Dipindahkan ke Step 3 Profil Perusahaan) */}
@@ -1609,49 +1751,6 @@ export default function RegisterVendor({
                                             </p>
                                         </div>
 
-                                        {/* Status Bentuk Badan Usaha */}
-                                        <div className="p-3.5 rounded-xl border border-border bg-card/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                            <div>
-                                                <span className="text-xs text-muted-foreground font-normal">Bentuk Badan Usaha:</span>
-                                                <p className="text-xs sm:text-sm font-semibold text-foreground">
-                                                    {BUSINESS_ENTITIES.find((b) => b.value === data.business_entity)?.label ?? 'Pilih Bentuk Usaha'}
-                                                </p>
-                                                <p className="text-[11px] text-muted-foreground mt-0.5">
-                                                    {data.business_entity
-                                                        ? isIncorporated
-                                                            ? 'Badan hukum resmi: Akta Pendirian dan SK Kemenkumham Wajib dilampirkan.'
-                                                            : 'Perorangan / UD: Akta Pendirian dan SK Kemenkumham tidak diwajibkan.'
-                                                        : 'Silakan pilih bentuk badan usaha.'}
-                                                </p>
-                                            </div>
-                                            <div className="w-full sm:w-64 shrink-0">
-                                                <Select
-                                                    value={data.business_entity || undefined}
-                                                    onValueChange={(val) => {
-                                                        if (val && val !== '__placeholder__') {
-                                                            setData('business_entity', val);
-                                                            clearErrors('business_entity');
-                                                            if (val === 'perorangan') {
-                                                                clearErrors('dokumen_akta', 'nomor_akta', 'dokumen_sk_kemenkumham', 'nomor_sk_kemenkumham');
-                                                            }
-                                                        }
-                                                    }}
-                                                    disabled={processing}
-                                                >
-                                                    <SelectTrigger className="h-9 text-xs bg-background">
-                                                        <SelectValue placeholder="Pilih Bentuk Usaha" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {BUSINESS_ENTITIES.map((entity) => (
-                                                            <SelectItem key={entity.value} value={entity.value} className="text-xs">
-                                                                {entity.label}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
-
                                         {errors.legal_documents && !errors.dokumen_npwp && (
                                             <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs font-medium text-destructive flex items-start gap-2.5">
                                                 <AlertCircle className="size-4 shrink-0 mt-0.5 text-destructive" />
@@ -1659,7 +1758,7 @@ export default function RegisterVendor({
                                             </div>
                                         )}
 
-                                        {/* 1. Dokumen NPWP */}
+                                        {/* Dokumen NPWP */}
                                         <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
                                             <div className="flex items-center justify-between gap-2">
                                                 <Label
@@ -1671,7 +1770,7 @@ export default function RegisterVendor({
                                                             : 'text-muted-foreground'
                                                     )}
                                                 >
-                                                    1. Dokumen NPWP Perusahaan <span className="text-destructive">*</span>
+                                                    Dokumen NPWP Perusahaan <span className="text-destructive">*</span>
                                                 </Label>
                                             </div>
 
@@ -1691,9 +1790,15 @@ export default function RegisterVendor({
                                                     type="text"
                                                     inputMode="numeric"
                                                     pattern="[0-9]*"
-                                                    maxLength={16}
                                                     placeholder="Contoh: 0123456789012345"
                                                     value={data.tax_number}
+                                                    onPaste={(e) => {
+                                                        e.preventDefault();
+                                                        const text = e.clipboardData.getData('text');
+                                                        const val = limitNpwpInput(text);
+                                                        setData('tax_number', val);
+                                                        if (errors.tax_number) clearErrors('tax_number');
+                                                    }}
                                                     onChange={(e) => {
                                                         const val = limitNpwpInput(e.target.value);
                                                         setData('tax_number', val);
@@ -1725,7 +1830,6 @@ export default function RegisterVendor({
                                                     }}
                                                     onError={(msg) => {
                                                         setError('dokumen_npwp', msg);
-                                                        notify.error(msg);
                                                     }}
                                                     error={errors.dokumen_npwp || errors.file_npwp}
                                                     accept={PDF_ACCEPT}
@@ -1737,11 +1841,10 @@ export default function RegisterVendor({
                                                     label="Unggah Berkas NPWP"
                                                     description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
                                                 />
-                                                
                                             </div>
                                         </div>
 
-                                        {/* 2. Dokumen NIB */}
+                                        {/* Dokumen NIB */}
                                         <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
                                             <div className="flex items-center justify-between gap-2">
                                                 <Label
@@ -1753,7 +1856,7 @@ export default function RegisterVendor({
                                                             : 'text-muted-foreground'
                                                     )}
                                                 >
-                                                    2. Dokumen NIB (Nomor Induk Berusaha) <span className="text-destructive">*</span>
+                                                    Dokumen NIB (Nomor Induk Berusaha) <span className="text-destructive">*</span>
                                                 </Label>
                                             </div>
 
@@ -1773,9 +1876,15 @@ export default function RegisterVendor({
                                                     type="text"
                                                     inputMode="numeric"
                                                     pattern="[0-9]*"
-                                                    maxLength={13}
                                                     placeholder="Contoh: 1234567890123"
                                                     value={data.nomor_nib}
+                                                    onPaste={(e) => {
+                                                        e.preventDefault();
+                                                        const text = e.clipboardData.getData('text');
+                                                        const val = limitNibInput(text);
+                                                        setData('nomor_nib', val);
+                                                        if (errors.nomor_nib) clearErrors('nomor_nib');
+                                                    }}
                                                     onChange={(e) => {
                                                         const val = limitNibInput(e.target.value);
                                                         setData('nomor_nib', val);
@@ -1807,7 +1916,6 @@ export default function RegisterVendor({
                                                     }}
                                                     onError={(msg) => {
                                                         setError('dokumen_nib', msg);
-                                                        notify.error(msg);
                                                     }}
                                                     error={errors.dokumen_nib || errors.file_nib}
                                                     accept={PDF_ACCEPT}
@@ -1823,7 +1931,7 @@ export default function RegisterVendor({
                                             </div>
                                         </div>
 
-                                        {/* 3. Dokumen KTP Penanggung Jawab */}
+                                        {/* Dokumen KTP Penanggung Jawab */}
                                         <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
                                             <div className="flex items-center justify-between gap-2">
                                                 <Label
@@ -1835,7 +1943,7 @@ export default function RegisterVendor({
                                                             : 'text-muted-foreground'
                                                     )}
                                                 >
-                                                    3. Dokumen KTP Penanggung Jawab <span className="text-destructive">*</span>
+                                                    Dokumen KTP Penanggung Jawab <span className="text-destructive">*</span>
                                                 </Label>
                                             </div>
 
@@ -1855,9 +1963,15 @@ export default function RegisterVendor({
                                                     type="text"
                                                     inputMode="numeric"
                                                     pattern="[0-9]*"
-                                                    maxLength={16}
                                                     placeholder="Contoh: 3171012345670001"
                                                     value={data.nomor_ktp}
+                                                    onPaste={(e) => {
+                                                        e.preventDefault();
+                                                        const text = e.clipboardData.getData('text');
+                                                        const val = limitKtpInput(text);
+                                                        setData('nomor_ktp', val);
+                                                        if (errors.nomor_ktp) clearErrors('nomor_ktp');
+                                                    }}
                                                     onChange={(e) => {
                                                         const val = limitKtpInput(e.target.value);
                                                         setData('nomor_ktp', val);
@@ -1889,7 +2003,6 @@ export default function RegisterVendor({
                                                     }}
                                                     onError={(msg) => {
                                                         setError('dokumen_ktp', msg);
-                                                        notify.error(msg);
                                                     }}
                                                     error={errors.dokumen_ktp || errors.file_ktp}
                                                     accept={PDF_ACCEPT}
@@ -1905,122 +2018,6 @@ export default function RegisterVendor({
                                             </div>
                                         </div>
 
-                                        {/* 4. Status PKP Perusahaan (PPN vs Non PPN) */}
-                                        <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <Label
-                                                    className={cn(
-                                                        'text-xs font-semibold uppercase tracking-wider',
-                                                        (errors.pkp_status || errors.is_pkp)
-                                                            ? 'text-destructive'
-                                                            : 'text-muted-foreground'
-                                                    )}
-                                                >
-                                                    4. Status PKP Perusahaan (Pengusaha Kena Pajak) <span className="text-destructive">*</span>
-                                                </Label>
-                                                <Badge
-                                                    variant={data.is_pkp ? 'default' : 'secondary'}
-                                                    className="text-[11px] font-medium"
-                                                >
-                                                    {data.is_pkp ? 'PPN' : 'Non PPN'}
-                                                </Badge>
-                                            </div>
-
-                                            <p className="text-xs text-muted-foreground">
-                                                Apakah perusahaan Anda berstatus Pengusaha Kena Pajak (PKP)? Pilih salah satu opsi di bawah ini:
-                                            </p>
-
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                                                {/* Opsi 1: PPN / PKP */}
-                                                <label
-                                                    className={cn(
-                                                        'flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none',
-                                                        data.pkp_status === 'ppn' || data.is_pkp === true
-                                                            ? 'border-primary bg-primary/5 shadow-2xs'
-                                                            : 'border-border/80 bg-background hover:bg-muted/30 hover:border-border'
-                                                    )}
-                                                >
-                                                    <input
-                                                        type="radio"
-                                                        name="vendor_pkp_status"
-                                                        value="ppn"
-                                                        checked={data.pkp_status === 'ppn' || data.is_pkp === true}
-                                                        onChange={() => {
-                                                            setData((prev) => ({
-                                                                ...prev,
-                                                                pkp_status: 'ppn',
-                                                                is_pkp: true,
-                                                            }));
-                                                            clearErrors('pkp_status', 'is_pkp');
-                                                        }}
-                                                        disabled={processing}
-                                                        className="mt-0.5 text-primary focus:ring-primary size-4 shrink-0"
-                                                    />
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-xs sm:text-sm font-semibold text-foreground">
-                                                                PPN (Pengusaha Kena Pajak)
-                                                            </span>
-                                                            <Badge variant="outline" className="text-[10px] font-medium border-primary/40 text-primary">
-                                                                PKP
-                                                            </Badge>
-                                                        </div>
-                                                        <p className="text-[11px] leading-relaxed text-muted-foreground">
-                                                            Perusahaan berhak menagih PPN dan menerbitkan Faktur Pajak. Wajib melampirkan berkas SPPKP resmi.
-                                                        </p>
-                                                    </div>
-                                                </label>
-
-                                                {/* Opsi 2: Non PPN / Non-PKP */}
-                                                <label
-                                                    className={cn(
-                                                        'flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none',
-                                                        data.pkp_status === 'non_ppn' && data.is_pkp === false
-                                                            ? 'border-primary bg-primary/5 shadow-2xs'
-                                                            : 'border-border/80 bg-background hover:bg-muted/30 hover:border-border'
-                                                    )}
-                                                >
-                                                    <input
-                                                        type="radio"
-                                                        name="vendor_pkp_status"
-                                                        value="non_ppn"
-                                                        checked={data.pkp_status === 'non_ppn' && data.is_pkp === false}
-                                                        onChange={() => {
-                                                            setData((prev) => ({
-                                                                ...prev,
-                                                                pkp_status: 'non_ppn',
-                                                                is_pkp: false,
-                                                                dokumen_sppkp: null,
-                                                                nomor_sppkp: '',
-                                                            }));
-                                                            clearErrors('pkp_status', 'is_pkp', 'dokumen_sppkp', 'file_sppkp');
-                                                        }}
-                                                        disabled={processing}
-                                                        className="mt-0.5 text-primary focus:ring-primary size-4 shrink-0"
-                                                    />
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-xs sm:text-sm font-semibold text-foreground">
-                                                                Non PPN (Bukan PKP)
-                                                            </span>
-                                                            <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground">
-                                                                Non-PKP
-                                                            </Badge>
-                                                        </div>
-                                                        <p className="text-[11px] leading-relaxed text-muted-foreground">
-                                                            Perusahaan UMKM/Non-PKP dan tidak memungut komponen PPN pada invoice atau penawaran harga.
-                                                        </p>
-                                                    </div>
-                                                </label>
-                                            </div>
-
-                                            {(errors.pkp_status || errors.is_pkp) && (
-                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
-                                                    <AlertCircle className="size-3.5 shrink-0" />
-                                                    <span>{errors.pkp_status || errors.is_pkp}</span>
-                                                </p>
-                                            )}
-                                        </div>
 
                                         {/* Dokumen Kondisional: SPPKP (Wajib jika PKP / PPN) */}
                                         {(data.pkp_status === 'ppn' || data.is_pkp === true) && (
@@ -2094,7 +2091,6 @@ export default function RegisterVendor({
                                                         }}
                                                         onError={(msg) => {
                                                             setError('dokumen_sppkp', msg);
-                                                            notify.error(msg);
                                                         }}
                                                         error={errors.dokumen_sppkp || errors.file_sppkp}
                                                         accept={PDF_ACCEPT}
@@ -2111,10 +2107,10 @@ export default function RegisterVendor({
                                             </div>
                                         )}
 
-                                        {/* 5. Dokumen Akta Pendirian & 6. Dokumen SK Kemenkumham (Wajib jika Badan Hukum: PT, CV, Firma, Koperasi) */}
-                                        {isIncorporated ? (
+                                        {/* Dokumen Akta Pendirian & Dokumen SK Kemenkumham (Wajib jika Badan Hukum: PT, CV, Firma, Koperasi) */}
+                                        {isIncorporated && (
                                             <>
-                                                {/* 5. Dokumen Akta Pendirian */}
+                                                {/* Dokumen Akta Pendirian */}
                                                 <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
                                                     <div className="flex items-center justify-between gap-2">
                                                         <Label
@@ -2126,7 +2122,7 @@ export default function RegisterVendor({
                                                                     : 'text-muted-foreground'
                                                             )}
                                                         >
-                                                            5. Dokumen Akta Pendirian Perusahaan <span className="text-destructive">*</span>
+                                                            Dokumen Akta Pendirian Perusahaan <span className="text-destructive">*</span>
                                                         </Label>
                                                         <Badge variant="default" className="text-[10px] font-medium">
                                                             Wajib
@@ -2185,7 +2181,6 @@ export default function RegisterVendor({
                                                             }}
                                                             onError={(msg) => {
                                                                 setError('dokumen_akta', msg);
-                                                                notify.error(msg);
                                                             }}
                                                             error={errors.dokumen_akta || errors.file_akta}
                                                             accept={PDF_ACCEPT}
@@ -2200,7 +2195,7 @@ export default function RegisterVendor({
                                                     </div>
                                                 </div>
 
-                                                {/* 6. Dokumen SK Pengesahan Kemenkumham */}
+                                                {/* Dokumen SK Pengesahan Kemenkumham */}
                                                 <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
                                                     <div className="flex items-center justify-between gap-2">
                                                         <Label
@@ -2212,7 +2207,7 @@ export default function RegisterVendor({
                                                                     : 'text-muted-foreground'
                                                             )}
                                                         >
-                                                            6. Dokumen SK Pengesahan Kemenkumham <span className="text-destructive">*</span>
+                                                            Dokumen SK Pengesahan Kemenkumham <span className="text-destructive">*</span>
                                                         </Label>
                                                         <Badge variant="default" className="text-[10px] font-medium">
                                                             Wajib
@@ -2271,7 +2266,6 @@ export default function RegisterVendor({
                                                             }}
                                                             onError={(msg) => {
                                                                 setError('dokumen_sk_kemenkumham', msg);
-                                                                notify.error(msg);
                                                             }}
                                                             error={errors.dokumen_sk_kemenkumham || errors.file_sk_kemenkumham}
                                                             accept={PDF_ACCEPT}
@@ -2286,13 +2280,6 @@ export default function RegisterVendor({
                                                     </div>
                                                 </div>
                                             </>
-                                        ) : (
-                                            <div className="p-3.5 rounded-xl border border-dashed border-border bg-muted/20 text-xs text-muted-foreground flex items-center gap-2.5">
-                                                <AlertCircle className="size-4 shrink-0 text-muted-foreground" />
-                                                <span>
-                                                    Bentuk badan usaha <strong>Perorangan / UD</strong> tidak diwajibkan melampirkan Akta Pendirian dan SK Pengesahan Kemenkumham.
-                                                </span>
-                                            </div>
                                         )}
 
                                         {/* Checkbox Persetujuan Syarat dan Ketentuan */}

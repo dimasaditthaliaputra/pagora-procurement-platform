@@ -138,14 +138,14 @@ interface PenerimaanBarangRepositoryInterface
     public function markShipmentArrived(Pengiriman $shipment): bool;
 
     /**
-     * Create a per-item QC rejection dispute (`sengketa`).
+     * Create a per-item QC rejection dispute (`disputes`).
      *
      * @param  array<string, mixed>  $data
      */
     public function createDispute(array $data): Sengketa;
 
     /**
-     * Append an immutable dispute log entry (`log_sengketa`).
+     * Append an immutable dispute log entry (`dispute_logs`).
      *
      * @param  array<string, mixed>  $data
      */

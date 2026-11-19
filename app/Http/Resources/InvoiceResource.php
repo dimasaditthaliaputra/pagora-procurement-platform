@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Enums\CreditNoteStatus;
+use App\Models\CreditNote;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -69,9 +71,23 @@ class InvoiceResource extends JsonResource
                     'trigger_label' => $s->triggerLabel(),
                     'reason' => $s->reason,
                     'status' => is_object($s->status) ? $s->status->value : $s->status,
-                    'tanggal_dibuka' => $s->tanggal_dibuka?->toISOString(),
+                    'opened_at' => $s->opened_at?->toISOString(),
                 ])
             ),
+
+            // Credit notes reduce the bill only once the Vendor confirmed them (BR-16, BR-26).
+            'credit_notes' => $this->whenLoaded('creditNotes', fn () => $this->creditNotes->map(fn (CreditNote $note): array => [
+                'uuid' => $note->uuid,
+                'number' => $note->credit_note_number,
+                'date' => $note->credit_date?->format('Y-m-d'),
+                'amount' => (float) $note->amount,
+                'reason' => $note->reason,
+                'status' => $note->status->value,
+                'status_label' => $note->status->label(),
+            ])->values()),
+            'confirmed_credit_total' => $this->whenLoaded('creditNotes', fn (): float => (float) $this->creditNotes
+                ->filter(fn (CreditNote $note): bool => $note->status === CreditNoteStatus::Confirmed)
+                ->sum('amount')),
 
             'created_at' => $this->created_at?->toISOString(),
         ];

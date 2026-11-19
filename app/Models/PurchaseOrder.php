@@ -148,11 +148,16 @@ class PurchaseOrder extends Model
 
     public function sengketa(): HasMany
     {
-        return $this->hasMany(Sengketa::class, 'purchase_order_id')->orderByDesc('tanggal_dibuka')->orderByDesc('id');
+        return $this->hasMany(Sengketa::class, 'purchase_order_id')->orderByDesc('opened_at')->orderByDesc('id');
     }
 
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class, 'purchase_order_id');
+    }
+
+    public function purchaseReturns(): HasMany
+    {
+        return $this->hasMany(PurchaseReturn::class, 'purchase_order_id');
     }
 }

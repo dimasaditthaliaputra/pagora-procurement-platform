@@ -376,15 +376,15 @@ class InspeksiQcTest extends TestCase
             ->first();
         $this->assertNotNull($dispute);
         $this->assertSame('qc_rejected', $dispute->trigger_type);
-        $this->assertSame(StatusSengketa::Terbuka, $dispute->status);
+        $this->assertSame(StatusSengketa::Open, $dispute->status);
         $this->assertSame('Sebanyak 12 karung gula basah terkena rembesan air dan menggumpal.', $dispute->reason);
 
-        $logs = LogSengketa::where('sengketa_id', $dispute->id)->get();
+        $logs = LogSengketa::where('dispute_id', $dispute->id)->get();
         $this->assertCount(2, $logs);
         $this->assertSame('status_change', $logs[0]->type);
-        $this->assertSame($rejectedReceiptItem->rejection_photos[0], $logs[0]->file_bukti);
+        $this->assertSame($rejectedReceiptItem->rejection_photos[0], $logs[0]->attachment_path);
         $this->assertSame('evidence', $logs[1]->type);
-        $this->assertSame($rejectedReceiptItem->rejection_photos[1], $logs[1]->file_bukti);
+        $this->assertSame($rejectedReceiptItem->rejection_photos[1], $logs[1]->attachment_path);
 
         // Manajemen also notified on rejection/dispute
         $this->assertSame(1, Notification::where('user_id', $this->manajemenA->id)->where('type', 'dispute')->count());
@@ -466,7 +466,7 @@ class InspeksiQcTest extends TestCase
 
         $this->assertSame(StatusPurchaseOrder::DiterimaGudang, $po->fresh()->status);
         $this->assertTrue(
-            LogSengketa::where('sengketa_id', $dispute->id)
+            LogSengketa::where('dispute_id', $dispute->id)
                 ->where('type', 'note')
                 ->exists()
         );

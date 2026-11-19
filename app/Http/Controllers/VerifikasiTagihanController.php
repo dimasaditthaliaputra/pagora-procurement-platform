@@ -116,6 +116,7 @@ class VerifikasiTagihanController extends Controller
             return Inertia::render('VerifikasiTagihan/Show', [
                 'invoice' => $resource,
                 'matching_evaluation' => $threeWayMatching,
+                'can_verify' => $user->can('verify', $invoice),
             ]);
         } catch (ModelNotFoundException) {
             return ResponseHelper::notFound('Tagihan tidak ditemukan.', null, $request);

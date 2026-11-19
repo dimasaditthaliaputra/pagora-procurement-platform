@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Sengketa;
 
+use App\Models\Sengketa;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Form Request for recording a Management/Owner review or mediation note in `log_sengketa`
- * (`UC-18` step 3, `PRD §9.3`, `BR-17`, `RULES` §7 & §8.7).
+ * Form Request for a review/mediation note (Owner, Manajemen) or a Vendor response in `dispute_logs`
+ * (`UC-18` step 3 & 5, `PRD §9.3`, `BR-17`, `RULES` §7 & §8.7). Per-dispute access is checked in the Service.
  */
 class StoreTinjauanSengketaRequest extends FormRequest
 {
@@ -18,13 +19,7 @@ class StoreTinjauanSengketaRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        $user = $this->user();
-        if ($user === null || $user->isSuperadmin() || $user->tenant_id === null) {
-            return false;
-        }
-
-        return ($user->isManajemen() || $user->isOwner())
-            && $user->hasPermission('sengketa.review');
+        return $this->user()?->can('viewAny', Sengketa::class) ?? false;
     }
 
     /**
@@ -37,6 +32,7 @@ class StoreTinjauanSengketaRequest extends FormRequest
         return [
             'message' => ['required', 'string', 'min:5', 'max:2000'],
             'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
+            'request_vendor_response' => ['nullable', 'boolean'],
         ];
     }
 

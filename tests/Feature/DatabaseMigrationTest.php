@@ -36,8 +36,11 @@ class DatabaseMigrationTest extends TestCase
             'goods_receipts',
             'goods_receipt_items',
             'invoice',
-            'sengketa',
-            'log_sengketa',
+            'disputes',
+            'dispute_logs',
+            'credit_notes',
+            'purchase_returns',
+            'purchase_return_items',
         ];
 
         foreach ($tables as $table) {
@@ -334,7 +337,7 @@ class DatabaseMigrationTest extends TestCase
             'created_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('sengketa', [
+        $this->assertTrue(Schema::hasColumns('disputes', [
             'id',
             'uuid',
             'purchase_order_id',
@@ -342,22 +345,41 @@ class DatabaseMigrationTest extends TestCase
             'invoice_id',
             'trigger_type',
             'reason',
-            'dibuka_oleh',
+            'opened_by',
             'status',
-            'tanggal_dibuka',
-            'tanggal_selesai',
+            'opened_at',
+            'resolution_type',
+            'resolution_notes',
+            'vendor_confirmed_by',
+            'vendor_confirmed_at',
+            'resolved_by',
+            'resolved_at',
             'created_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('log_sengketa', [
+        $this->assertTrue(Schema::hasColumns('dispute_logs', [
             'id',
             'uuid',
-            'sengketa_id',
+            'dispute_id',
             'user_id',
             'type',
-            'isi_pesan',
-            'file_bukti',
+            'message',
+            'attachment_path',
             'created_at',
+        ]));
+
+        $this->assertTrue(Schema::hasColumns('credit_notes', [
+            'uuid', 'credit_note_number', 'invoice_id', 'dispute_id', 'credit_date', 'amount',
+            'reason', 'status', 'vendor_confirmed_by', 'vendor_confirmed_at', 'created_by',
+        ]));
+
+        $this->assertTrue(Schema::hasColumns('purchase_returns', [
+            'uuid', 'return_number', 'purchase_order_id', 'dispute_id', 'return_date', 'reason',
+            'status', 'vendor_confirmed_by', 'vendor_confirmed_at', 'created_by',
+        ]));
+
+        $this->assertTrue(Schema::hasColumns('purchase_return_items', [
+            'uuid', 'purchase_return_id', 'purchase_order_item_id', 'goods_receipt_item_id', 'quantity', 'notes',
         ]));
     }
 }

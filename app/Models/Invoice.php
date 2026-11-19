@@ -93,6 +93,11 @@ class Invoice extends Model
         return $this->hasMany(Sengketa::class, 'invoice_id');
     }
 
+    public function creditNotes(): HasMany
+    {
+        return $this->hasMany(CreditNote::class, 'invoice_id')->orderBy('id');
+    }
+
     public function statusMatchingEnum(): ?StatusMatching
     {
         return is_string($this->status_matching)

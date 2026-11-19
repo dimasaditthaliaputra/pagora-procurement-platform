@@ -261,7 +261,7 @@ class PengirimanService
 
         if ($po->relationLoaded('sengketa')) {
             foreach ($po->sengketa as $dispute) {
-                if ($dispute->tanggal_selesai === null && $dispute->status !== StatusSengketa::Selesai) {
+                if ($dispute->resolved_at === null && $dispute->status !== StatusSengketa::Resolved) {
                     return (int) $dispute->id;
                 }
             }
@@ -277,7 +277,7 @@ class PengirimanService
             }
 
             foreach ($invoice->sengketa as $dispute) {
-                if ($dispute->tanggal_selesai === null && $dispute->status !== StatusSengketa::Selesai) {
+                if ($dispute->resolved_at === null && $dispute->status !== StatusSengketa::Resolved) {
                     return (int) $dispute->id;
                 }
             }

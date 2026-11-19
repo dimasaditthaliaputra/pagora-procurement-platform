@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Enums\DisputeResolutionType;
 use App\Enums\StatusItemPenerimaan;
+use App\Models\CreditNote;
 use App\Models\PenerimaanBarangItem;
+use App\Models\PurchaseReturn;
 use App\Models\Sengketa;
 use App\Services\PenerimaanBarangService;
 use Illuminate\Http\Request;
@@ -65,8 +68,8 @@ class SengketaResource extends JsonResource
             'trigger_type_label' => $this->triggerLabel(),
             'trigger_description' => $triggerEnum?->description(),
             'reason' => $this->reason,
-            'opened_at' => $this->tanggal_dibuka?->toISOString(),
-            'resolved_at' => $this->tanggal_selesai?->toISOString(),
+            'opened_at' => $this->opened_at?->toISOString(),
+            'resolved_at' => $this->resolved_at?->toISOString(),
             'opened_by_name' => $opener?->name ?? 'Sistem Otomatis',
             'opened_by_role_label' => $opener?->roleName()?->label() ?? 'Sistem',
             'logs_count' => $logsCount,
@@ -80,10 +83,15 @@ class SengketaResource extends JsonResource
             'vendor_email' => $vendor?->contact_email,
             'object_summary' => $objectSummary,
             'export_url' => route('log-sengketa.export', $this->uuid),
+            'resolution_type' => $this->resolution_type?->value,
+            'resolution_type_label' => $this->resolution_type?->label(),
             'can' => [
                 'view' => $user?->can('view', $this->resource) ?? false,
                 'export' => $user?->can('export', $this->resource) ?? false,
                 'review' => $user?->can('review', $this->resource) ?? false,
+                'respond' => $user?->can('respond', $this->resource) ?? false,
+                'propose_resolution' => $user?->can('proposeResolution', $this->resource) ?? false,
+                'resolve' => $user?->can('resolve', $this->resource) ?? false,
                 'view_po' => $po !== null && ($user?->can('view', $po) ?? false),
             ],
         ];
@@ -256,8 +264,8 @@ class SengketaResource extends JsonResource
             $disputeUuid = $this->uuid;
             $logsPayload = $this->logs->map(static function ($log) use ($disputeUuid): array {
                 $author = $log->relationLoaded('penulis') ? $log->penulis : null;
-                $hasAttachment = is_string($log->file_bukti) && $log->file_bukti !== '';
-                $ext = $hasAttachment ? strtolower(pathinfo((string) $log->file_bukti, PATHINFO_EXTENSION)) : '';
+                $hasAttachment = is_string($log->attachment_path) && $log->attachment_path !== '';
+                $ext = $hasAttachment ? strtolower(pathinfo((string) $log->attachment_path, PATHINFO_EXTENSION)) : '';
                 $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
                 $type = (string) ($log->type ?? 'note');
 
@@ -273,11 +281,11 @@ class SengketaResource extends JsonResource
                     'uuid' => $log->uuid,
                     'type' => $type,
                     'type_label' => $typeLabel,
-                    'message' => $log->isi_pesan,
+                    'message' => $log->message,
                     'author_name' => $author?->name ?? 'Sistem Otomatis',
                     'author_role_label' => $author?->roleName()?->label() ?? 'Sistem',
                     'has_attachment' => $hasAttachment,
-                    'attachment_name' => $hasAttachment ? basename((string) $log->file_bukti) : null,
+                    'attachment_name' => $hasAttachment ? basename((string) $log->attachment_path) : null,
                     'attachment_is_image' => $isImage,
                     'attachment_url' => $hasAttachment
                         ? route('log-sengketa.attachment', [
@@ -288,6 +296,63 @@ class SengketaResource extends JsonResource
                     'created_at' => $log->created_at?->toISOString(),
                 ];
             })->values()->all();
+
+            // Settlement (UC-18 step 4–7) and its documents (FR-41, FR-42)
+            $payload['resolution'] = [
+                'type' => $this->resolution_type?->value,
+                'type_label' => $this->resolution_type?->label(),
+                'notes' => $this->resolution_notes,
+                'vendor_confirmed_at' => $this->vendor_confirmed_at?->toISOString(),
+                'vendor_confirmed_by_name' => $this->relationLoaded('vendorConfirmer') ? $this->vendorConfirmer?->name : null,
+                'resolved_by_name' => $this->relationLoaded('penyelesai') ? $this->penyelesai?->name : null,
+                'awaiting_reshipment_decision' => $this->resolution_type === DisputeResolutionType::Reshipment && $this->vendor_confirmed_at === null,
+            ];
+
+            $payload['credit_notes'] = $this->relationLoaded('creditNotes')
+                ? $this->creditNotes->map(fn (CreditNote $note): array => [
+                    'uuid' => $note->uuid,
+                    'number' => $note->credit_note_number,
+                    'date' => $note->credit_date?->format('Y-m-d'),
+                    'amount' => (float) $note->amount,
+                    'reason' => $note->reason,
+                    'status' => $note->status->value,
+                    'status_label' => $note->status->label(),
+                    'invoice_number' => $note->relationLoaded('invoice') ? $note->invoice?->nomor_invoice_vendor : null,
+                    'created_by_name' => $note->relationLoaded('pembuat') ? $note->pembuat?->name : null,
+                    'vendor_confirmed_by_name' => $note->relationLoaded('vendorConfirmer') ? $note->vendorConfirmer?->name : null,
+                    'vendor_confirmed_at' => $note->vendor_confirmed_at?->toISOString(),
+                    'can' => [
+                        'confirm' => $user?->can('confirm', $note) ?? false,
+                        'reject' => $user?->can('reject', $note) ?? false,
+                    ],
+                ])->values()->all()
+                : [];
+
+            $payload['purchase_returns'] = $this->relationLoaded('purchaseReturns')
+                ? $this->purchaseReturns->map(fn (PurchaseReturn $return): array => [
+                    'uuid' => $return->uuid,
+                    'number' => $return->return_number,
+                    'date' => $return->return_date?->format('Y-m-d'),
+                    'reason' => $return->reason,
+                    'status' => $return->status->value,
+                    'status_label' => $return->status->label(),
+                    'created_by_name' => $return->relationLoaded('pembuat') ? $return->pembuat?->name : null,
+                    'vendor_confirmed_by_name' => $return->relationLoaded('vendorConfirmer') ? $return->vendorConfirmer?->name : null,
+                    'vendor_confirmed_at' => $return->vendor_confirmed_at?->toISOString(),
+                    'items' => $return->items->map(fn ($item): array => [
+                        'uuid' => $item->uuid,
+                        'commodity_name' => $item->poItem?->komoditas?->name ?? 'Komoditas',
+                        'unit' => $item->poItem?->komoditas?->unit ?? 'kg',
+                        'quantity' => (float) $item->quantity,
+                        'notes' => $item->notes,
+                    ])->values()->all(),
+                    'can' => [
+                        'confirm' => $user?->can('confirm', $return) ?? false,
+                        'reject' => $user?->can('reject', $return) ?? false,
+                        'complete' => $user?->can('complete', $return) ?? false,
+                    ],
+                ])->values()->all()
+                : [];
 
             $payload['purchase_order'] = $poPayload;
             $payload['disputed_item'] = $disputedItemPayload;

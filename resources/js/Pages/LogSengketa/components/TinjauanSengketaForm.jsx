@@ -15,6 +15,7 @@ import {
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Checkbox } from '@/Components/ui/checkbox';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 
@@ -27,13 +28,28 @@ const ATTACHMENT_ACCEPT = {
 
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 
-export function TinjauanSengketaForm({ disputeUuid, poNumber, isOpenStatus }) {
+/**
+ * `mode="review"`: Owner/Manajemen note, optionally asking the Vendor for a response (→ Menunggu Tanggapan).
+ * `mode="respond"`: the Vendor's response (Menunggu Tanggapan → Dalam Mediasi). UC-18 step 3 & 5.
+ */
+export function TinjauanSengketaForm({ disputeUuid, poNumber, status, mode = 'review' }) {
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const isVendor = mode === 'respond';
 
     const { data, setData, post, processing, progress, errors, setError, clearErrors, reset } = useForm({
         message: '',
         attachment: null,
+        request_vendor_response: false,
     });
+
+    let nextStatusLabel = null;
+    if (isVendor) {
+        nextStatusLabel = status === 'awaiting_response' ? 'Dalam Mediasi' : null;
+    } else if (data.request_vendor_response) {
+        nextStatusLabel = status !== 'awaiting_response' ? 'Menunggu Tanggapan' : null;
+    } else {
+        nextStatusLabel = status === 'open' ? 'Dalam Mediasi' : null;
+    }
 
     const handleOpenConfirm = (e) => {
         e.preventDefault();
@@ -44,7 +60,9 @@ export function TinjauanSengketaForm({ disputeUuid, poNumber, isOpenStatus }) {
             setError(
                 'message',
                 trimmed.length === 0
-                    ? 'Catatan tinjauan atau mediasi sengketa wajib diisi.'
+                    ? isVendor
+                        ? 'Tanggapan wajib diisi.'
+                        : 'Catatan tinjauan atau mediasi sengketa wajib diisi.'
                     : 'Catatan tinjauan minimal 5 karakter.'
             );
             notify.validationFailed();
@@ -76,22 +94,26 @@ export function TinjauanSengketaForm({ disputeUuid, poNumber, isOpenStatus }) {
                 <CardHeader className="border-b">
                     <CardTitle className="text-base font-semibold flex items-center gap-2">
                         <MessageSquarePlus className="size-4 text-primary" />
-                        Catat Tinjauan / Mediasi
+                        {isVendor ? 'Tanggapi Sengketa' : 'Catat Tinjauan / Mediasi'}
                     </CardTitle>
                     <CardDescription>
-                        {isOpenStatus
-                            ? 'Catatan pertama akan mengubah status sengketa menjadi Dalam Mediasi.'
+                        {nextStatusLabel
+                            ? `Catatan ini akan mengubah status sengketa menjadi ${nextStatusLabel}.`
                             : 'Catatan ditambahkan ke Log Sengketa secara permanen (tidak dapat diubah atau dihapus).'}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-5">
                     <form onSubmit={handleOpenConfirm} noValidate className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="review_message">Catatan Tinjauan *</Label>
+                            <Label htmlFor="review_message">{isVendor ? 'Tanggapan *' : 'Catatan Tinjauan *'}</Label>
                             <Textarea
                                 id="review_message"
                                 rows={4}
-                                placeholder="Contoh: Telah dikonfirmasi ke vendor via telepon, vendor bersedia mengirim ulang 4 karung beras yang rusak..."
+                                placeholder={
+                                    isVendor
+                                        ? 'Contoh: Kerusakan terjadi saat bongkar muat, kami bersedia mengganti 4 karung beras...'
+                                        : 'Contoh: Telah dikonfirmasi ke vendor via telepon, vendor bersedia mengirim ulang 4 karung beras yang rusak...'
+                                }
                                 value={data.message}
                                 disabled={processing}
                                 onChange={(e) => {
@@ -127,6 +149,23 @@ export function TinjauanSengketaForm({ disputeUuid, poNumber, isOpenStatus }) {
                             />
                         </div>
 
+                        {!isVendor && (
+                            <label className="flex items-start gap-2.5 text-sm cursor-pointer">
+                                <Checkbox
+                                    checked={data.request_vendor_response}
+                                    disabled={processing}
+                                    onCheckedChange={(checked) => setData('request_vendor_response', checked === true)}
+                                    className="mt-0.5"
+                                />
+                                <span>
+                                    Minta tanggapan Vendor
+                                    <span className="block text-xs text-muted-foreground">
+                                        Status menjadi Menunggu Tanggapan sampai Vendor membalas.
+                                    </span>
+                                </span>
+                            </label>
+                        )}
+
                         <div className="flex justify-end">
                             <LoadingButton
                                 type="submit"
@@ -135,7 +174,7 @@ export function TinjauanSengketaForm({ disputeUuid, poNumber, isOpenStatus }) {
                                 className="gap-2 cursor-pointer"
                             >
                                 <MessageSquarePlus className="size-4" />
-                                Simpan Catatan
+                                {isVendor ? 'Kirim Tanggapan' : 'Simpan Catatan'}
                             </LoadingButton>
                         </div>
                     </form>
@@ -152,7 +191,7 @@ export function TinjauanSengketaForm({ disputeUuid, poNumber, isOpenStatus }) {
                     <AlertDialogHeader>
                         <AlertDialogTitle className="flex items-start gap-2.5 leading-snug">
                             <MessageSquarePlus className="size-5 shrink-0 mt-0.5 text-primary" />
-                            <span>Simpan Catatan Tinjauan Sengketa?</span>
+                            <span>{isVendor ? 'Kirim Tanggapan Sengketa?' : 'Simpan Catatan Tinjauan Sengketa?'}</span>
                         </AlertDialogTitle>
                         <AlertDialogDescription asChild>
                             <div className="space-y-2 text-sm text-muted-foreground">
@@ -162,10 +201,10 @@ export function TinjauanSengketaForm({ disputeUuid, poNumber, isOpenStatus }) {
                                     secara <strong className="text-foreground">permanen (immutable)</strong> pada
                                     Log Sengketa dan diberitahukan ke pihak terkait.
                                 </p>
-                                {isOpenStatus && (
+                                {nextStatusLabel && (
                                     <p>
-                                        Status sengketa akan berubah dari <strong className="text-foreground">Terbuka</strong>{' '}
-                                        menjadi <strong className="text-foreground">Dalam Mediasi</strong>.
+                                        Status sengketa akan berubah menjadi{' '}
+                                        <strong className="text-foreground">{nextStatusLabel}</strong>.
                                     </p>
                                 )}
                             </div>
@@ -182,7 +221,7 @@ export function TinjauanSengketaForm({ disputeUuid, poNumber, isOpenStatus }) {
                             onClick={handleConfirmSubmit}
                             className="cursor-pointer"
                         >
-                            Ya, Simpan Catatan
+                            {isVendor ? 'Ya, Kirim Tanggapan' : 'Ya, Simpan Catatan'}
                         </LoadingButton>
                     </AlertDialogFooter>
                 </AlertDialogContent>

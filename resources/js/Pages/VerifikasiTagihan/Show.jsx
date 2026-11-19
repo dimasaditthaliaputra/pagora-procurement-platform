@@ -82,7 +82,7 @@ function MatchingBadge({ status }) {
     );
 }
 
-export default function VerifikasiTagihanShow({ invoice, matching_evaluation }) {
+export default function VerifikasiTagihanShow({ invoice, matching_evaluation, can_verify = false }) {
     const data = invoice?.data ?? invoice;
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -113,6 +113,9 @@ export default function VerifikasiTagihanShow({ invoice, matching_evaluation }) 
     const isMismatched = data.status_matching === 'mismatched';
     const disputeList = data.sengketa || [];
     const latestDispute = disputeList[0] || null;
+    const creditNotes = data.credit_notes || [];
+    const confirmedCreditTotal = Number(data.confirmed_credit_total || 0);
+    const isReverification = isMismatched && can_verify;
 
     const handleExecuteVerification = () => {
         setSubmitting(true);
@@ -178,14 +181,14 @@ export default function VerifikasiTagihanShow({ invoice, matching_evaluation }) 
                             </a>
                         </Button>
 
-                        {isPending && (
+                        {can_verify && (
                             <Button
                                 size="sm"
                                 className="bg-emerald-600 text-white hover:bg-emerald-700 gap-1.5 shadow-xs"
                                 onClick={() => setConfirmDialogOpen(true)}
                             >
                                 <FileCheck className="size-4" />
-                                Eksekusi Verifikasi 3-Way Matching
+                                {isReverification ? 'Verifikasi Ulang dengan Credit Note' : 'Eksekusi Verifikasi 3-Way Matching'}
                             </Button>
                         )}
                     </div>
@@ -220,6 +223,12 @@ export default function VerifikasiTagihanShow({ invoice, matching_evaluation }) 
                             <p>
                                 Tagihan ini memiliki ketidaksesuaian antara kuantitas penerimaan gudang, harga kesepakatan PO, atau nominal tagihan. Sistem telah membuka sengketa pengadaan secara otomatis untuk penanganan lebih lanjut.
                             </p>
+                            {isReverification && (
+                                <p className="font-medium">
+                                    Sengketa telah Selesai. Verifikasi ulang akan memperhitungkan credit note yang dikonfirmasi Vendor
+                                    {matchingData.is_matched ? ' dan hasilnya kini Sesuai.' : ', namun tagihan masih belum sesuai.'}
+                                </p>
+                            )}
                             {latestDispute && (
                                 <div className="mt-2 rounded-md bg-destructive/10 p-2.5 text-xs">
                                     <p className="font-semibold text-destructive-foreground">
@@ -295,6 +304,31 @@ export default function VerifikasiTagihanShow({ invoice, matching_evaluation }) 
                             <InfoItem label="Status 3-Way Matching">
                                 <MatchingBadge status={data.status_matching} />
                             </InfoItem>
+
+                            {creditNotes.length > 0 && (
+                                <div className="sm:col-span-2 space-y-2 border-t pt-3">
+                                    <p className="text-xs font-medium text-muted-foreground">Credit Note</p>
+                                    <ul className="space-y-1.5">
+                                        {creditNotes.map((note) => (
+                                            <li key={note.uuid} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                                <span className="font-mono">{note.number}</span>
+                                                <span className="flex items-center gap-2">
+                                                    <Badge variant={note.status === 'confirmed' ? 'green' : note.status === 'rejected' ? 'destructive' : 'warning'}>
+                                                        {note.status_label}
+                                                    </Badge>
+                                                    <span className="tabular-nums">- {formatRupiah(note.amount)}</span>
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="flex items-center justify-between border-t pt-2 text-sm">
+                                        <span className="font-medium">Nilai yang Dibayar</span>
+                                        <span className="font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                            {formatRupiah(Number(data.jumlah_tagihan || 0) - confirmedCreditTotal)}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
 
                             {data.diverifikasi_pada && (
                                 <div className="sm:col-span-2 pt-1 border-t">
@@ -551,7 +585,13 @@ export default function VerifikasiTagihanShow({ invoice, matching_evaluation }) 
                             Konfirmasi Verifikasi 3-Way Matching
                         </DialogTitle>
                         <DialogDescription className="text-xs pt-1">
-                            {matchingData.is_matched ? (
+                            {matchingData.summary?.settled_by_credit_note ? (
+                                <span>
+                                    Tagihan Invoice <strong>{data.nomor_invoice_vendor}</strong> dikurangi credit note yang dikonfirmasi ({formatRupiah(matchingData.summary.confirmed_credit_total)}) kini sama dengan nilai barang yang diterima. Nilai yang dibayar: <strong>{formatRupiah(matchingData.summary.payable_amount)}</strong>.
+                                    <br /><br />
+                                    Setelah disetujui, status Purchase Order akan diperbarui menjadi <strong>Siap Dibayar (ready_to_pay)</strong>.
+                                </span>
+                            ) : matchingData.is_matched ? (
                                 <span>
                                     Seluruh data pada Invoice <strong>{data.nomor_invoice_vendor}</strong> telah dicocokkan dengan Purchase Order dan catatan penerimaan QC Gudang. Kuantitas dan harga <strong>Sesuai</strong> tanpa selisih.
                                     <br /><br />

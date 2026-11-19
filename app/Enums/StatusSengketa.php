@@ -4,19 +4,32 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+/**
+ * Dispute lifecycle (`disputes.status` — PRD §9.3). Separate from the PO status (BR-14).
+ */
 enum StatusSengketa: string
 {
-    case Terbuka = 'terbuka';
-    case DalamMediasi = 'dalam_mediasi';
-    case Selesai = 'selesai';
+    case Open = 'open';
+    case AwaitingResponse = 'awaiting_response';
+    case InMediation = 'in_mediation';
+    case Resolved = 'resolved';
 
     public function label(): string
     {
         return match ($this) {
-            self::Terbuka => 'Terbuka',
-            self::DalamMediasi => 'Dalam Mediasi',
-            self::Selesai => 'Selesai',
+            self::Open => 'Terbuka',
+            self::AwaitingResponse => 'Menunggu Tanggapan',
+            self::InMediation => 'Dalam Mediasi',
+            self::Resolved => 'Selesai',
         };
+    }
+
+    /**
+     * Every status except `resolved` keeps the purchase order frozen (BR-14).
+     */
+    public function isOpen(): bool
+    {
+        return $this !== self::Resolved;
     }
 
     /**

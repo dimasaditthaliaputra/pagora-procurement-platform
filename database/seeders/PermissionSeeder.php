@@ -35,6 +35,8 @@ class PermissionSeeder extends Seeder
 
         'sengketa.view_any' => ['Lihat & unduh log sengketa pengadaan', self::TENANT, ['owner', 'manajemen', 'purchasing']],
         'sengketa.review' => ['Tinjau & mediasi kendala sengketa pengadaan', ['owner', 'manajemen'], ['owner', 'manajemen']],
+        'sengketa.resolve' => ['Tetapkan penyelesaian, credit note & retur sengketa', ['owner', 'manajemen'], ['owner', 'manajemen']],
+        'sengketa.respond' => ['Tanggapi & konfirmasi penyelesaian sengketa', ['vendor'], ['vendor']],
 
         'komoditas.view_any' => ['Lihat master komoditas', [...self::PLATFORM, ...self::TENANT], ['superadmin']],
         'komoditas.create' => ['Tambah komoditas', self::PLATFORM, ['superadmin']],

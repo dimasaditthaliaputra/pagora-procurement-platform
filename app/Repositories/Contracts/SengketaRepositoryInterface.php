@@ -17,45 +17,64 @@ use Illuminate\Support\Collection;
 interface SengketaRepositoryInterface
 {
     /**
-     * Paginate disputes belonging to a specific Tenant with search, status, trigger, date range, and whitelisted sort.
+     * Paginate disputes on the actor's side (buyer Tenant or PO Vendor) with search, status, trigger,
+     * date range, and whitelisted sort.
      *
      * @param  array<string, mixed>  $filters
      */
-    public function paginateForTenant(int $tenantId, array $filters = [], int $perPage = 10): LengthAwarePaginator;
+    public function paginateForActor(User $actor, array $filters = [], int $perPage = 10): LengthAwarePaginator;
 
     /**
-     * Compute dispute summary statistics scoped strictly to a Tenant.
+     * Compute dispute summary statistics on the actor's side.
      *
      * @return array{
      *     total: int,
      *     open: int,
+     *     awaiting_response: int,
      *     in_mediation: int,
      *     resolved: int,
      *     qc_triggered: int,
      *     invoice_triggered: int
      * }
      */
-    public function getStatisticsForTenant(int $tenantId): array;
+    public function getStatisticsForActor(User $actor): array;
 
     /**
-     * Find a single dispute by UUID strictly scoped to the given Tenant, eager-loading all related procurement records.
+     * Find a single dispute by UUID on the actor's side, eager-loading all related procurement records.
      */
-    public function findByUuidForTenant(int $tenantId, string $uuid): ?Sengketa;
+    public function findByUuidForActor(User $actor, string $uuid): ?Sengketa;
 
     /**
-     * Transition a non-resolved dispute's status (e.g. `terbuka` -> `dalam_mediasi`).
+     * Find a dispute on the actor's side and lock its row for the rest of the transaction.
+     */
+    public function lockByUuidForActor(User $actor, string $uuid): ?Sengketa;
+
+    /**
+     * Update resolution fields of a dispute that is not resolved yet (resolved disputes are immutable, BR-17).
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function update(Sengketa $sengketa, array $attributes): Sengketa;
+
+    /**
+     * Whether the invoice still has a dispute that is not `resolved` (BR-13).
+     */
+    public function hasOpenForInvoice(int $invoiceId): bool;
+
+    /**
+     * Transition a non-resolved dispute's status (e.g. `open` -> `in_mediation`).
      */
     public function updateStatus(Sengketa $sengketa, StatusSengketa $status): Sengketa;
 
     /**
-     * Append an immutable entry to `log_sengketa` (`BR-17`, `RULES` §9.4 — append-only, no update/delete).
+     * Append an immutable entry to `dispute_logs` (`BR-17`, `RULES` §9.4 — append-only, no update/delete).
      *
      * @param  array{
-     *     sengketa_id: int,
-     *     user_id: int,
+     *     dispute_id: int,
+     *     user_id: int|null,
      *     type: string,
-     *     isi_pesan: string,
-     *     file_bukti?: string|null
+     *     message: string,
+     *     attachment_path?: string|null
      * }  $data
      */
     public function appendLog(array $data): LogSengketa;

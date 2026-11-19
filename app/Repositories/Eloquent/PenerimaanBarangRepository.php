@@ -483,7 +483,7 @@ class PenerimaanBarangRepository implements PenerimaanBarangRepositoryInterface
             ->whereHas('poItem.sengketa', fn (Builder $q) => $q->where('trigger_type', PemicuSengketa::GoodsMismatch->value))
             ->count();
         $openDisputes = $base()
-            ->whereHas('poItem.sengketa', fn (Builder $q) => $q->where('status', '!=', StatusSengketa::Selesai->value))
+            ->whereHas('poItem.sengketa', fn (Builder $q) => $q->where('status', '!=', StatusSengketa::Resolved->value))
             ->count();
 
         return [
@@ -510,7 +510,7 @@ class PenerimaanBarangRepository implements PenerimaanBarangRepositoryInterface
             ->whereHas('poItem.sengketa', fn (Builder $q) => $q->where('trigger_type', PemicuSengketa::GoodsMismatch->value))
             ->count();
         $openDisputes = $base()
-            ->whereHas('poItem.sengketa', fn (Builder $q) => $q->where('status', '!=', StatusSengketa::Selesai->value))
+            ->whereHas('poItem.sengketa', fn (Builder $q) => $q->where('status', '!=', StatusSengketa::Resolved->value))
             ->count();
 
         return [
@@ -552,7 +552,7 @@ class PenerimaanBarangRepository implements PenerimaanBarangRepositoryInterface
     }
 
     /**
-     * Create a per-item QC rejection dispute (`sengketa`).
+     * Create a per-item QC rejection dispute (`disputes`).
      *
      * @param  array<string, mixed>  $data
      */
@@ -562,7 +562,7 @@ class PenerimaanBarangRepository implements PenerimaanBarangRepositoryInterface
     }
 
     /**
-     * Append an immutable dispute log entry (`log_sengketa`).
+     * Append an immutable dispute log entry (`dispute_logs`).
      *
      * @param  array<string, mixed>  $data
      */

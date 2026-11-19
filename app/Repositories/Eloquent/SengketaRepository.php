@@ -29,10 +29,10 @@ class SengketaRepository implements SengketaRepositoryInterface
      * @var list<string>
      */
     private const SORTABLE = [
-        'tanggal_dibuka',
+        'opened_at',
         'status',
         'trigger_type',
-        'tanggal_selesai',
+        'resolved_at',
         'created_at',
     ];
 
@@ -44,15 +44,15 @@ class SengketaRepository implements SengketaRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function paginateForTenant(int $tenantId, array $filters = [], int $perPage = 10): LengthAwarePaginator
+    public function paginateForActor(User $actor, array $filters = [], int $perPage = 10): LengthAwarePaginator
     {
         $sort = in_array($filters['sort'] ?? null, self::SORTABLE, true)
             ? (string) $filters['sort']
-            : 'tanggal_dibuka';
+            : 'opened_at';
         $direction = (($filters['direction'] ?? 'desc') === 'asc') ? 'asc' : 'desc';
         $safePerPage = min(max($perPage, 1), 100);
 
-        $query = $this->baseTenantQuery($tenantId)
+        $query = $this->basePartyQuery($actor)
             ->with([
                 'pembuka.role',
                 'purchaseOrder.vendor',
@@ -95,12 +95,12 @@ class SengketaRepository implements SengketaRepositoryInterface
 
         $dateFrom = isset($filters['date_from']) ? trim((string) $filters['date_from']) : '';
         if ($dateFrom !== '') {
-            $query->whereDate('tanggal_dibuka', '>=', $dateFrom);
+            $query->whereDate('opened_at', '>=', $dateFrom);
         }
 
         $dateTo = isset($filters['date_to']) ? trim((string) $filters['date_to']) : '';
         if ($dateTo !== '') {
-            $query->whereDate('tanggal_dibuka', '<=', $dateTo);
+            $query->whereDate('opened_at', '<=', $dateTo);
         }
 
         return $query
@@ -113,15 +113,16 @@ class SengketaRepository implements SengketaRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function getStatisticsForTenant(int $tenantId): array
+    public function getStatisticsForActor(User $actor): array
     {
-        $base = $this->baseTenantQuery($tenantId);
+        $base = $this->basePartyQuery($actor);
 
         return [
             'total' => (clone $base)->count(),
-            'open' => (clone $base)->where('status', StatusSengketa::Terbuka->value)->count(),
-            'in_mediation' => (clone $base)->where('status', StatusSengketa::DalamMediasi->value)->count(),
-            'resolved' => (clone $base)->where('status', StatusSengketa::Selesai->value)->count(),
+            'open' => (clone $base)->where('status', StatusSengketa::Open->value)->count(),
+            'awaiting_response' => (clone $base)->where('status', StatusSengketa::AwaitingResponse->value)->count(),
+            'in_mediation' => (clone $base)->where('status', StatusSengketa::InMediation->value)->count(),
+            'resolved' => (clone $base)->where('status', StatusSengketa::Resolved->value)->count(),
             'qc_triggered' => (clone $base)->whereIn('trigger_type', [
                 PemicuSengketa::GoodsMismatch->value,
                 PemicuSengketa::QcRejected->value,
@@ -136,9 +137,11 @@ class SengketaRepository implements SengketaRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function findByUuidForTenant(int $tenantId, string $uuid): ?Sengketa
+    public function findByUuidForActor(User $actor, string $uuid): ?Sengketa
     {
-        return $this->baseTenantQuery($tenantId)
+        $tenantId = $actor->vendor_id !== null ? null : (int) $actor->tenant_id;
+
+        return $this->basePartyQuery($actor)
             ->where('uuid', $uuid)
             ->with([
                 'pembuka.role',
@@ -146,7 +149,8 @@ class SengketaRepository implements SengketaRepositoryInterface
                 'purchaseOrder.perusahaanBuyer',
                 'purchaseOrder.pembuat.role',
                 'purchaseOrder.poItems.komoditas.tenantCommodities' => function ($q) use ($tenantId): void {
-                    $q->where('tenant_id', $tenantId);
+                    // The Vendor sees the buyer's tolerance; the resolver picks the PO Tenant's row.
+                    $q->when($tenantId !== null, fn ($tq) => $tq->where('tenant_id', $tenantId));
                 },
                 'purchaseOrder.pengiriman.pelapor',
                 'purchaseOrder.penerimaanBarang.inspector',
@@ -154,11 +158,23 @@ class SengketaRepository implements SengketaRepositoryInterface
                 'purchaseOrder.penerimaanBarang.items.poItem.komoditas',
                 'purchaseOrder.chatNegosiasi.pengirim.role',
                 'poItem.komoditas.tenantCommodities' => function ($q) use ($tenantId): void {
-                    $q->where('tenant_id', $tenantId);
+                    $q->when($tenantId !== null, fn ($tq) => $tq->where('tenant_id', $tenantId));
                 },
                 'poItem.penerimaanBarangItems.goodsReceipt.inspector',
                 'poItem.penerimaanBarangItems.goodsReceipt.shipment',
                 'invoice.verifikator',
+                'invoice.creditNotes',
+                'purchaseOrder.invoices.creditNotes',
+                'creditNotes.invoice',
+                'creditNotes.pembuat',
+                'creditNotes.vendorConfirmer',
+                'purchaseReturns.items.poItem.komoditas',
+                'purchaseReturns.items.receiptItem',
+                'purchaseReturns.pembuat',
+                'purchaseReturns.purchaseOrder',
+                'purchaseReturns.vendorConfirmer',
+                'vendorConfirmer',
+                'penyelesai',
                 'logs.penulis.role',
             ])
             ->first();
@@ -167,15 +183,52 @@ class SengketaRepository implements SengketaRepositoryInterface
     /**
      * {@inheritDoc}
      */
+    public function lockByUuidForActor(User $actor, string $uuid): ?Sengketa
+    {
+        return $this->basePartyQuery($actor)
+            ->where('uuid', $uuid)
+            ->with('purchaseOrder')
+            ->lockForUpdate()
+            ->first();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function update(Sengketa $sengketa, array $attributes): Sengketa
+    {
+        if ($sengketa->getOriginal('status') === StatusSengketa::Resolved) {
+            throw new LogicException('Sengketa yang telah selesai bersifat permanen (immutable) dan tidak dapat diubah.');
+        }
+
+        $sengketa->fill($attributes)->save();
+
+        return $sengketa;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function hasOpenForInvoice(int $invoiceId): bool
+    {
+        return $this->model->newQuery()
+            ->where('invoice_id', $invoiceId)
+            ->where('status', '!=', StatusSengketa::Resolved->value)
+            ->exists();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function updateStatus(Sengketa $sengketa, StatusSengketa $status): Sengketa
     {
-        if ($sengketa->status === StatusSengketa::Selesai) {
+        if ($sengketa->status === StatusSengketa::Resolved) {
             throw new LogicException('Sengketa yang telah selesai bersifat permanen (immutable) dan tidak dapat diubah.');
         }
 
         $sengketa->status = $status;
-        if ($status === StatusSengketa::Selesai && $sengketa->tanggal_selesai === null) {
-            $sengketa->tanggal_selesai = now();
+        if ($status === StatusSengketa::Resolved && $sengketa->resolved_at === null) {
+            $sengketa->resolved_at = now();
         }
         $sengketa->save();
 
@@ -188,11 +241,11 @@ class SengketaRepository implements SengketaRepositoryInterface
     public function appendLog(array $data): LogSengketa
     {
         return $this->logModel->create([
-            'sengketa_id' => $data['sengketa_id'],
+            'dispute_id' => $data['dispute_id'],
             'user_id' => $data['user_id'],
             'type' => $data['type'],
-            'isi_pesan' => $data['isi_pesan'],
-            'file_bukti' => $data['file_bukti'] ?? null,
+            'message' => $data['message'],
+            'attachment_path' => $data['attachment_path'] ?? null,
         ]);
     }
 
@@ -233,15 +286,20 @@ class SengketaRepository implements SengketaRepositoryInterface
     }
 
     /**
-     * Scope all dispute queries strictly to Purchase Orders belonging to the given Tenant (`NFR-02`, `RULES` §9.3).
+     * Scope dispute queries to the actor's side of the Purchase Order: the buyer Tenant, or the Vendor
+     * of the PO (`NFR-02`, `RULES` §9.3). Any other user sees nothing.
      *
      * @return Builder<Sengketa>
      */
-    private function baseTenantQuery(int $tenantId): Builder
+    private function basePartyQuery(User $actor): Builder
     {
+        [$column, $partyId] = $actor->vendor_id !== null
+            ? ['vendor_id', $actor->vendor_id]
+            : ['perusahaan_buyer_id', $actor->tenant_id];
+
         return $this->model->newQuery()
-            ->whereHas('purchaseOrder', function (Builder $poQuery) use ($tenantId): void {
-                $poQuery->where('perusahaan_buyer_id', $tenantId);
+            ->whereHas('purchaseOrder', function (Builder $poQuery) use ($column, $partyId): void {
+                $poQuery->where($column, $partyId ?? 0);
             });
     }
 }

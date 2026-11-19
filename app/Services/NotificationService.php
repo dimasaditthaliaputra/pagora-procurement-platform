@@ -113,9 +113,9 @@ class NotificationService
             return in_array($roleName, [RoleName::Owner, RoleName::Manajemen, RoleName::Purchasing, RoleName::QcGudang, RoleName::Vendor], true);
         }
 
-        // Log Sengketa & Kendala Pengadaan: Owner, Manajemen, and Purchasing
+        // Log Sengketa & Kendala Pengadaan: Owner, Manajemen, Purchasing, and the Vendor of the PO (UC-18 step 5)
         if (str_starts_with($path, '/log-sengketa')) {
-            return in_array($roleName, [RoleName::Owner, RoleName::Manajemen, RoleName::Purchasing], true);
+            return in_array($roleName, [RoleName::Owner, RoleName::Manajemen, RoleName::Purchasing, RoleName::Vendor], true);
         }
 
         // Verifikasi Tagihan (3-Way Matching): Owner and Purchasing

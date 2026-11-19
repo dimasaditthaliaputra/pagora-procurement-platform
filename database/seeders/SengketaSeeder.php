@@ -39,10 +39,10 @@ class SengketaSeeder extends Seeder
             'invoice_id' => $invoice->id,
             'trigger_type' => 'amount_mismatch',
             'reason' => 'Nominal invoice tidak sesuai dengan barang yang diterima di gudang.',
-            'dibuka_oleh' => $userBuyer->id,
-            'status' => StatusSengketa::DalamMediasi->value,
-            'tanggal_dibuka' => now()->subDays(2),
-            'tanggal_selesai' => null,
+            'opened_by' => $userBuyer->id,
+            'status' => StatusSengketa::InMediation->value,
+            'opened_at' => now()->subDays(2),
+            'resolved_at' => null,
         ]);
 
         $logs = [
@@ -52,11 +52,11 @@ class SengketaSeeder extends Seeder
 
         foreach ($logs as [$user, $type, $pesan]) {
             LogSengketa::create([
-                'sengketa_id' => $sengketa->id,
+                'dispute_id' => $sengketa->id,
                 'user_id' => $user->id,
                 'type' => $type,
-                'isi_pesan' => $pesan,
-                'file_bukti' => null,
+                'message' => $pesan,
+                'attachment_path' => null,
             ]);
         }
     }

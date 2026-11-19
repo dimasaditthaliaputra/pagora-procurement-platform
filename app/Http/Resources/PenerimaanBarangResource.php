@@ -77,12 +77,12 @@ class PenerimaanBarangResource extends JsonResource
                 if ($dispute !== null) {
                     $disputeLogs = $dispute->relationLoaded('logs')
                         ? $dispute->logs->map(function ($log): array {
-                            $hasAttachment = is_string($log->file_bukti) && $log->file_bukti !== '';
+                            $hasAttachment = is_string($log->attachment_path) && $log->attachment_path !== '';
 
                             return [
                                 'uuid' => $log->uuid,
                                 'type' => $log->type ?? 'note',
-                                'message' => $log->isi_pesan,
+                                'message' => $log->message,
                                 'has_attachment' => $hasAttachment,
                                 'attachment_url' => $hasAttachment
                                     ? route('inspeksi-qc.dispute-log.photo', ['logUuid' => $log->uuid])
@@ -100,8 +100,8 @@ class PenerimaanBarangResource extends JsonResource
                         'reason' => $dispute->reason,
                         'status' => $dispute->status->value,
                         'status_label' => $dispute->status->label(),
-                        'opened_at' => $dispute->tanggal_dibuka?->toISOString(),
-                        'resolved_at' => $dispute->tanggal_selesai?->toISOString(),
+                        'opened_at' => $dispute->opened_at?->toISOString(),
+                        'resolved_at' => $dispute->resolved_at?->toISOString(),
                         'logs' => $disputeLogs,
                     ];
                 }

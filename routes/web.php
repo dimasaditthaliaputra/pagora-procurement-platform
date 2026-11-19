@@ -326,6 +326,23 @@ Route::middleware('auth')->group(function () {
             Route::get('/{uuid}', 'show')->whereUuid('uuid')->can('viewAny', Sengketa::class)->name('show');
             Route::get('/{uuid}/unduh', 'export')->whereUuid('uuid')->can('viewAny', Sengketa::class)->name('export');
             Route::post('/{uuid}/tinjauan', 'storeReview')->whereUuid('uuid')->name('review.store');
+
+            // Penyelesaian sengketa: Owner/Manajemen mengajukan & menetapkan Selesai, Vendor mengonfirmasi (UC-18, FR-40..42)
+            Route::get('/{uuid}/penyelesaian', 'createResolution')->whereUuid('uuid')->can('viewAny', Sengketa::class)->name('resolution.create');
+            Route::middleware('throttle:30,1')->group(function () {
+                Route::post('/{uuid}/penyelesaian', 'proposeResolution')->whereUuid('uuid')->name('resolution.propose');
+                Route::post('/{uuid}/selesai', 'resolve')->whereUuid('uuid')->name('resolve');
+                Route::post('/{uuid}/pengiriman-ulang/keputusan', 'decideReshipment')->whereUuid('uuid')->name('reshipment.decide');
+                Route::post('/{uuid}/credit-note/{creditNoteUuid}/keputusan', 'decideCreditNote')
+                    ->whereUuid(['uuid', 'creditNoteUuid'])
+                    ->name('credit-note.decide');
+                Route::post('/{uuid}/retur/{returnUuid}/keputusan', 'decidePurchaseReturn')
+                    ->whereUuid(['uuid', 'returnUuid'])
+                    ->name('purchase-return.decide');
+                Route::post('/{uuid}/retur/{returnUuid}/selesai', 'completePurchaseReturn')
+                    ->whereUuid(['uuid', 'returnUuid'])
+                    ->name('purchase-return.complete');
+            });
             Route::get('/{uuid}/foto-qc/{itemUuid}/{index}', 'qcPhoto')
                 ->whereUuid('uuid')
                 ->whereUuid('itemUuid')

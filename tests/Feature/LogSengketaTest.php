@@ -141,7 +141,7 @@ class LogSengketaTest extends TestCase
     private function createDispute(
         PerusahaanBuyer $tenant,
         Vendor $vendor,
-        StatusSengketa $status = StatusSengketa::Terbuka,
+        StatusSengketa $status = StatusSengketa::Open,
         PemicuSengketa $trigger = PemicuSengketa::GoodsMismatch,
         string $reason = 'Kadar air beras 18%, melampaui batas toleransi 14%.'
     ): Sengketa {
@@ -211,19 +211,19 @@ class LogSengketaTest extends TestCase
             'invoice_id' => null,
             'trigger_type' => $trigger->value,
             'reason' => $reason,
-            'dibuka_oleh' => $this->qcA->id,
+            'opened_by' => $this->qcA->id,
             'status' => $status->value,
-            'tanggal_dibuka' => now()->toDateString(),
+            'opened_at' => now()->toDateString(),
             'created_at' => now()->subHour(),
         ]);
 
         LogSengketa::create([
             'uuid' => (string) Str::uuid(),
-            'sengketa_id' => $sengketa->id,
+            'dispute_id' => $sengketa->id,
             'user_id' => $this->qcA->id,
             'type' => 'status_change',
-            'isi_pesan' => "Sengketa otomatis dibuka oleh sistem karena penolakan QC: {$reason}",
-            'file_bukti' => $photoPath,
+            'message' => "Sengketa otomatis dibuka oleh sistem karena penolakan QC: {$reason}",
+            'attachment_path' => $photoPath,
             'created_at' => now()->subHour(),
         ]);
 
@@ -259,12 +259,13 @@ class LogSengketaTest extends TestCase
             ->get("/log-sengketa/{$disputeA->uuid}")
             ->assertOk();
 
+        // The Vendor of the PO responds to and confirms settlements (UC-18 step 5)
+        $this->actingAs($this->vendorUserA)
+            ->get("/log-sengketa/{$disputeA->uuid}")
+            ->assertOk();
+
         // Unauthorized roles receive 403 Forbidden
         $this->actingAs($this->qcA)
-            ->get('/log-sengketa')
-            ->assertForbidden();
-
-        $this->actingAs($this->vendorUserA)
             ->get('/log-sengketa')
             ->assertForbidden();
 
@@ -292,9 +293,9 @@ class LogSengketaTest extends TestCase
 
     public function test_index_lists_disputes_for_tenant_and_excludes_other_tenant(): void
     {
-        $disputeA1 = $this->createDispute($this->tenantA, $this->vendorA, StatusSengketa::Terbuka);
-        $disputeA2 = $this->createDispute($this->tenantA, $this->vendorA, StatusSengketa::DalamMediasi);
-        $disputeB = $this->createDispute($this->tenantB, $this->vendorB, StatusSengketa::Terbuka);
+        $disputeA1 = $this->createDispute($this->tenantA, $this->vendorA, StatusSengketa::Open);
+        $disputeA2 = $this->createDispute($this->tenantA, $this->vendorA, StatusSengketa::InMediation);
+        $disputeB = $this->createDispute($this->tenantB, $this->vendorB, StatusSengketa::Open);
 
         $this->actingAs($this->manajemenA)
             ->get('/log-sengketa')
@@ -317,7 +318,7 @@ class LogSengketaTest extends TestCase
         $dispute1 = $this->createDispute(
             $this->tenantA,
             $this->vendorA,
-            StatusSengketa::Terbuka,
+            StatusSengketa::Open,
             PemicuSengketa::GoodsMismatch,
             'Biji pecah melampaui toleransi'
         );
@@ -325,7 +326,7 @@ class LogSengketaTest extends TestCase
         $dispute2 = $this->createDispute(
             $this->tenantA,
             $this->vendorA,
-            StatusSengketa::Terbuka,
+            StatusSengketa::Open,
             PemicuSengketa::GoodsMismatch,
             'Kemasan robek parah basah kehujanan'
         );
@@ -350,12 +351,12 @@ class LogSengketaTest extends TestCase
 
     public function test_filters_by_status_trigger_and_date_range(): void
     {
-        $disputeOpen = $this->createDispute($this->tenantA, $this->vendorA, StatusSengketa::Terbuka, PemicuSengketa::GoodsMismatch);
-        $disputeMediasi = $this->createDispute($this->tenantA, $this->vendorA, StatusSengketa::DalamMediasi, PemicuSengketa::GoodsMismatch);
+        $disputeOpen = $this->createDispute($this->tenantA, $this->vendorA, StatusSengketa::Open, PemicuSengketa::GoodsMismatch);
+        $disputeMediasi = $this->createDispute($this->tenantA, $this->vendorA, StatusSengketa::InMediation, PemicuSengketa::GoodsMismatch);
 
         // Filter status
         $this->actingAs($this->manajemenA)
-            ->get('/log-sengketa?status=dalam_mediasi')
+            ->get('/log-sengketa?status=in_mediation')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('disputes.data', 1)
@@ -388,7 +389,7 @@ class LogSengketaTest extends TestCase
             ->component('LogSengketa/Show')
             ->has('dispute', fn (Assert $d) => $d
                 ->where('uuid', $dispute->uuid)
-                ->where('status', StatusSengketa::Terbuka->value)
+                ->where('status', StatusSengketa::Open->value)
                 ->where('trigger_type', PemicuSengketa::GoodsMismatch->value)
                 ->has('purchase_order')
                 ->has('disputed_item')
@@ -404,9 +405,9 @@ class LogSengketaTest extends TestCase
         );
     }
 
-    public function test_manajemen_can_store_tinjauan_and_status_transitions_to_dalam_mediasi(): void
+    public function test_manajemen_can_store_tinjauan_and_status_transitions_to_in_mediation(): void
     {
-        $dispute = $this->createDispute($this->tenantA, $this->vendorA, StatusSengketa::Terbuka);
+        $dispute = $this->createDispute($this->tenantA, $this->vendorA, StatusSengketa::Open);
 
         $fakeAttachment = UploadedFile::fake()->create('berita_acara_mediasi.pdf', 300, 'application/pdf');
 
@@ -418,22 +419,22 @@ class LogSengketaTest extends TestCase
             ->assertRedirect("/log-sengketa/{$dispute->uuid}")
             ->assertSessionHas('success');
 
-        // Status transitioned to dalam_mediasi
-        $this->assertDatabaseHas('sengketa', [
+        // Status transitioned to in_mediation
+        $this->assertDatabaseHas('disputes', [
             'id' => $dispute->id,
-            'status' => StatusSengketa::DalamMediasi->value,
+            'status' => StatusSengketa::InMediation->value,
         ]);
 
         // Log entry created
-        $this->assertDatabaseHas('log_sengketa', [
-            'sengketa_id' => $dispute->id,
+        $this->assertDatabaseHas('dispute_logs', [
+            'dispute_id' => $dispute->id,
             'user_id' => $this->manajemenA->id,
         ]);
 
-        $latestLog = LogSengketa::where('sengketa_id', $dispute->id)->latest('id')->first();
+        $latestLog = LogSengketa::where('dispute_id', $dispute->id)->latest('id')->first();
         $this->assertNotNull($latestLog);
-        $this->assertNotNull($latestLog->file_bukti);
-        Storage::disk(PenerimaanBarangService::STORAGE_DISK)->assertExists($latestLog->file_bukti);
+        $this->assertNotNull($latestLog->attachment_path);
+        Storage::disk(PenerimaanBarangService::STORAGE_DISK)->assertExists($latestLog->attachment_path);
 
         // Notifications dispatched to purchasing and owner
         $this->assertDatabaseHas('notifications', [
@@ -444,7 +445,7 @@ class LogSengketaTest extends TestCase
 
     public function test_cannot_store_tinjauan_on_resolved_dispute(): void
     {
-        $dispute = $this->createDispute($this->tenantA, $this->vendorA, StatusSengketa::Selesai);
+        $dispute = $this->createDispute($this->tenantA, $this->vendorA, StatusSengketa::Resolved);
 
         $this->actingAs($this->manajemenA)
             ->post("/log-sengketa/{$dispute->uuid}/tinjauan", [
@@ -453,9 +454,9 @@ class LogSengketaTest extends TestCase
             ->assertForbidden();
 
         // Status remains selesai
-        $this->assertDatabaseHas('sengketa', [
+        $this->assertDatabaseHas('disputes', [
             'id' => $dispute->id,
-            'status' => StatusSengketa::Selesai->value,
+            'status' => StatusSengketa::Resolved->value,
         ]);
     }
 

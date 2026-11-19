@@ -30,6 +30,8 @@ import {
     DialogTitle,
 } from '@/Components/ui/dialog';
 import { SengketaStatusBadge, SengketaTriggerBadge } from '@/Pages/LogSengketa/columns';
+import { DokumenPenyelesaianCard } from '@/Pages/LogSengketa/components/DokumenPenyelesaianCard';
+import { PenyelesaianPanel } from '@/Pages/LogSengketa/components/PenyelesaianPanel';
 import { TinjauanSengketaForm } from '@/Pages/LogSengketa/components/TinjauanSengketaForm';
 
 function DetailRow({ label, children }) {
@@ -54,7 +56,7 @@ const LOG_TYPE_STYLES = {
     note: 'bg-zinc-400',
 };
 
-export default function LogSengketaShow({ dispute: rawDispute }) {
+export default function LogSengketaShow({ dispute: rawDispute, settlement }) {
     const dispute = rawDispute?.data ?? rawDispute;
     const po = dispute?.purchase_order;
     const item = dispute?.disputed_item;
@@ -62,8 +64,7 @@ export default function LogSengketaShow({ dispute: rawDispute }) {
     const invoice = dispute?.disputed_invoice;
     const messages = dispute?.negotiation_messages ?? [];
     const logs = dispute?.logs ?? [];
-    const isResolved = dispute?.status === 'selesai' || dispute?.status === 'resolved';
-    const isOpenStatus = dispute?.status === 'terbuka' || dispute?.status === 'open';
+    const isResolved = dispute?.status === 'resolved';
 
     const [previewPhoto, setPreviewPhoto] = useState(null);
 
@@ -277,6 +278,8 @@ export default function LogSengketaShow({ dispute: rawDispute }) {
                             </Card>
                         )}
 
+                        <DokumenPenyelesaianCard dispute={dispute} />
+
                         {/* Riwayat Smart Negotiation Chat */}
                         <Card className="shadow-sm">
                             <CardHeader className="border-b">
@@ -385,11 +388,14 @@ export default function LogSengketaShow({ dispute: rawDispute }) {
 
                     {/* Panel Samping */}
                     <div className="lg:col-span-1 space-y-5">
-                        {dispute?.can?.review && (
+                        <PenyelesaianPanel dispute={dispute} resolveBlocker={settlement?.resolve_blocker ?? null} />
+
+                        {(dispute?.can?.review || dispute?.can?.respond) && (
                             <TinjauanSengketaForm
                                 disputeUuid={dispute.uuid}
                                 poNumber={dispute.po_number}
-                                isOpenStatus={isOpenStatus}
+                                status={dispute.status}
+                                mode={dispute.can.respond ? 'respond' : 'review'}
                             />
                         )}
 

@@ -33,7 +33,7 @@ class KomoditasFactory extends Factory
             'commodity_category_id' => CommodityCategory::factory(),
             'unit' => fake()->randomElement(['kg', 'ton', 'sak', 'liter']),
             'default_shrinkage_tolerance' => fake()->randomFloat(2, 0, 10),
-            'api_reference_code' => (string) fake()->numberBetween(100, 999),
+            'api_reference_code' => null,
             'specification' => fake()->sentence(),
             'is_active' => true,
         ];

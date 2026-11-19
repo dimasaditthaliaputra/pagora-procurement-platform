@@ -129,7 +129,7 @@ class KomoditasTest extends TestCase
             'unit' => 'sak',
             'sku' => 'BRS-RJL-50',
             'commodity_category_uuid' => $category->uuid,
-            'api_reference_code' => '102',
+            'api_reference_code' => 'com_3',
             'specification' => 'Kadar air maksimal 14 persen',
             'is_active' => true,
         ];

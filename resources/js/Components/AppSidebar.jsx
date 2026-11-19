@@ -29,7 +29,7 @@ import { ThemeToggle } from '@/Components/ThemeToggle';
 import { NotificationBell } from '@/Components/NotificationBell';
 import {
     LayoutDashboard,
-    Package,
+    ChartLine,
     Users,
     FileText,
     Settings,
@@ -76,7 +76,7 @@ export function AppSidebar({ className, ...props }) {
                 items: [
                     { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', routeName: 'dashboard' },
                     { title: 'Pengadaan', icon: FileText, href: '/purchase-order', routeName: 'purchase-order', ability: 'purchase_order.view_any' },
-                    { title: 'Katalog & Pagu', icon: Package, href: '#', badge: 'Segera' },
+                    { title: 'Dashboard Analitik', icon: ChartLine, href: '/analitik-harga', routeName: 'analitik-harga', ability: 'harga_pagu.view_any' },
                     { title: 'Pengiriman', icon: Truck, href: '/pengiriman', routeName: 'pengiriman', ability: 'pengiriman.view_any' },
                     { title: 'Inspeksi QC', icon: ClipboardCheck, href: '/inspeksi-qc', routeName: 'inspeksi-qc', ability: 'penerimaan_barang.view_any' },
                     { title: 'Verifikasi Tagihan', icon: Receipt, href: '/verifikasi-tagihan', routeName: 'verifikasi-tagihan.index', ability: 'invoice.verify_any' },

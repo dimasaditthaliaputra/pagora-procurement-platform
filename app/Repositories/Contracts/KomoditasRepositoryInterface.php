@@ -6,6 +6,7 @@ namespace App\Repositories\Contracts;
 
 use App\Models\Komoditas;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 interface KomoditasRepositoryInterface
 {
@@ -59,4 +60,31 @@ interface KomoditasRepositoryInterface
      * Check if an SKU already exists, optionally ignoring a specific UUID.
      */
     public function skuExists(string $sku, ?string $ignoreUuid = null): bool;
+
+    /**
+     * Active commodities enabled for a Tenant, ordered by name.
+     * A Tenant without any `tenant_commodities` rows sees every active commodity.
+     *
+     * @return Collection<int, Komoditas>
+     */
+    public function getActiveForTenant(int $tenantId): Collection;
+
+    /**
+     * Active commodities mapped to a Bank Indonesia commodity code.
+     *
+     * @return Collection<int, Komoditas>
+     */
+    public function getActiveWithApiReference(): Collection;
+
+    /**
+     * Bank Indonesia codes already mapped to a (non-deleted) commodity.
+     *
+     * @return list<string>
+     */
+    public function getMappedApiReferenceCodes(): array;
+
+    /**
+     * Check if a (non-deleted) commodity already uses this name, case-insensitively.
+     */
+    public function nameExists(string $name): bool;
 }

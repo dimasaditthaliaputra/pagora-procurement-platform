@@ -11,6 +11,7 @@ use App\Http\Requests\Komoditas\UpdateKomoditasRequest;
 use App\Http\Resources\KomoditasResource;
 use App\Models\Komoditas;
 use App\Services\KomoditasService;
+use App\Services\PriceServiceException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -64,6 +65,7 @@ class KomoditasController extends Controller
         return Inertia::render('Master/Komoditas/Create', [
             'satuan_options' => $this->service->getSatuanOptions(),
             'category_options' => $this->service->getCategoryOptions(),
+            'bi_commodities' => $this->service->getBiCommodityOptions(),
         ]);
     }
 
@@ -86,6 +88,32 @@ class KomoditasController extends Controller
     }
 
     /**
+     * Create commodities for every Bank Indonesia commodity that is not mapped yet.
+     */
+    public function importBankIndonesia(Request $request): JsonResponse|RedirectResponse
+    {
+        try {
+            $result = $this->service->importFromBankIndonesia($request->user());
+
+            $message = $result['created'] > 0
+                ? "{$result['created']} komoditas Bank Indonesia berhasil diimpor."
+                : 'Semua komoditas Bank Indonesia sudah terdaftar.';
+
+            if ($result['created'] > 0 && $result['skipped'] > 0) {
+                $message .= " {$result['skipped']} komoditas dilewati karena sudah terdaftar.";
+            }
+
+            return ResponseHelper::success($message, $result, route('master.komoditas.index'));
+        } catch (AuthorizationException) {
+            return ResponseHelper::forbidden('Anda tidak memiliki akses untuk mengimpor komoditas.');
+        } catch (PriceServiceException) {
+            return ResponseHelper::badRequest('Daftar komoditas Bank Indonesia tidak dapat diambil. Silakan coba lagi nanti.');
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Gagal mengimpor komoditas Bank Indonesia.', $e);
+        }
+    }
+
+    /**
      * Show the form for editing the specified commodity.
      */
     public function edit(string $uuid): Response|JsonResponse|RedirectResponse
@@ -97,6 +125,7 @@ class KomoditasController extends Controller
                 'komoditas' => new KomoditasResource($komoditas),
                 'satuan_options' => $this->service->getSatuanOptions(),
                 'category_options' => $this->service->getCategoryOptions(),
+                'bi_commodities' => $this->service->getBiCommodityOptions(),
             ]);
         } catch (ModelNotFoundException) {
             return ResponseHelper::notFound('Komoditas tidak ditemukan.');

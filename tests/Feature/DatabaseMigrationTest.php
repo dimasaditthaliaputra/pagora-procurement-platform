@@ -27,8 +27,8 @@ class DatabaseMigrationTest extends TestCase
             'commodity_categories',
             'commodities',
             'tenant_commodities',
-            'harga_referensi_komoditas',
-            'prediksi_harga',
+            'commodity_reference_prices',
+            'price_predictions',
             'purchase_order',
             'po_item',
             'chat_negosiasi',
@@ -212,24 +212,24 @@ class DatabaseMigrationTest extends TestCase
             'updated_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('harga_referensi_komoditas', [
+        $this->assertTrue(Schema::hasColumns('commodity_reference_prices', [
             'id',
             'uuid',
-            'komoditas_id',
-            'tanggal',
-            'harga',
-            'sumber_data',
+            'commodity_id',
+            'date',
+            'price',
+            'source',
             'created_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('prediksi_harga', [
+        $this->assertTrue(Schema::hasColumns('price_predictions', [
             'id',
             'uuid',
-            'komoditas_id',
-            'tanggal_prediksi',
-            'harga_prediksi',
-            'harga_pagu_rekomendasi',
-            'dihitung_pada',
+            'commodity_id',
+            'prediction_date',
+            'predicted_price',
+            'recommended_ceiling_price',
+            'calculated_at',
         ]));
 
         $this->assertTrue(Schema::hasColumns('purchase_order', [

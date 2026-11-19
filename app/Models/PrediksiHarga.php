@@ -11,22 +11,26 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * One row per predicted day. Each forecast run inserts a new batch sharing `calculated_at`;
+ * rows are never updated because purchase orders keep a reference to the batch they used.
+ */
 #[Fillable([
     'uuid',
-    'komoditas_id',
-    'tanggal_prediksi',
-    'harga_prediksi',
-    'harga_pagu_rekomendasi',
-    'dihitung_pada',
+    'commodity_id',
+    'prediction_date',
+    'predicted_price',
+    'recommended_ceiling_price',
+    'calculated_at',
 ])]
-#[Hidden(['id'])]
+#[Hidden(['id', 'commodity_id'])]
 class PrediksiHarga extends Model
 {
     use HasUuids;
 
     public $timestamps = false;
 
-    protected $table = 'prediksi_harga';
+    protected $table = 'price_predictions';
 
     /**
      * Columns that store UUIDs.
@@ -54,16 +58,16 @@ class PrediksiHarga extends Model
     protected function casts(): array
     {
         return [
-            'tanggal_prediksi' => 'date',
-            'harga_prediksi' => 'decimal:2',
-            'harga_pagu_rekomendasi' => 'decimal:2',
-            'dihitung_pada' => 'datetime',
+            'prediction_date' => 'date',
+            'predicted_price' => 'decimal:2',
+            'recommended_ceiling_price' => 'decimal:2',
+            'calculated_at' => 'datetime',
         ];
     }
 
     public function komoditas(): BelongsTo
     {
-        return $this->belongsTo(Komoditas::class, 'komoditas_id');
+        return $this->belongsTo(Komoditas::class, 'commodity_id');
     }
 
     public function purchaseOrders(): HasMany

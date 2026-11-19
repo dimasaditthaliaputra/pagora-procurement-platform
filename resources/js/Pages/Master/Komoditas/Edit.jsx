@@ -8,6 +8,7 @@ export default function KomoditasEdit({
     komoditas,
     satuan_options = [],
     category_options = [],
+    bi_commodities = { available: false, options: [] },
 }) {
     const item = komoditas?.data ?? komoditas;
 
@@ -48,6 +49,7 @@ export default function KomoditasEdit({
                     isEdit={true}
                     satuan_options={satuan_options}
                     category_options={category_options}
+                    bi_commodities={bi_commodities}
                 />
             </div>
         </DashboardLayout>

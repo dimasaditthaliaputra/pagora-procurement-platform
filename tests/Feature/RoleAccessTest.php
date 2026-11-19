@@ -59,6 +59,7 @@ class RoleAccessTest extends TestCase
     {
         $none = [
             'purchase_order.view_any' => false,
+            'harga_pagu.view_any' => false,
             'pengiriman.view_any' => false,
             'penerimaan_barang.view_any' => false,
             'sengketa.view_any' => false,
@@ -88,6 +89,7 @@ class RoleAccessTest extends TestCase
             'owner' => [RoleName::Owner, [
                 ...$none,
                 'purchase_order.view_any' => true,
+                'harga_pagu.view_any' => true,
                 'pengiriman.view_any' => true,
                 'penerimaan_barang.view_any' => true,
                 'sengketa.view_any' => true,
@@ -105,6 +107,7 @@ class RoleAccessTest extends TestCase
             'purchasing' => [RoleName::Purchasing, [
                 ...$none,
                 'purchase_order.view_any' => true,
+                'harga_pagu.view_any' => true,
                 'pengiriman.view_any' => true,
                 'penerimaan_barang.view_any' => true,
                 'sengketa.view_any' => true,
@@ -318,7 +321,7 @@ class RoleAccessTest extends TestCase
                 ->component('Manajemen/RoleAkses/Index')
                 ->has('roles.data', 6)
                 ->where('roles.data', fn ($roles) => collect($roles)->firstWhere('name', 'owner')['users_count'] === 1)
-                ->has('permission_groups', 11)
+                ->has('permission_groups', 12)
             );
     }
 

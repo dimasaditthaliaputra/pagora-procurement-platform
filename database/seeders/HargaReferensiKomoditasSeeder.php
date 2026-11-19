@@ -54,8 +54,8 @@ class HargaReferensiKomoditasSeeder extends Seeder
                 continue;
             }
 
-            HargaReferensiKomoditas::where('komoditas_id', $komoditas->id)
-                ->where('sumber_data', 'seeder')
+            HargaReferensiKomoditas::where('commodity_id', $komoditas->id)
+                ->where('source', HargaReferensiKomoditas::SOURCE_SEEDER)
                 ->delete();
 
             $rows = [];
@@ -69,10 +69,10 @@ class HargaReferensiKomoditasSeeder extends Seeder
 
                 $rows[] = [
                     'uuid' => (string) Str::uuid(),
-                    'komoditas_id' => $komoditas->id,
-                    'tanggal' => now()->subDays($hari)->toDateString(),
-                    'harga' => round($harga, 2),
-                    'sumber_data' => 'seeder',
+                    'commodity_id' => $komoditas->id,
+                    'date' => now()->subDays($hari)->toDateString(),
+                    'price' => round($harga, 2),
+                    'source' => HargaReferensiKomoditas::SOURCE_SEEDER,
                     'created_at' => $now,
                 ];
             }

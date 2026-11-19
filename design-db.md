@@ -54,8 +54,8 @@
 | 10 | `commodity_categories` | ✅ [baru] (modul 3) | `CommodityCategory` | Kategori global |
 | 11 | `commodities` | ✅ `commodities` (modul 3; dulu `komoditas`) | `Komoditas` | Master komoditas global |
 | 12 | `tenant_commodities` | ✅ [baru] (modul 3) | `TenantCommodity` | Aktivasi & toleransi susut per Tenant |
-| 13 | `commodity_reference_prices` | `harga_referensi_komoditas` | `HargaReferensiKomoditas` | Riwayat harga API BI |
-| 14 | `price_predictions` | `prediksi_harga` | `PrediksiHarga` | Hasil regresi + Harga Pagu |
+| 13 | `commodity_reference_prices` | ✅ `commodity_reference_prices` (modul 5; dulu `harga_referensi_komoditas`) | `HargaReferensiKomoditas` | Riwayat harga API BI |
+| 14 | `price_predictions` | ✅ `price_predictions` (modul 5; dulu `prediksi_harga`) | `PrediksiHarga` | Hasil regresi + Harga Pagu |
 | 15 | `purchase_orders` | `purchase_order` | `PurchaseOrder` | Header PO |
 | 16 | `purchase_order_items` | `po_item` | `PoItem` | Item PO |
 | 17 | `negotiation_messages` | `chat_negosiasi` | `ChatNegosiasi` | Pesan & tawaran (immutable) |
@@ -300,7 +300,7 @@ Dikelola Superadmin (global).
 
 Unique: (`tenant_id`, `commodity_id`).
 
-### 4.13 `commodity_reference_prices` (saat ini `harga_referensi_komoditas`)
+### 4.13 `commodity_reference_prices` ✅ (modul 5; dulu `harga_referensi_komoditas`)
 | Kolom | Tipe | Saat ini | Catatan |
 |---|---|---|---|
 | commodity_id | FK→commodities NN | `komoditas_id` | |
@@ -311,7 +311,7 @@ Unique: (`tenant_id`, `commodity_id`).
 
 Unique: (`commodity_id`, `date`, `source`). Index: (`commodity_id`, `date`).
 
-### 4.14 `price_predictions` (saat ini `prediksi_harga`)
+### 4.14 `price_predictions` ✅ (modul 5; dulu `prediksi_harga`)
 | Kolom | Tipe | Saat ini | Catatan |
 |---|---|---|---|
 | commodity_id | FK→commodities NN | `komoditas_id` | |
@@ -320,7 +320,7 @@ Unique: (`commodity_id`, `date`, `source`). Index: (`commodity_id`, `date`).
 | recommended_ceiling_price | decimal(15,2) NN | `harga_pagu_rekomendasi` | **Harga Pagu** |
 | calculated_at | timestamp NN | `dihitung_pada` | |
 
-Index: (`commodity_id`, `prediction_date`). Rumus Harga Pagu di satu Service; sementara `predicted_price × 1.05` (§8.5).
+Index: (`commodity_id`, `prediction_date`), (`commodity_id`, `calculated_at`). Satu baris per hari prediksi; setiap perhitungan menambah **batch** baru dengan `calculated_at` yang sama (baris lama tidak diubah karena dirujuk `purchase_order.prediksi_harga_id`). **Harga Pagu = `recommended_ceiling_price` tertinggi dalam batch terbaru** (horizon 30 hari; keputusan pemilik proyek 2026-11-19). Rumus di `PricePredictionService::ceilingPrice()`; sementara `predicted_price × 1.05` (§8.5).
 
 ### 4.15 `purchase_orders` (saat ini `purchase_order`, softDeletes untuk draf)
 | Kolom | Tipe | Saat ini | Catatan |
@@ -548,7 +548,7 @@ Karena migration lama sudah di `main`, refactor dilakukan **per modul** dengan m
 2. `tenants`, `vendors`, `vendor_legal_documents`, `vendor_invitations`, `settings`
 3. ✅ `commodity_categories` [baru] → `commodities` (pindahkan `kategori` string ke FK) → `tenant_commodities` [baru]; `vendor_commodity_categories` [baru] **belum**, dikerjakan bersama registrasi vendor ≥ 1 kategori
 4. ✅ `partnerships`
-5. `commodity_reference_prices`, `price_predictions`
+5. ✅ `commodity_reference_prices`, `price_predictions`
 6. `purchase_orders`, `purchase_order_items`, `negotiation_messages`
 7. `shipments`, `goods_receipts`, `goods_receipt_items`
 8. `invoices`, `invoice_items` [baru], `payments` [baru]
@@ -629,8 +629,8 @@ SQL);
 | Urutan | Seeder (saat ini) | Jenis | Isi target |
 |---|---|---|---|
 | 1 | `RoleSeeder` | reference | 6 role; id 2 = `purchasing` |
-| 2 | `CommodityCategorySeeder` [baru] ⚠️ | reference | Kategori dari `KomoditasSeeder` (Pangan Pokok, Bumbu & Rempah, …) |
-| 3 | `KomoditasSeeder` | reference | ~10 komoditas global dengan `commodity_category_id` |
+| 2 | `CommodityCategorySeeder` [baru] ⚠️ | reference | Kategori master (Pangan Pokok, Bumbu & Rempah, …); dipakai pemetaan kategori saat impor komoditas BI |
+| 3 | ~~`KomoditasSeeder`~~ (dihapus 2026-11-19) | — | Komoditas tidak di-seed. Superadmin mengimpor dari PIHPS BI (Master Komoditas → **Impor dari BI**); seeder demo yang butuh komoditas/PO dilewati bila belum ada |
 | 4 | `PerusahaanBuyerSeeder` | demo | 1 Tenant `approved` (+ 1 `pending` untuk uji verifikasi ⚠️) |
 | 5 | `VendorSeeder` | demo | 3 vendor: 2 `approved`, 1 `pending`; + kategori komoditas |
 | 6 | `UserSeeder` | demo | Akun §8.3 |
@@ -638,7 +638,7 @@ SQL);
 | 8 | `TenantCommoditySeeder` [baru] ⚠️ | demo | Aktivasi komoditas untuk Tenant demo |
 | 9 | `KerjaSamaSeeder` | demo | 2 mitra `agreed`, 1 `pending`, 1 `blocked` |
 | 10 | `HargaReferensiKomoditasSeeder` | demo | ±90 hari histori per komoditas |
-| 11 | `PrediksiHargaSeeder` | demo | 1 prediksi terbaru per komoditas |
+| 11 | `PrediksiHargaSeeder` | demo | 1 batch prediksi 30 hari per komoditas (regresi atas data dummy, tanpa memanggil price service) |
 | 12 | `PurchaseOrderSeeder` | demo | Skenario §8.4 + item + pesan negosiasi |
 | 13 | `PengirimanSeeder` | demo | Untuk PO ≥ `in_transit` (+ 1 pengiriman ulang) |
 | 14 | `PenerimaanBarangSeeder` | demo | Item `accepted` + 1 item `rejected` berfoto |
@@ -726,6 +726,7 @@ Cocok bila untuk setiap item: `invoice_items.quantity ≤ kuantitas diterima yan
 | 2026-11-17 | Tambah kolom `is_pkp` di tabel `vendors` (boolean default false) untuk status PKP (PPN / Non PPN), serta tipe dokumen `sppkp` dan `akta` di `vendor_legal_documents` (PRD UC-02, FR-02) | — |
 | 2026-11-18 | Tambah kolom `business_entity` di tabel `vendors` (string(30) default `pt`) untuk Bentuk Badan Usaha (`pt`, `cv`, `firma`, `koperasi`, `perorangan`), serta pemisahan tipe dokumen `akta` (Akta Pendirian) dan `sk_kemenkumham` (SK Kemenkumham) di `vendor_legal_documents` (Wajib bila badan hukum, disembunyikan bila Perorangan/UD) | — |
 | 2026-11-19 | Drop constraint UNIQUE pada `tenants.tax_number` via migration 2026_11_19_000001 untuk skenario kantor cabang; implementasi `RegistrationSecurityGuardService` (Pre-Registration Blacklist Guard & Pending Spam Guard) serta sistem peringatan flag duplikasi dokumen legalitas untuk Admin Verifikator (Tenant & Vendor) | — |
+| 2026-11-19 | **Modul 5 selesai**: `harga_referensi_komoditas` → `commodity_reference_prices` (`commodity_id`, `date`, `price`, `source` `bank_indonesia`/`seeder`; UNIQUE (`commodity_id`, `date`, `source`) untuk upsert sinkronisasi BI); `prediksi_harga` → `price_predictions` (`commodity_id`, `prediction_date`, `predicted_price`, `recommended_ceiling_price`, `calculated_at`; index tambahan (`commodity_id`, `calculated_at`) untuk batch terbaru). Migration `2026_11_19_083605_*`, `2026_11_19_083606_*`. Permission `harga_pagu.view_any` (default owner, purchasing). `api_reference_code` = kode PIHPS (`com_N`), dipilih dari daftar BI di form Komoditas (unik per komoditas aktif) atau lewat **Impor dari BI**; `KomoditasSeeder` dihapus. Data dari price service (jenis harga 3 = Pedagang Besar) (UC-11, FR-15, FR-16) | — |
 
 ## 12. Keputusan Teknis (2026-10-31)
 

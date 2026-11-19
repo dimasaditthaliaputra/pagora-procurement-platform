@@ -61,4 +61,53 @@ interface DashboardRepositoryInterface
      * @return list<array{uuid: string, category: string, title: string, description: string, status: string, action_url: string, occurred_at: string|null}>
      */
     public function getRecentGovernanceActivities(int $limit = 8): array;
+
+    /**
+     * Get tenant profile summary for Manajemen dashboard header.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getTenantProfileForManajemen(int $tenantId): ?array;
+
+    /**
+     * Get tenant-scoped summary KPI metrics for role Manajemen.
+     *
+     * @return array<string, array<string, int>>
+     */
+    public function getManajemenSummaryMetrics(int $tenantId): array;
+
+    /**
+     * Get active (open or in_mediation) disputes for the given Tenant (UC-18, FR-31).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getManajemenActiveDisputes(int $tenantId, int $limit = 5): array;
+
+    /**
+     * Get recent vendor partnerships & blocked vendors for the given Tenant (UC-10, UC-19).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getManajemenVendorPartnerships(int $tenantId, int $limit = 5): array;
+
+    /**
+     * Get recent QC rejected items / damage reports for the given Tenant (UC-15).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getManajemenRecentQcRejections(int $tenantId, int $limit = 5): array;
+
+    /**
+     * Get configured commodities & shrinkage tolerances for the given Tenant (UC-09, FR-35).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getManajemenTenantCommodities(int $tenantId, int $limit = 6): array;
+
+    /**
+     * Get 6-month operational trend (PO, QC inspections, Disputes) for the given Tenant.
+     *
+     * @return list<array{month_key: string, label: string, purchase_orders_count: int, qc_inspections_count: int, disputes_count: int}>
+     */
+    public function getManajemenMonthlyTrend(int $tenantId, int $months = 6): array;
 }

@@ -4,13 +4,21 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\PemicuSengketa;
 use App\Enums\RoleName;
+use App\Enums\StatusKerjaSama;
+use App\Enums\StatusPurchaseOrder;
+use App\Enums\StatusSengketa;
 use App\Enums\VerificationStatus;
 use App\Models\CommodityCategory;
 use App\Models\DokumenLegalitasVendor;
+use App\Models\KerjaSama;
 use App\Models\Komoditas;
 use App\Models\PerusahaanBuyer;
+use App\Models\PurchaseOrder;
 use App\Models\Role;
+use App\Models\Sengketa;
+use App\Models\TenantCommodity;
 use App\Models\User;
 use App\Models\Vendor;
 use Database\Seeders\PermissionSeeder;
@@ -154,6 +162,128 @@ class SuperadminDashboardTest extends TestCase
                 ->component('Dashboard')
                 ->where('is_superadmin', false)
                 ->where('superadmin_dashboard', null)
+                ->where('is_manajemen', false)
+                ->where('manajemen_dashboard', null)
+            );
+    }
+
+    public function test_manajemen_receives_tenant_scoped_dashboard_metrics_and_excludes_other_tenants(): void
+    {
+        $tenantA = PerusahaanBuyer::where('company_name', 'PT Pangan Makmur Sejahtera')->firstOrFail();
+        $tenantB = PerusahaanBuyer::factory()->create([
+            'company_name' => 'PT Tenant Lain Terisolasi',
+            'verification_status' => VerificationStatus::Approved->value,
+            'is_active' => true,
+        ]);
+
+        $manajemenA = User::factory()->create([
+            'name' => 'Manajemen Tenant A',
+            'email' => 'manajemen-a@pagora.test',
+            'role_id' => Role::where('name', RoleName::Manajemen->value)->value('id'),
+            'tenant_id' => $tenantA->id,
+            'is_active' => true,
+        ]);
+
+        $vendor = Vendor::create([
+            'company_name' => 'PT Mitra Pemasok Utama',
+            'slug' => 'pt-mitra-pemasok-utama-'.Str::lower(Str::random(5)),
+            'business_entity' => 'PT',
+            'contact_email' => 'mitra@vendor.test',
+            'phone' => '081234560001',
+            'verification_status' => VerificationStatus::Approved->value,
+            'is_active' => true,
+        ]);
+
+        KerjaSama::create([
+            'uuid' => (string) Str::uuid(),
+            'tenant_id' => $tenantA->id,
+            'vendor_id' => $vendor->id,
+            'requested_by' => 'tenant',
+            'status' => StatusKerjaSama::Agreed->value,
+        ]);
+
+        // Partnership belonging to Tenant B (must not be counted for Tenant A)
+        KerjaSama::create([
+            'uuid' => (string) Str::uuid(),
+            'tenant_id' => $tenantB->id,
+            'vendor_id' => $vendor->id,
+            'requested_by' => 'vendor',
+            'status' => StatusKerjaSama::Pending->value,
+        ]);
+
+        $commodity = Komoditas::firstOrFail();
+        TenantCommodity::create([
+            'tenant_id' => $tenantA->id,
+            'commodity_id' => $commodity->id,
+            'is_active' => true,
+            'shrinkage_tolerance' => 2.25,
+        ]);
+
+        $poA = PurchaseOrder::create([
+            'uuid' => (string) Str::uuid(),
+            'nomor_po' => 'PO-MJM-A001',
+            'perusahaan_buyer_id' => $tenantA->id,
+            'vendor_id' => $vendor->id,
+            'created_by' => $this->owner->id,
+            'status' => StatusPurchaseOrder::DalamPengiriman->value,
+            'tanggal_po' => now()->toDateString(),
+        ]);
+
+        $poB = PurchaseOrder::create([
+            'uuid' => (string) Str::uuid(),
+            'nomor_po' => 'PO-MJM-B001',
+            'perusahaan_buyer_id' => $tenantB->id,
+            'vendor_id' => $vendor->id,
+            'created_by' => $this->owner->id,
+            'status' => StatusPurchaseOrder::DalamPengiriman->value,
+            'tanggal_po' => now()->toDateString(),
+        ]);
+
+        Sengketa::create([
+            'uuid' => (string) Str::uuid(),
+            'purchase_order_id' => $poA->id,
+            'trigger_type' => PemicuSengketa::GoodsMismatch->value,
+            'reason' => 'Kemasan beras sobek saat tiba di gudang A.',
+            'dibuka_oleh' => $this->owner->id,
+            'status' => StatusSengketa::Terbuka->value,
+            'tanggal_dibuka' => now(),
+        ]);
+
+        // Dispute belonging to Tenant B (must not leak to Tenant A)
+        Sengketa::create([
+            'uuid' => (string) Str::uuid(),
+            'purchase_order_id' => $poB->id,
+            'trigger_type' => PemicuSengketa::GoodsMismatch->value,
+            'reason' => 'Sengketa milik Tenant B.',
+            'dibuka_oleh' => $this->owner->id,
+            'status' => StatusSengketa::Terbuka->value,
+            'tanggal_dibuka' => now(),
+        ]);
+
+        $this->actingAs($manajemenA)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Dashboard')
+                ->where('is_superadmin', false)
+                ->where('superadmin_dashboard', null)
+                ->where('is_manajemen', true)
+                ->where('manajemen_dashboard.company.company_name', 'PT Pangan Makmur Sejahtera')
+                ->where('manajemen_dashboard.summary.disputes.total', 1)
+                ->where('manajemen_dashboard.summary.disputes.open', 1)
+                ->where('manajemen_dashboard.summary.partnerships.total', 1)
+                ->where('manajemen_dashboard.summary.partnerships.agreed', 1)
+                ->where('manajemen_dashboard.summary.qc_inspections.in_transit_orders', 1)
+                ->where('manajemen_dashboard.summary.commodities.tenant_active', 1)
+                ->where('manajemen_dashboard.summary.commodities.custom_tolerance_count', 1)
+                ->has('manajemen_dashboard.active_disputes', 1)
+                ->where('manajemen_dashboard.active_disputes.0.po_number', 'PO-MJM-A001')
+                ->missing('manajemen_dashboard.active_disputes.0.id')
+                ->has('manajemen_dashboard.vendor_partnerships', 1)
+                ->where('manajemen_dashboard.vendor_partnerships.0.vendor_name', 'PT Mitra Pemasok Utama')
+                ->missing('manajemen_dashboard.vendor_partnerships.0.id')
+                ->has('manajemen_dashboard.tenant_commodities', 1)
+                ->has('manajemen_dashboard.monthly_trend', 6)
             );
     }
 }

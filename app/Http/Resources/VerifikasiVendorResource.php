@@ -25,6 +25,8 @@ class VerifikasiVendorResource extends JsonResource
         return [
             'uuid' => $this->uuid,
             'company_name' => $this->company_name,
+            'tax_number' => $this->tax_number,
+            'is_pkp' => (bool) $this->is_pkp,
             'contact_email' => $this->contact_email,
             'phone' => $this->phone,
             'address' => $this->address,

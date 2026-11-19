@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -23,7 +23,7 @@ import { useCountdown } from '@/hooks/use-countdown';
 import { FlashHandler } from '@/Components/flash-handler';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
-import { isEmail, isNpwp, isPhoneNumber, normalizeNpwp, normalizePhoneNumber } from '@/lib/validators';
+import { isEmail, isNpwp, isPhoneNumber, normalizePhoneNumber, limitNpwpInput, limitNibInput, limitKtpInput, limitPhoneInput } from '@/lib/validators';
 import {
     Building2,
     ArrowRight,
@@ -120,7 +120,39 @@ export default function Register({ google_user = null, status = null, acceptance
     const [verifiedOtpInfo, setVerifiedOtpInfo] = useState(null);
     const [verifyingOtp, setVerifyingOtp] = useState(false);
     const [sendingOtp, setSendingOtp] = useState(false);
+    const [otpSentAt, setOtpSentAt] = useState(null);
+    const [isOtpExpired, setIsOtpExpired] = useState(false);
     const resend = useCountdown();
+
+    const OTP_TTL_MS = 10 * 60 * 1000; // 10 menit
+
+    useEffect(() => {
+        const originalBodyOverflow = document.body.style.overflow;
+        const originalHtmlOverflow = document.documentElement.style.overflow;
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = originalBodyOverflow;
+            document.documentElement.style.overflow = originalHtmlOverflow;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!otpSentAt || isGoogle) {
+            return;
+        }
+
+        const checkExpiry = () => {
+            if (Date.now() - otpSentAt >= OTP_TTL_MS) {
+                setIsOtpExpired(true);
+            }
+        };
+
+        checkExpiry();
+        const interval = setInterval(checkExpiry, 5000);
+        return () => clearInterval(interval);
+    }, [otpSentAt, isGoogle]);
 
     const clearLegalDocumentErrors = () => {
         const docErrorKeys = Object.keys(errors).filter(
@@ -183,17 +215,21 @@ export default function Register({ google_user = null, status = null, acceptance
 
     const hasLegalDocumentsError = Object.keys(errors).some(
         (key) =>
+            key === 'dokumen_npwp' ||
+            key === 'file_npwp' ||
+            key === 'dokumen_nib' ||
+            key === 'file_nib' ||
+            key === 'dokumen_ktp' ||
+            key === 'file_ktp' ||
+            key === 'nomor_nib' ||
+            key === 'nomor_ktp' ||
             key === 'legal_documents' ||
             key.startsWith('legal_documents.') ||
-            key === 'dokumen_npwp' ||
-            key === 'dokumen_nib' ||
-            key === 'dokumen_ktp' ||
-            key === 'file_npwp' ||
-            key === 'file_nib' ||
-            key === 'file_ktp'
+            key === 'terms_accepted'
     );
 
     const isOtpVerified = isGoogle || Boolean(
+        !isOtpExpired &&
         verifiedOtpInfo &&
         verifiedOtpInfo.email === data.email.trim().toLowerCase() &&
         verifiedOtpInfo.otp === data.otp &&
@@ -216,6 +252,8 @@ export default function Register({ google_user = null, status = null, acceptance
 
         clearErrors('email', 'otp');
         setVerifiedOtpInfo(null);
+        setOtpSentAt(null);
+        setIsOtpExpired(false);
         setData('otp', '');
         setSendingOtp(true);
 
@@ -239,6 +277,9 @@ export default function Register({ google_user = null, status = null, acceptance
             if (response.ok && result.success) {
                 setOtpSent(true);
                 setLastOtpEmail(trimmedEmail.toLowerCase());
+                setOtpSentAt(Date.now());
+                setIsOtpExpired(false);
+                clearErrors('otp');
                 resend.start(60);
                 notify.success(result.message || 'Kode OTP telah dikirim ke email bisnis Anda.');
                 if (typeof onSuccessCallback === 'function') {
@@ -438,6 +479,14 @@ export default function Register({ google_user = null, status = null, acceptance
             return;
         }
 
+        const otpExpiredNow = !isGoogle && otpSentAt && (Date.now() - otpSentAt >= OTP_TTL_MS);
+        if (isOtpExpired || otpExpiredNow) {
+            setIsOtpExpired(true);
+            setError('otp', 'Kode OTP Anda telah kedaluwarsa (lebih dari 10 menit). Silakan ajukan kode baru.');
+            notify.error('Sesi verifikasi OTP Anda telah berakhir (lebih dari 10 menit). Silakan ajukan kode baru.');
+            return;
+        }
+
         if (isOtpVerified) {
             setStep(3);
             return;
@@ -462,18 +511,16 @@ export default function Register({ google_user = null, status = null, acceptance
             hasError = true;
         }
 
-        const normalizedTelepon = normalizePhoneNumber(data.telepon);
-        if (!normalizedTelepon) {
+        const rawTelepon = (data.telepon || '').trim();
+        if (!rawTelepon) {
             setError('telepon', 'Nomor telepon perusahaan wajib diisi.');
             hasError = true;
-        } else if (!isPhoneNumber(normalizedTelepon)) {
+        } else if (!isPhoneNumber(rawTelepon)) {
             setError(
                 'telepon',
                 'Format nomor telepon tidak valid. Gunakan 8–15 digit angka, contoh: 081234567890.'
             );
             hasError = true;
-        } else if (normalizedTelepon !== data.telepon) {
-            setData('telepon', normalizedTelepon);
         }
 
         const trimmedAlamat = data.alamat.trim();
@@ -505,18 +552,16 @@ export default function Register({ google_user = null, status = null, acceptance
         clearErrors('nomor_npwp', 'nomor_nib', 'nomor_ktp');
         clearLegalDocumentErrors();
 
-        const normalizedNpwp = normalizeNpwp(data.nomor_npwp);
-        if (!normalizedNpwp) {
+        const rawNpwp = (data.nomor_npwp || '').trim();
+        if (!rawNpwp) {
             setError('nomor_npwp', 'Nomor NPWP wajib diisi.');
             hasError = true;
-        } else if (!isNpwp(normalizedNpwp)) {
+        } else if (!isNpwp(rawNpwp)) {
             setError(
                 'nomor_npwp',
-                'Format nomor NPWP tidak valid. Gunakan format 15 digit (contoh: 01.234.567.8-901.000) atau 16 digit angka.'
+                'Nomor NPWP harus terdiri dari 15 atau 16 digit angka.'
             );
             hasError = true;
-        } else if (normalizedNpwp !== data.nomor_npwp) {
-            setData('nomor_npwp', normalizedNpwp);
         }
 
         if (!validateLegalFile(data.dokumen_npwp, 'dokumen_npwp', 'Dokumen NPWP Perusahaan')) {
@@ -527,8 +572,8 @@ export default function Register({ google_user = null, status = null, acceptance
         if (!trimmedNib) {
             setError('nomor_nib', 'Nomor NIB perusahaan wajib diisi.');
             hasError = true;
-        } else if (trimmedNib.length < 3) {
-            setError('nomor_nib', 'Nomor NIB minimal 3 karakter.');
+        } else if (trimmedNib.length !== 13) {
+            setError('nomor_nib', 'Nomor NIB harus terdiri dari 13 digit angka.');
             hasError = true;
         }
 
@@ -540,8 +585,8 @@ export default function Register({ google_user = null, status = null, acceptance
         if (!trimmedKtp) {
             setError('nomor_ktp', 'Nomor KTP / NIK penanggung jawab wajib diisi.');
             hasError = true;
-        } else if (trimmedKtp.length < 8) {
-            setError('nomor_ktp', 'Nomor KTP / NIK minimal 8 karakter.');
+        } else if (trimmedKtp.length !== 16) {
+            setError('nomor_ktp', 'Nomor KTP / NIK harus terdiri dari 16 digit angka.');
             hasError = true;
         }
 
@@ -603,6 +648,17 @@ export default function Register({ google_user = null, status = null, acceptance
             return;
         }
 
+        if (!isGoogle) {
+            const otpExpiredNow = otpSentAt && (Date.now() - otpSentAt >= OTP_TTL_MS);
+            if (isOtpExpired || otpExpiredNow) {
+                setIsOtpExpired(true);
+                setError('otp', 'Kode OTP Anda telah kedaluwarsa (lebih dari 10 menit). Silakan ajukan kode baru.');
+                notify.error('Sesi verifikasi OTP Anda telah berakhir (lebih dari 10 menit). Silakan ajukan kode baru.');
+                setStep(2);
+                return;
+            }
+        }
+
         if (!isOtpVerified) {
             setStep(2);
             setError('otp', 'Silakan verifikasi email bisnis Anda dengan kode OTP terlebih dahulu.');
@@ -631,6 +687,7 @@ export default function Register({ google_user = null, status = null, acceptance
                 if (errs.name || errs.email || errs.password || errs.password_confirmation) {
                     setStep(1);
                 } else if (errs.otp && !isGoogle) {
+                    setIsOtpExpired(true);
                     setVerifiedOtpInfo(null);
                     setStep(2);
                 } else if (errs.nama_perusahaan || errs.telepon || errs.alamat) {
@@ -646,8 +703,15 @@ export default function Register({ google_user = null, status = null, acceptance
         });
     };
 
+    const stepRawErrors = {
+        1: !!(errors.name || errors.email || errors.password || errors.password_confirmation),
+        2: !isGoogle && !!(errors.otp || isOtpExpired),
+        3: !!(errors.nama_perusahaan || errors.telepon || errors.alamat),
+        4: hasLegalDocumentsError,
+    };
+
     return (
-        <div className="grid min-h-screen lg:h-screen lg:overflow-hidden lg:grid-cols-2 bg-background text-foreground">
+        <div className="fixed inset-0 h-dvh w-full overflow-hidden grid lg:grid-cols-2 bg-background text-foreground">
             <Head title="Pendaftaran Akun Tenant - PAGORA" />
             <FlashHandler />
 
@@ -678,7 +742,16 @@ export default function Register({ google_user = null, status = null, acceptance
                         <div className="grid grid-cols-4 gap-1 sm:gap-1.5 mb-5 p-1 rounded-xl bg-muted/50 border border-border/70 text-xs select-none">
                             {STEPS.map((item) => {
                                 const isActive = step === item.id;
-                                const isCompleted = step > item.id || (isGoogle && item.id < 3);
+                                const isTabBeingAccessed = step === item.id;
+                                const isOtpExpiredAfter10Mins =
+                                    item.id === 2 &&
+                                    !isGoogle &&
+                                    (isOtpExpired || (otpSentAt && Date.now() - otpSentAt >= OTP_TTL_MS) || (Boolean(errors.otp) && !isTabBeingAccessed));
+                                const hasErr =
+                                    (isTabBeingAccessed && Boolean(stepRawErrors[item.id])) || isOtpExpiredAfter10Mins;
+                                const isCompleted =
+                                    (step > item.id && !hasErr && (item.id !== 2 || (isOtpVerified && !isOtpExpiredAfter10Mins))) ||
+                                    (isGoogle && item.id < 3);
 
                                 return (
                                     <button
@@ -696,23 +769,26 @@ export default function Register({ google_user = null, status = null, acceptance
                                             'flex items-center justify-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1.5 rounded-lg font-medium transition-all text-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 text-[11px] sm:text-xs',
                                             isActive
                                                 ? 'bg-background text-foreground shadow-xs'
-                                                : 'text-muted-foreground hover:text-foreground'
+                                                : 'text-muted-foreground hover:text-foreground',
+                                            hasErr && 'text-destructive'
                                         )}
                                     >
                                         <span
                                             className={cn(
                                                 'flex items-center justify-center size-5 rounded-full text-[11px] font-semibold shrink-0',
-                                                isActive
-                                                    ? 'bg-primary text-primary-foreground'
-                                                    : isCompleted
-                                                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                                                        : 'bg-muted-foreground/20 text-muted-foreground'
+                                                hasErr
+                                                    ? 'bg-destructive text-destructive-foreground'
+                                                    : isActive
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : isCompleted
+                                                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                                                            : 'bg-muted-foreground/20 text-muted-foreground'
                                             )}
                                         >
-                                            {isCompleted ? <CheckCircle2 className="size-3.5" /> : item.id}
+                                            {hasErr ? '!' : isCompleted ? <CheckCircle2 className="size-3.5" /> : item.id}
                                         </span>
                                         <span className="truncate">
-                                            {isGoogle && item.id === 2 ? 'Verifikasi (Auto)' : item.label}
+                                            {item.label}
                                         </span>
                                     </button>
                                 );
@@ -807,18 +883,6 @@ export default function Register({ google_user = null, status = null, acceptance
                                             <span>Daftar Cepat dengan Google</span>
                                         </a>
 
-                                        <p className="text-center text-[11px] text-muted-foreground">
-                                            Dengan melanjutkan, Anda menyetujui{' '}
-                                            <a
-                                                href="/syarat-dan-ketentuan"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="font-semibold text-primary underline underline-offset-4 hover:text-primary/80 transition-colors"
-                                            >
-                                                Syarat dan Ketentuan
-                                            </a>
-                                        </p>
-
                                         <div className="relative text-center text-xs after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border my-1">
                                             <span className="relative z-10 px-2.5 bg-background text-muted-foreground font-medium text-[11px]">
                                                 atau lengkapi formulir manual di bawah
@@ -845,6 +909,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                             type="text"
                                             name="name"
                                             value={data.name}
+                                            maxLength={255}
                                             onChange={(e) => {
                                                 setData('name', e.target.value);
                                                 if (errors.name) clearErrors('name');
@@ -882,6 +947,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                             type="email"
                                             name="email"
                                             value={data.email}
+                                            maxLength={255}
                                             onChange={(e) => {
                                                 setData('email', e.target.value);
                                                 if (errors.email) clearErrors('email');
@@ -969,12 +1035,24 @@ export default function Register({ google_user = null, status = null, acceptance
 
                                     {/* Navigation Controls: [ < ] (disabled) and [ Lanjut > ] */}
                                     <div className="flex items-center justify-between gap-3 pt-2">
-                                        <p className="text-xs text-muted-foreground">
-                                            Sudah memiliki akun?{' '}
-                                            <Link href="/login" className="font-semibold text-foreground hover:underline">
-                                                Masuk
-                                            </Link>
-                                        </p>
+                                        <div className="text-xs text-muted-foreground space-y-0.5">
+                                            <p>
+                                                Sudah memiliki akun?{' '}
+                                                <Link href="/login" className="font-semibold text-foreground hover:underline">
+                                                    Masuk
+                                                </Link>
+                                            </p>
+                                            <p className="text-[11px]">
+                                                Dengan mendaftar, Anda menyetujui{' '}
+                                                <Link
+                                                    href="/syarat-dan-ketentuan"
+                                                    className="font-semibold text-foreground underline underline-offset-4 hover:text-primary"
+                                                >
+                                                    Syarat &amp; Ketentuan PAGORA
+                                                </Link>
+                                                .
+                                            </p>
+                                        </div>
 
                                         <div className="flex items-center gap-2">
                                             <Button
@@ -1130,8 +1208,9 @@ export default function Register({ google_user = null, status = null, acceptance
                                             type="text"
                                             name="nama_perusahaan"
                                             value={data.nama_perusahaan}
+                                            maxLength={200}
                                             onChange={(e) => {
-                                                setData('nama_perusahaan', e.target.value);
+                                                setData('nama_perusahaan', e.target.value.slice(0, 200));
                                                 if (errors.nama_perusahaan) clearErrors('nama_perusahaan');
                                             }}
                                             placeholder="Contoh: PT Sumber Pangan Makmur"
@@ -1156,19 +1235,17 @@ export default function Register({ google_user = null, status = null, acceptance
                                         <Input
                                             id="telepon"
                                             type="tel"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
                                             name="telepon"
                                             value={data.telepon}
+                                            maxLength={15}
                                             onChange={(e) => {
-                                                setData('telepon', e.target.value);
+                                                const val = limitPhoneInput(e.target.value);
+                                                setData('telepon', val);
                                                 if (errors.telepon) clearErrors('telepon');
                                             }}
-                                            onBlur={(e) => {
-                                                const formatted = normalizePhoneNumber(e.target.value);
-                                                if (formatted && formatted !== e.target.value) {
-                                                    setData('telepon', formatted);
-                                                }
-                                            }}
-                                            placeholder="Contoh: 081234567890 atau (021) 5551234"
+                                            placeholder="Contoh: 081234567890"
                                             aria-invalid={!!errors.telepon}
                                             disabled={processing}
                                             className={cn(
@@ -1190,9 +1267,10 @@ export default function Register({ google_user = null, status = null, acceptance
                                             id="alamat"
                                             name="alamat"
                                             rows={3}
+                                            maxLength={1000}
                                             value={data.alamat}
                                             onChange={(e) => {
-                                                setData('alamat', e.target.value);
+                                                setData('alamat', e.target.value.slice(0, 1000));
                                                 if (errors.alamat) clearErrors('alamat');
                                             }}
                                             placeholder="Contoh: Jl. Industri Raya No. 45, Kawasan MM2100, Cikarang Barat, Bekasi"
@@ -1249,7 +1327,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                 </div>
 
                                 <div className="space-y-4 pt-1" data-invalid={hasLegalDocumentsError}>
-                                    {errors.legal_documents && (
+                                    {errors.legal_documents && !errors.dokumen_npwp && (
                                         <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs font-medium text-destructive flex items-start gap-2.5">
                                             <AlertCircle className="size-4 shrink-0 mt-0.5 text-destructive" />
                                             <p className="leading-relaxed">{errors.legal_documents}</p>
@@ -1286,19 +1364,17 @@ export default function Register({ google_user = null, status = null, acceptance
                                             <Input
                                                 id="nomor_npwp"
                                                 type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
                                                 name="nomor_npwp"
                                                 value={data.nomor_npwp}
+                                                maxLength={16}
                                                 onChange={(e) => {
-                                                    setData('nomor_npwp', e.target.value);
+                                                    const val = limitNpwpInput(e.target.value);
+                                                    setData('nomor_npwp', val);
                                                     if (errors.nomor_npwp) clearErrors('nomor_npwp');
                                                 }}
-                                                onBlur={(e) => {
-                                                    const formatted = normalizeNpwp(e.target.value);
-                                                    if (formatted && formatted !== e.target.value) {
-                                                        setData('nomor_npwp', formatted);
-                                                    }
-                                                }}
-                                                placeholder="Contoh: 01.234.567.8-901.000 atau 16 digit"
+                                                placeholder="Contoh: 0123456789012345"
                                                 aria-invalid={!!errors.nomor_npwp}
                                                 disabled={processing}
                                                 className={cn(
@@ -1335,12 +1411,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 label="Unggah Berkas NPWP"
                                                 description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
                                             />
-                                            {(errors.dokumen_npwp || errors.file_npwp) && (
-                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
-                                                    <AlertCircle className="size-3.5 shrink-0" />
-                                                    <span>{errors.dokumen_npwp || errors.file_npwp}</span>
-                                                </p>
-                                            )}
+                                            
                                         </div>
                                     </div>
 
@@ -1374,10 +1445,14 @@ export default function Register({ google_user = null, status = null, acceptance
                                             <Input
                                                 id="tenant_nomor_nib"
                                                 type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                maxLength={13}
                                                 placeholder="Contoh: 1234567890123"
                                                 value={data.nomor_nib}
                                                 onChange={(e) => {
-                                                    setData('nomor_nib', e.target.value);
+                                                    const val = limitNibInput(e.target.value);
+                                                    setData('nomor_nib', val);
                                                     if (errors.nomor_nib) clearErrors('nomor_nib');
                                                 }}
                                                 disabled={processing}
@@ -1418,12 +1493,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 label="Unggah Berkas NIB"
                                                 description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
                                             />
-                                            {(errors.dokumen_nib || errors.file_nib) && (
-                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
-                                                    <AlertCircle className="size-3.5 shrink-0" />
-                                                    <span>{errors.dokumen_nib || errors.file_nib}</span>
-                                                </p>
-                                            )}
+                                            
                                         </div>
                                     </div>
 
@@ -1457,10 +1527,14 @@ export default function Register({ google_user = null, status = null, acceptance
                                             <Input
                                                 id="tenant_nomor_ktp"
                                                 type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                maxLength={16}
                                                 placeholder="Contoh: 3171012345670001"
                                                 value={data.nomor_ktp}
                                                 onChange={(e) => {
-                                                    setData('nomor_ktp', e.target.value);
+                                                    const val = limitKtpInput(e.target.value);
+                                                    setData('nomor_ktp', val);
                                                     if (errors.nomor_ktp) clearErrors('nomor_ktp');
                                                 }}
                                                 disabled={processing}
@@ -1501,12 +1575,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 label="Unggah Berkas KTP Penanggung Jawab"
                                                 description="Hanya format PDF (.pdf) dengan ukuran maksimal 5 MB"
                                             />
-                                            {(errors.dokumen_ktp || errors.file_ktp) && (
-                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
-                                                    <AlertCircle className="size-3.5 shrink-0" />
-                                                    <span>{errors.dokumen_ktp || errors.file_ktp}</span>
-                                                </p>
-                                            )}
+                                            
                                         </div>
                                     </div>
 
@@ -1566,13 +1635,7 @@ export default function Register({ google_user = null, status = null, acceptance
 
                 {/* Footer Copyright */}
                 <div className="text-center text-xs text-muted-foreground shrink-0 mt-2">
-                    © {new Date().getFullYear()} PAGORA Enterprise E-Procurement ·{' '}
-                    <Link
-                        href="/syarat-dan-ketentuan"
-                        className="underline underline-offset-4 hover:text-foreground transition-colors"
-                    >
-                        Syarat &amp; Ketentuan
-                    </Link>
+                    © {new Date().getFullYear()} PAGORA Enterprise E-Procurement
                 </div>
             </div>
 

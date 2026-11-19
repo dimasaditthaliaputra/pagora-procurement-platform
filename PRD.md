@@ -127,14 +127,19 @@ Seluruh aktivitas selain registrasi, konfirmasi undangan, dan reset kata sandi w
 - **Alur utama**:
   1. Guest membuka halaman daftar vendor (bila dari undangan, data awal terisi dari undangan); sistem memuat form tab 1 (**Profil Akun**).
   2. Guest mengisi nama penanggung jawab, email bisnis, kata sandi, dan konfirmasi kata sandi, lalu klik lanjut (**atau** memilih "Daftar dengan Google").
-  3. Pada alur manual, sistem memvalidasi kelayakan akun & mengirimkan kode OTP 6 digit ke email bisnis tersebut, lalu memuat tab 2 (**Verifikasi OTP**). Setelah OTP terverifikasi, sistem memuat tab 3 (**Data Perusahaan**).
-  4. Pada alur **Daftar dengan Google**, identitas dan email bisnis vendor terverifikasi otomatis via Google OAuth tanpa perlu memasukkan kata sandi atau kode OTP manual. Sistem membuatkan kata sandi default unik yang dikirimkan ke akun Gmail vendor, dan langsung mengarahkan vendor ke tab 3 (**Data Perusahaan**).
-  5. Guest mengisi nama perusahaan, **NPWP**, nomor telepon perusahaan, dan alamat lengkap. Field email perusahaan otomatis terisi sesuai email bisnis yang telah tervalidasi.
-  6. Guest melanjutkan ke tab 4 (**Komoditas & Legalitas**), memilih **satu atau lebih kategori komoditas**, dan mengunggah dokumen legalitas (NPWP wajib, SIUP/NIB opsional berformat PDF maksimal 5 MB per berkas).
-  7. Guest mengonfirmasi pendaftaran; sistem memvalidasi kelengkapan data & berkas.
-  8. Sistem menyimpan ke `users` (role `vendor`, `email_verified_at` terisi), `vendors` (status **pending**), `vendor_commodity_categories`, dan `vendor_legal_documents` (status **pending**).
+  3. Pada alur manual, sistem memvalidasi kelayakan akun & mengirimkan kode OTP 6 digit ke email bisnis tersebut, lalu memuat tab 2 (**Verifikasi OTP**). Setelah OTP terverifikasi, sistem memuat tab 3 (**Profil Perusahaan**).
+  4. Pada alur **Daftar dengan Google**, identitas dan email bisnis vendor terverifikasi otomatis via Google OAuth tanpa perlu memasukkan kata sandi atau kode OTP manual. Sistem membuatkan kata sandi default unik yang dikirimkan ke akun Gmail vendor, dan langsung mengarahkan vendor ke tab 3 (**Profil Perusahaan**).
+  5. Guest memilih **Bentuk Badan Usaha** (PT, CV, Firma, Koperasi, atau Perorangan/UD), mengisi nama perusahaan, nomor telepon perusahaan, alamat lengkap, dan memilih **satu atau lebih kategori komoditas** yang dipasok. Field email perusahaan otomatis terisi sesuai email bisnis yang telah tervalidasi.
+  6. Guest melanjutkan ke tab 4 (**Legalitas**), melengkapi nomor identitas dokumen dan berkas legalitas resmi berformat PDF (maksimal 5 MB per berkas):
+     - **Dokumen Wajib Umum**: NPWP Perusahaan (nomor + berkas PDF), NIB Perusahaan (nomor + berkas PDF), dan KTP Direktur/Penanggung Jawab (nomor/NIK + berkas PDF). Berlaku mutlak bagi seluruh skala vendor.
+     - **Status PKP & Dokumen SPPKP (Kondisional)**: Guest memilih status PKP perusahaan antara **PPN (PKP)** atau **Non PPN (Non-PKP)**. Bila memilih PPN, sistem memunculkan field dokumen SPPKP (Surat Pengukuhan Pengusaha Kena Pajak) dan menjadikannya **Wajib** diunggah untuk memvalidasi hak vendor menagih PPN 11% saat menerbitkan penawaran atau invoice. Bila memilih Non PPN, SPPKP disembunyikan / tidak diwajibkan.
+     - **Dokumen Akta Pendirian & SK Kemenkumham (Kondisional Badan Usaha)**: Dibuat dalam dua field terpisah ("Upload Akta Pendirian" dan "Upload SK Kemenkumham"):
+       - **Wajib (Mandatory)** jika Bentuk Badan Usaha adalah **PT, CV, Firma, atau Koperasi**: nomor dan berkas Akta Pendirian serta SK Kemenkumham wajib diisi/diunggah untuk membuktikan legalitas badan usaha.
+       - **Disembunyikan / Tidak Diwajibkan** jika Bentuk Badan Usaha adalah **Perorangan / UD**, sehingga fleksibel bagi pelaku usaha perorangan tanpa membebani verifikasi.
+  7. Guest mengonfirmasi persetujuan Syarat & Ketentuan dan mengirimkan pendaftaran; sistem memvalidasi kelengkapan data & seluruh berkas.
+  8. Sistem menyimpan ke `users` (role `vendor`, `email_verified_at` terisi), `vendors` (termasuk kolom `business_entity`, `is_pkp`, status **pending**), `vendor_commodity_categories`, dan `vendor_legal_documents` (status **pending**).
   9. Sistem mengarahkan ke halaman "Pendaftaran sukses".
-- **Alternatif/error**: 3a/7a. Data tidak valid (kolom kosong, format email/NPWP salah, email bisnis sudah terdaftar, OTP salah/kedaluwarsa, kategori belum dipilih, berkas tidak sesuai / > 5 MB) → tolak, tampilkan error di tab/kolom terkait, tetap di form. 1a. Tautan undangan kedaluwarsa / tidak valid → pesan error.
+- **Alternatif/error**: 3a/7a. Data tidak valid (kolom kosong, format email/NPWP salah, email bisnis sudah terdaftar, OTP salah/kedaluwarsa, kategori belum dipilih, status PKP belum dipilih, berkas wajib/SPPKP belum diunggah, berkas tidak sesuai / > 5 MB) → tolak, tampilkan error di tab/kolom terkait, tetap di form. 1a. Tautan undangan kedaluwarsa / tidak valid → pesan error.
 - **Hasil**: data Vendor & berkas legalitas tersimpan; menunggu verifikasi Superadmin (UC-21).
 
 ### UC-03 Menerima Ajakan Perusahaan
@@ -470,7 +475,7 @@ Prioritas: **Must** = Tinggi di SKPL / wajib menurut keputusan tim, **Should** =
 | ID | Kebutuhan | Aktor | Prioritas | UC | Ref |
 |---|---|---|---|---|---|
 | FR-01 | Registrasi Tenant bertahap: data Owner → verifikasi OTP email bisnis → profil perusahaan (nama, NPWP, telepon, alamat) + unggah legalitas; status menunggu verifikasi | Guest | Must | UC-01 | REQ-AUTH-01 |
-| FR-02 | Registrasi Vendor bertahap (mandiri / via undangan): data individu → verifikasi OTP email bisnis → profil perusahaan (nama, NPWP, alamat, telepon, **≥ 1 kategori komoditas**) + wajib unggah legalitas; status pending | Guest | Must | UC-02 | REQ-AUTH-02 |
+| FR-02 | Registrasi Vendor bertahap (mandiri / via undangan): data individu → verifikasi OTP email bisnis → profil perusahaan (pilihan Bentuk Badan Usaha: PT/CV/Firma/Koperasi/Perorangan, nama, alamat, telepon, **≥ 1 kategori komoditas**) → legalitas (wajib: NPWP, NIB, KTP; status PKP: PPN/Non-PPN + wajib SPPKP bila PKP; Akta Pendirian & SK Kemenkumham terpisah: wajib bagi PT/CV/Firma/Koperasi, disembunyikan bagi Perorangan/UD); status pending | Guest | Must | UC-02 | REQ-AUTH-02 |
 | FR-03 | Email undangan bergabung ke Tenant; konfirmasi via tautan (ke login / registrasi bila belum punya akun) | Guest, Owner | Must | UC-03 | REQ-AUTH-03 |
 | FR-04 | Login email + kata sandi atau Google; opsi **Ingat Saya**; validasi status aktif; buat sesi; redirect sesuai role | User | Must | UC-04 | REQ-AUTH-04 |
 | FR-05 | Lihat & perbarui profil akun pribadi (username, email, password) | User | Should | UC-05 | REQ-AUTH-05 |

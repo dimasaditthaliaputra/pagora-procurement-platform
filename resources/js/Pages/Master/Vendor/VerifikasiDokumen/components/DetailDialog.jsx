@@ -67,6 +67,18 @@ export function DetailDialog({ vendor, open, onOpenChange, onApprove, onReject }
                                 </span>
                             </div>
                         )}
+                        <div className="flex items-center gap-3 text-xs pt-1 border-t">
+                            <div>
+                                <span className="text-muted-foreground">NPWP: </span>
+                                <span className="font-medium text-foreground">{vendor.tax_number || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Status PKP: </span>
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${vendor.is_pkp ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                                    {vendor.is_pkp ? 'PKP (PPN)' : 'Non-PKP (Non PPN)'}
+                                </span>
+                            </div>
+                        </div>
                         {vendor.address && (
                             <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
                                 <MapPin className="size-3.5 shrink-0 mt-0.5" />
@@ -83,12 +95,26 @@ export function DetailDialog({ vendor, open, onOpenChange, onApprove, onReject }
 
                         {documents.map((doc) => {
                             const isPending = doc.verification_status === 'pending';
+                            const docLabel =
+                                doc.document_type === 'npwp'
+                                    ? 'NPWP Perusahaan'
+                                    : doc.document_type === 'nib'
+                                        ? 'NIB'
+                                        : doc.document_type === 'ktp'
+                                            ? 'KTP Penanggung Jawab'
+                                            : doc.document_type === 'sppkp'
+                                                ? 'SPPKP (Pengusaha Kena Pajak)'
+                                                : doc.document_type === 'akta' || doc.document_type === 'akta_pendirian'
+                                                    ? 'Akta Pendirian & SK Kemenkumham'
+                                                    : doc.document_type === 'siup'
+                                                        ? 'SIUP'
+                                                        : (doc.document_type || 'Dokumen');
 
                             return (
                                 <div key={doc.uuid} className="rounded-lg border p-3 space-y-2">
                                     <div className="flex items-start justify-between gap-2">
                                         <div>
-                                            <p className="font-medium text-foreground">{doc.document_type}</p>
+                                            <p className="font-medium text-foreground">{docLabel}</p>
                                             <p className="font-mono text-xs text-muted-foreground">
                                                 {doc.document_number || '-'}
                                             </p>

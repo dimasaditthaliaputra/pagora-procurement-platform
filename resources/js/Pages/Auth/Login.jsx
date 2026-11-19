@@ -9,7 +9,7 @@ import { useCountdown } from '@/hooks/use-countdown';
 import { FlashHandler } from '@/Components/flash-handler';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { isEmail } from '@/lib/validators';
 
@@ -112,6 +112,18 @@ export default function Login({ status, otp = null }) {
         remember: false,
     });
 
+    useEffect(() => {
+        const originalBodyOverflow = document.body.style.overflow;
+        const originalHtmlOverflow = document.documentElement.style.overflow;
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = originalBodyOverflow;
+            document.documentElement.style.overflow = originalHtmlOverflow;
+        };
+    }, []);
+
     const validate = () => {
         let hasError = false;
         clearErrors();
@@ -142,12 +154,12 @@ export default function Login({ status, otp = null }) {
     };
 
     return (
-        <div className="grid min-h-screen lg:grid-cols-2 bg-background text-foreground">
+        <div className="fixed inset-0 h-dvh w-full overflow-hidden grid lg:grid-cols-2 bg-background text-foreground font-inter">
             <Head title="Masuk Portal Pengadaan - PAGORA" />
             <FlashHandler />
 
             {/* Left - Form */}
-            <div className="flex flex-col justify-between p-6 md:p-10">
+            <div className="flex flex-col justify-between h-full overflow-y-auto p-6 md:p-10 min-h-0">
                 <div className="flex items-center justify-between">
                     <Link
                         href="/"
@@ -331,18 +343,12 @@ export default function Login({ status, otp = null }) {
                 </div>
 
                 <div className="text-center text-xs text-muted-foreground">
-                    © {new Date().getFullYear()} PAGORA Enterprise E-Procurement ·{' '}
-                    <Link
-                        href="/syarat-dan-ketentuan"
-                        className="underline underline-offset-4 hover:text-foreground transition-colors"
-                    >
-                        Syarat &amp; Ketentuan
-                    </Link>
+                    © {new Date().getFullYear()} PAGORA Enterprise E-Procurement
                 </div>
             </div>
 
             {/* Right - Cover Image */}
-            <div className="relative hidden lg:block bg-muted">
+            <div className="relative hidden lg:block h-full overflow-hidden bg-muted">
                 <img
                     src="/images/login-cover.jpg"
                     alt="PAGORA Procurement Platform"

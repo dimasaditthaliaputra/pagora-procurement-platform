@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\RoleName;
 use App\Enums\VerificationStatus;
+use App\Helpers\NpwpHelper;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Role;
@@ -404,8 +405,8 @@ class AuthService
 
         $namaPerusahaan = trim((string) ($request->input('nama_perusahaan') ?? $request->input('company_name')));
         $nomorNpwp = $request->filled('nomor_npwp')
-            ? trim((string) $request->input('nomor_npwp'))
-            : ($request->filled('tax_number') ? trim((string) $request->input('tax_number')) : null);
+            ? NpwpHelper::normalize((string) $request->input('nomor_npwp'))
+            : ($request->filled('tax_number') ? NpwpHelper::normalize((string) $request->input('tax_number')) : null);
         $telepon = $request->filled('telepon')
             ? trim((string) $request->input('telepon'))
             : ($request->filled('phone') ? trim((string) $request->input('phone')) : null);

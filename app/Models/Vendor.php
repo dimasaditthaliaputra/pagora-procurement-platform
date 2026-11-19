@@ -19,7 +19,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'uuid',
     'slug',
     'company_name',
+    'business_entity',
     'tax_number',
+    'is_pkp',
     'contact_email',
     'phone',
     'address',
@@ -51,7 +53,9 @@ class Vendor extends Model
         'uuid',
         'slug',
         'company_name',
+        'business_entity',
         'tax_number',
+        'is_pkp',
         'contact_email',
         'phone',
         'address',
@@ -100,6 +104,7 @@ class Vendor extends Model
         return [
             'verification_status' => VerificationStatus::class,
             'is_active' => 'boolean',
+            'is_pkp' => 'boolean',
             'blocked_at' => 'datetime',
         ];
     }

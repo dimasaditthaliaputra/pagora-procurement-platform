@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { notify } from '@/lib/notify';
-import { isNpwp, isEmail, isPhoneNumber, normalizeNpwp } from '@/lib/validators';
+import { isNpwp, isEmail, isPhoneNumber, limitNpwpInput } from '@/lib/validators';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -192,7 +192,7 @@ export default function PerusahaanIndex({ perusahaan }) {
                                                 clearErrors('company_name');
                                             }}
                                             aria-invalid={!!errors.company_name}
-                                            placeholder="contoh: PT Pagora Nusantara"
+                                            placeholder="Contoh: PT Pagora Nusantara"
                                             className={cn(
                                                 'h-10',
                                                 errors.company_name && 'border-destructive focus-visible:ring-destructive'
@@ -214,20 +214,19 @@ export default function PerusahaanIndex({ perusahaan }) {
                                         </Label>
                                         <Input
                                             id="tax_number"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            maxLength={16}
                                             value={data.tax_number}
                                             onChange={(e) => {
-                                                setData('tax_number', e.target.value);
+                                                const val = limitNpwpInput(e.target.value);
+                                                setData('tax_number', val);
                                                 clearErrors('tax_number');
                                             }}
-                                            onBlur={() => {
-                                                if (data.tax_number) {
-                                                    setData('tax_number', normalizeNpwp(data.tax_number));
-                                                }
-                                            }}
                                             aria-invalid={!!errors.tax_number}
-                                            placeholder="contoh: 01.234.567.8-901.000"
+                                            placeholder="Contoh: 0123456789012345"
                                             className={cn(
-                                                'h-10 font-mono text-sm',
+                                                'h-10 text-sm',
                                                 errors.tax_number && 'border-destructive focus-visible:ring-destructive'
                                             )}
                                         />
@@ -235,7 +234,7 @@ export default function PerusahaanIndex({ perusahaan }) {
                                             <p className="text-xs text-destructive">{errors.tax_number}</p>
                                         ) : (
                                             <p className="text-xs text-muted-foreground">
-                                                Format 15 digit resmi (XX.XXX.XXX.X-XXX.XXX) atau 16 digit angka.
+                                                Format 15 atau 16 digit angka murni.
                                             </p>
                                         )}
                                     </div>
@@ -384,70 +383,76 @@ export default function PerusahaanIndex({ perusahaan }) {
                                     </div>
                                 )}
 
-                                {/* Tenant Document Download */}
-                                {!isVendor && perusahaan?.has_legal_document && perusahaan?.legal_document_url && (
-                                    <div className="pt-2 border-t border-border/60">
-                                        <span className="text-xs text-muted-foreground block mb-2">Dokumen Legalitas (NIB / SIUP):</span>
-                                        <a
-                                            href={perusahaan.legal_document_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
-                                        >
-                                            <FileText className="size-4" />
-                                            Unduh Dokumen Legalitas
-                                            <ExternalLink className="size-3" />
-                                        </a>
-                                    </div>
-                                )}
-
-                                {/* Vendor Documents */}
-                                {isVendor && perusahaan?.documents && (
+                                {/* Legal Documents List */}
+                                {perusahaan?.documents && perusahaan.documents.length > 0 ? (
                                     <div className="pt-2 border-t border-border/60 space-y-3">
-                                        <span className="text-xs text-muted-foreground block">Dokumen Legalitas Vendor:</span>
-                                        {perusahaan.documents.length === 0 ? (
-                                            <p className="text-xs text-muted-foreground italic">Belum ada dokumen yang diunggah.</p>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {perusahaan.documents.map((doc) => {
-                                                    const docStatus = getStatusBadge(doc.verification_status);
-                                                    return (
-                                                        <div
-                                                            key={doc.uuid}
-                                                            className="p-2.5 rounded-lg border border-border/70 bg-muted/30 flex items-center justify-between gap-2"
-                                                        >
-                                                            <div className="min-w-0">
-                                                                <p className="text-xs font-medium text-foreground truncate">
-                                                                    {doc.document_type}
+                                        <span className="text-xs text-muted-foreground block">
+                                            {isVendor ? 'Dokumen Legalitas Vendor:' : 'Dokumen Legalitas Perusahaan:'}
+                                        </span>
+                                        <div className="space-y-2">
+                                            {perusahaan.documents.map((doc) => {
+                                                const docStatus = getStatusBadge(doc.verification_status);
+                                                const docLabel = {
+                                                    npwp: 'NPWP Perusahaan',
+                                                    nib: 'NIB Perusahaan',
+                                                    ktp: 'KTP Penanggung Jawab',
+                                                    sppkp: 'SPPKP Perusahaan',
+                                                    akta: 'Akta Pendirian / SK Kemenkumham',
+                                                    siup: 'SIUP',
+                                                }[doc.document_type] || (doc.document_type ? doc.document_type.toUpperCase() : 'Dokumen');
+
+                                                return (
+                                                    <div
+                                                        key={doc.uuid}
+                                                        className="p-2.5 rounded-lg border border-border/70 bg-muted/30 flex items-center justify-between gap-2"
+                                                    >
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-medium text-foreground truncate">
+                                                                {docLabel}
+                                                            </p>
+                                                            {doc.document_number && (
+                                                                <p className="text-[11px] text-muted-foreground truncate">
+                                                                    No: {doc.document_number}
                                                                 </p>
-                                                                {doc.document_number && (
-                                                                    <p className="text-[11px] text-muted-foreground font-mono truncate">
-                                                                        No: {doc.document_number}
-                                                                    </p>
-                                                                )}
-                                                                <div className="mt-1">
-                                                                    <Badge variant={docStatus.variant} className="text-[10px] px-1.5 py-0.5">
-                                                                        {docStatus.label}
-                                                                    </Badge>
-                                                                </div>
-                                                            </div>
-                                                            {doc.file_url && (
-                                                                <a
-                                                                    href={doc.file_url}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
-                                                                    title="Unduh Berkas"
-                                                                >
-                                                                    <Download className="size-4" />
-                                                                </a>
                                                             )}
+                                                            <div className="mt-1">
+                                                                <Badge variant={docStatus.variant} className="text-[10px] px-1.5 py-0.5">
+                                                                    {docStatus.label}
+                                                                </Badge>
+                                                            </div>
                                                         </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
+                                                        {doc.file_url && (
+                                                            <a
+                                                                href={doc.file_url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+                                                                title="Unduh Berkas"
+                                                            >
+                                                                <Download className="size-4" />
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
+                                ) : (
+                                    !isVendor && perusahaan?.has_legal_document && perusahaan?.legal_document_url && (
+                                        <div className="pt-2 border-t border-border/60">
+                                            <span className="text-xs text-muted-foreground block mb-2">Dokumen Legalitas:</span>
+                                            <a
+                                                href={perusahaan.legal_document_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+                                            >
+                                                <FileText className="size-4" />
+                                                Unduh Dokumen Legalitas
+                                                <ExternalLink className="size-3" />
+                                            </a>
+                                        </div>
+                                    )
                                 )}
                             </CardContent>
                         </Card>

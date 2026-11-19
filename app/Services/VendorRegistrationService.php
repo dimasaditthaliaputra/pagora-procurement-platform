@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\RoleName;
 use App\Enums\StatusUndanganVendor;
 use App\Enums\VerificationStatus;
+use App\Helpers\NpwpHelper;
 use App\Models\CommodityCategory;
 use App\Models\Role;
 use App\Models\UndanganVendor;
@@ -202,8 +203,10 @@ class VendorRegistrationService
 
                 $vendor = $this->vendorRepository->create([
                     'company_name' => trim((string) $data['company_name']),
+                    'business_entity' => strtolower(trim((string) ($data['business_entity'] ?? 'pt'))),
                     'slug' => $baseSlug.'-'.Str::lower(Str::random(6)),
-                    'tax_number' => trim((string) $data['tax_number']),
+                    'tax_number' => NpwpHelper::normalize((string) $data['tax_number']),
+                    'is_pkp' => filter_var($data['is_pkp'] ?? false, FILTER_VALIDATE_BOOLEAN),
                     'contact_email' => strtolower(trim((string) $data['contact_email'])),
                     'phone' => (string) $data['phone'],
                     'address' => trim((string) $data['address']),
@@ -288,6 +291,9 @@ class VendorRegistrationService
             'npwp' => $data['dokumen_npwp'] ?? $data['file_npwp'] ?? null,
             'nib' => $data['dokumen_nib'] ?? $data['file_nib'] ?? null,
             'ktp' => $data['dokumen_ktp'] ?? $data['file_ktp'] ?? null,
+            'sppkp' => $data['dokumen_sppkp'] ?? $data['file_sppkp'] ?? null,
+            'akta' => $data['dokumen_akta'] ?? $data['file_akta'] ?? null,
+            'sk_kemenkumham' => $data['dokumen_sk_kemenkumham'] ?? $data['file_sk_kemenkumham'] ?? null,
         ];
 
         try {
@@ -303,9 +309,14 @@ class VendorRegistrationService
                     );
 
                     $docNumber = match ($type) {
-                        'npwp' => ! empty($data['tax_number']) ? trim((string) $data['tax_number']) : (! empty($data['nomor_npwp']) ? trim((string) $data['nomor_npwp']) : null),
+                        'npwp' => ! empty($data['tax_number'])
+                            ? NpwpHelper::normalize((string) $data['tax_number'])
+                            : (! empty($data['nomor_npwp']) ? NpwpHelper::normalize((string) $data['nomor_npwp']) : null),
                         'nib' => ! empty($data['nomor_nib']) ? trim((string) $data['nomor_nib']) : null,
                         'ktp' => ! empty($data['nomor_ktp']) ? trim((string) $data['nomor_ktp']) : null,
+                        'sppkp' => ! empty($data['nomor_sppkp']) ? trim((string) $data['nomor_sppkp']) : null,
+                        'akta' => ! empty($data['nomor_akta']) ? trim((string) $data['nomor_akta']) : null,
+                        'sk_kemenkumham' => ! empty($data['nomor_sk_kemenkumham']) ? trim((string) $data['nomor_sk_kemenkumham']) : null,
                         default => null,
                     };
 

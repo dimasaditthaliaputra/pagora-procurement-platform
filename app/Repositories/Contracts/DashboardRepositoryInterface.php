@@ -178,4 +178,29 @@ interface DashboardRepositoryInterface
      * @return list<array<string, mixed>>
      */
     public function getBuyerActiveDisputes(int $tenantId, int $limit = 5): array;
+
+    // -------------------------------------------------------------------------
+    // QC Gudang Dashboard
+    // -------------------------------------------------------------------------
+
+    /**
+     * Get QC inspection KPI summary for role QC Gudang.
+     *
+     * @return array<string, array<string, int|float>>
+     */
+    public function getQcSummaryMetrics(int $tenantId): array;
+
+    /**
+     * Get incoming PO deliveries awaiting QC inspection.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getQcPendingDeliveries(int $tenantId, int $limit = 5): array;
+
+    /**
+     * Get recent QC inspection results (accepted & rejected).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getQcRecentInspections(int $tenantId, int $limit = 5): array;
 }

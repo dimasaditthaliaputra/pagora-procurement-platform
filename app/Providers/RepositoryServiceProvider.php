@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Repositories\Contracts\ChatNegosiasiRepositoryInterface;
 use App\Repositories\Contracts\CommodityCategoryRepositoryInterface;
+use App\Repositories\Contracts\DashboardRepositoryInterface;
 use App\Repositories\Contracts\DokumenLegalitasTenantRepositoryInterface;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
 use App\Repositories\Contracts\HargaReferensiKomoditasRepositoryInterface;
@@ -25,6 +26,7 @@ use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Contracts\VendorRepositoryInterface;
 use App\Repositories\Eloquent\ChatNegosiasiRepository;
 use App\Repositories\Eloquent\CommodityCategoryRepository;
+use App\Repositories\Eloquent\DashboardRepository;
 use App\Repositories\Eloquent\DokumenLegalitasTenantRepository;
 use App\Repositories\Eloquent\DokumenLegalitasVendorRepository;
 use App\Repositories\Eloquent\HargaReferensiKomoditasRepository;
@@ -144,6 +146,11 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             ChatNegosiasiRepositoryInterface::class,
             ChatNegosiasiRepository::class
+        );
+
+        $this->app->bind(
+            DashboardRepositoryInterface::class,
+            DashboardRepository::class
         );
     }
 

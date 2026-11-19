@@ -2,6 +2,7 @@ import { Head, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import DashboardOverview from '@/Components/DashboardOverview';
 import ManajemenDashboard from '@/Pages/Dashboard/ManajemenDashboard';
+import OwnerDashboard from '@/Pages/Dashboard/OwnerDashboard';
 import SuperadminDashboard from '@/Pages/Dashboard/SuperadminDashboard';
 
 export default function Dashboard({
@@ -10,17 +11,22 @@ export default function Dashboard({
     superadmin_dashboard = null,
     is_manajemen = false,
     manajemen_dashboard = null,
+    is_owner = false,
+    owner_dashboard = null,
 }) {
     const { auth } = usePage().props;
     const roleName = auth?.role?.name;
     const isSuperadminRole = Boolean(is_superadmin) || roleName === 'superadmin';
     const isManajemenRole = Boolean(is_manajemen) || roleName === 'manajemen';
+    const isOwnerRole = Boolean(is_owner) || roleName === 'owner';
 
     const pageTitle = isSuperadminRole
         ? 'Dashboard Superadmin - PAGORA'
         : isManajemenRole
           ? 'Dashboard Manajemen - PAGORA'
-          : 'Dashboard - PAGORA';
+          : isOwnerRole
+            ? 'Dashboard Owner - PAGORA'
+            : 'Dashboard - PAGORA';
 
     return (
         <DashboardLayout>
@@ -35,6 +41,11 @@ export default function Dashboard({
                 <ManajemenDashboard
                     userName={user?.name}
                     dashboard={manajemen_dashboard}
+                />
+            ) : isOwnerRole && owner_dashboard ? (
+                <OwnerDashboard
+                    userName={user?.name}
+                    dashboard={owner_dashboard}
                 />
             ) : (
                 <DashboardOverview userName={user?.name} />

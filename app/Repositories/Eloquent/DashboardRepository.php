@@ -7,17 +7,20 @@ namespace App\Repositories\Eloquent;
 use App\Enums\RoleName;
 use App\Enums\StatusItemPenerimaan;
 use App\Enums\StatusKerjaSama;
+use App\Enums\StatusMatching;
 use App\Enums\StatusPurchaseOrder;
 use App\Enums\StatusSengketa;
 use App\Enums\StatusUndanganVendor;
 use App\Enums\VerificationStatus;
 use App\Models\CommodityCategory;
 use App\Models\DokumenLegalitasVendor;
+use App\Models\Invoice;
 use App\Models\KerjaSama;
 use App\Models\Komoditas;
 use App\Models\PenerimaanBarang;
 use App\Models\PenerimaanBarangItem;
 use App\Models\PerusahaanBuyer;
+use App\Models\PoItem;
 use App\Models\PurchaseOrder;
 use App\Models\Role;
 use App\Models\Sengketa;
@@ -169,18 +172,13 @@ class DashboardRepository implements DashboardRepositoryInterface
         });
 
         $disputesOpen = $this->safeCount(static function (): int {
-            try {
-                return Sengketa::query()
-                    ->whereIn('status', [
-                        StatusSengketa::Terbuka->value,
-                        StatusSengketa::DalamMediasi->value,
-                    ])
-                    ->count();
-            } catch (Throwable) {
-                return DB::table('disputes')
-                    ->whereIn('status', ['open', 'in_mediation', 'terbuka', 'dalam_mediasi'])
-                    ->count();
-            }
+            return Sengketa::query()
+                ->whereIn('status', [
+                    StatusSengketa::Open->value,
+                    StatusSengketa::AwaitingResponse->value,
+                    StatusSengketa::InMediation->value,
+                ])
+                ->count();
         });
 
         return [
@@ -629,9 +627,14 @@ class DashboardRepository implements DashboardRepositoryInterface
     public function getTenantProfileForManajemen(int $tenantId): ?array
     {
         try {
-            $tenant = PerusahaanBuyer::query()->find($tenantId);
+            $tenant = PerusahaanBuyer::query()->withCount('legalDocuments')->find($tenantId);
             if ($tenant === null) {
                 return null;
+            }
+
+            $docsCount = (int) ($tenant->legal_documents_count ?? 0);
+            if ($docsCount === 0 && ! empty($tenant->legal_document_path)) {
+                $docsCount = 1;
             }
 
             return [
@@ -640,6 +643,10 @@ class DashboardRepository implements DashboardRepositoryInterface
                 'tax_number' => $tenant->tax_number,
                 'phone' => $tenant->phone,
                 'address' => $tenant->address,
+                'verification_status' => $tenant->verification_status?->value ?? 'approved',
+                'is_active' => (bool) $tenant->is_active,
+                'verified_at' => $tenant->verified_at?->toISOString(),
+                'documents_count' => $docsCount,
             ];
         } catch (Throwable) {
             return null;
@@ -647,25 +654,55 @@ class DashboardRepository implements DashboardRepositoryInterface
     }
 
     /**
+     * Count disputes for a specific tenant, falling back to `disputes` table if `sengketa` was renamed.
+     *
+     * @param  list<string>|null  $statuses
+     */
+    private function countTenantDisputes(int $tenantId, ?array $statuses = null): int
+    {
+        return $this->safeCount(static function () use ($tenantId, $statuses): int {
+            try {
+                $query = Sengketa::query()
+                    ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId));
+
+                if ($statuses !== null) {
+                    $query->whereIn('status', $statuses);
+                }
+
+                return $query->count();
+            } catch (Throwable) {
+                $query = DB::table('disputes')
+                    ->join('purchase_order', 'disputes.purchase_order_id', '=', 'purchase_order.id')
+                    ->where('purchase_order.perusahaan_buyer_id', $tenantId);
+
+                if ($statuses !== null) {
+                    $query->whereIn('disputes.status', $statuses);
+                }
+
+                return $query->count();
+            }
+        });
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function getManajemenSummaryMetrics(int $tenantId): array
     {
-        $disputesTotal = $this->safeCount(static fn (): int => Sengketa::query()
-            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->count());
-        $disputesOpen = $this->safeCount(static fn (): int => Sengketa::query()
-            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status', StatusSengketa::Terbuka->value)
-            ->count());
-        $disputesInMediation = $this->safeCount(static fn (): int => Sengketa::query()
-            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status', StatusSengketa::DalamMediasi->value)
-            ->count());
-        $disputesResolved = $this->safeCount(static fn (): int => Sengketa::query()
-            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status', StatusSengketa::Selesai->value)
-            ->count());
+        $disputesTotal = $this->countTenantDisputes($tenantId);
+        $disputesOpen = $this->countTenantDisputes($tenantId, [
+            StatusSengketa::Open->value,
+            'terbuka',
+        ]);
+        $disputesInMediation = $this->countTenantDisputes($tenantId, [
+            StatusSengketa::InMediation->value,
+            StatusSengketa::AwaitingResponse->value,
+            'dalam_mediasi',
+        ]);
+        $disputesResolved = $this->countTenantDisputes($tenantId, [
+            StatusSengketa::Resolved->value,
+            'selesai',
+        ]);
 
         $partnershipsTotal = $this->safeCount(static fn (): int => KerjaSama::query()
             ->where('tenant_id', $tenantId)
@@ -767,14 +804,15 @@ class DashboardRepository implements DashboardRepositoryInterface
             return Sengketa::query()
                 ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
                 ->whereIn('status', [
-                    StatusSengketa::Terbuka->value,
-                    StatusSengketa::DalamMediasi->value,
+                    StatusSengketa::Open->value,
+                    StatusSengketa::AwaitingResponse->value,
+                    StatusSengketa::InMediation->value,
                 ])
                 ->with([
                     'purchaseOrder.vendor:id,uuid,company_name',
                     'poItem.komoditas:id,uuid,name,unit',
                 ])
-                ->orderByDesc('tanggal_dibuka')
+                ->orderByDesc('opened_at')
                 ->orderByDesc('id')
                 ->limit($limit)
                 ->get()
@@ -793,7 +831,7 @@ class DashboardRepository implements DashboardRepositoryInterface
                         'po_number' => $po?->nomor_po ?? '-',
                         'vendor_name' => $vendor?->company_name ?? '-',
                         'commodity_name' => $commodity?->name,
-                        'opened_at' => ($sengketa->tanggal_dibuka ?? $sengketa->created_at)?->toISOString(),
+                        'opened_at' => ($sengketa->opened_at ?? $sengketa->created_at)?->toISOString(),
                     ];
                 })
                 ->values()
@@ -1005,6 +1043,437 @@ class DashboardRepository implements DashboardRepositoryInterface
                     $buckets[$key]['disputes_count']++;
                 }
             }
+        }
+
+        return array_values($buckets);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getOwnerSummaryMetrics(int $tenantId): array
+    {
+        $totalOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->count());
+
+        $draftAndNegotiation = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->whereIn('status', [
+                StatusPurchaseOrder::Draft->value,
+                StatusPurchaseOrder::MenungguTanggapan->value,
+                StatusPurchaseOrder::Negosiasi->value,
+            ])
+            ->count());
+
+        $inExecution = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->whereIn('status', [
+                StatusPurchaseOrder::Disepakati->value,
+                StatusPurchaseOrder::DalamPengiriman->value,
+                StatusPurchaseOrder::PartiallyReceived->value,
+                StatusPurchaseOrder::DiterimaGudang->value,
+            ])
+            ->count());
+
+        $invoicedAndReadyToPay = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->whereIn('status', [
+                StatusPurchaseOrder::Ditagih->value,
+                StatusPurchaseOrder::ReadyToPay->value,
+            ])
+            ->count());
+
+        $completedPaid = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->where('status', StatusPurchaseOrder::Lunas->value)
+            ->count());
+
+        $disputedOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->where('status', StatusPurchaseOrder::Sengketa->value)
+            ->count());
+
+        $cancelledOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->where('status', StatusPurchaseOrder::Dibatalkan->value)
+            ->count());
+
+        $totalAgreedValue = 0.0;
+        try {
+            $agreedStatuses = [
+                StatusPurchaseOrder::Disepakati->value,
+                StatusPurchaseOrder::DalamPengiriman->value,
+                StatusPurchaseOrder::PartiallyReceived->value,
+                StatusPurchaseOrder::DiterimaGudang->value,
+                StatusPurchaseOrder::Ditagih->value,
+                StatusPurchaseOrder::ReadyToPay->value,
+                StatusPurchaseOrder::Lunas->value,
+            ];
+
+            $items = PoItem::query()
+                ->whereHas('purchaseOrder', static fn ($q) => $q
+                    ->where('perusahaan_buyer_id', $tenantId)
+                    ->whereIn('status', $agreedStatuses))
+                ->get(['jumlah_pesanan', 'harga_satuan_po', 'estimated_unit_price', 'subtotal']);
+
+            foreach ($items as $item) {
+                $subtotal = (float) ($item->subtotal ?? 0);
+                if ($subtotal > 0) {
+                    $totalAgreedValue += $subtotal;
+                } else {
+                    $qty = (float) ($item->jumlah_pesanan ?? 0);
+                    $unitPrice = (float) ($item->harga_satuan_po ?? $item->estimated_unit_price ?? 0);
+                    $totalAgreedValue += $qty * $unitPrice;
+                }
+            }
+        } catch (Throwable) {
+            $totalAgreedValue = 0.0;
+        }
+
+        // Invoices & 3-Way Matching
+        $invoicesTotal = $this->safeCount(static fn (): int => Invoice::query()
+            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->count());
+        $invoicesPending = $this->safeCount(static fn (): int => Invoice::query()
+            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->where('status_matching', StatusMatching::Pending->value)
+            ->count());
+        $invoicesMatched = $this->safeCount(static fn (): int => Invoice::query()
+            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->where('status_matching', StatusMatching::Matched->value)
+            ->count());
+        $invoicesMismatched = $this->safeCount(static fn (): int => Invoice::query()
+            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->where('status_matching', StatusMatching::Mismatched->value)
+            ->count());
+
+        $totalInvoicedAmount = 0.0;
+        $matchedAmount = 0.0;
+        try {
+            $totalInvoicedAmount = (float) Invoice::query()
+                ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+                ->sum('jumlah_tagihan');
+            $matchedAmount = (float) Invoice::query()
+                ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+                ->where('status_matching', StatusMatching::Matched->value)
+                ->sum('jumlah_tagihan');
+        } catch (Throwable) {
+            $totalInvoicedAmount = 0.0;
+            $matchedAmount = 0.0;
+        }
+
+        // Internal Employees (UC-08)
+        $employeesTotal = $this->safeCount(static fn (): int => User::query()
+            ->where('tenant_id', $tenantId)
+            ->count());
+        $employeesActive = $this->safeCount(static fn (): int => User::query()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->count());
+        $ownerCount = $this->safeCount(static fn (): int => User::query()
+            ->where('tenant_id', $tenantId)
+            ->whereHas('role', static fn ($q) => $q->where('name', RoleName::Owner->value))
+            ->count());
+        $manajemenCount = $this->safeCount(static fn (): int => User::query()
+            ->where('tenant_id', $tenantId)
+            ->whereHas('role', static fn ($q) => $q->where('name', RoleName::Manajemen->value))
+            ->count());
+        $purchasingCount = $this->safeCount(static fn (): int => User::query()
+            ->where('tenant_id', $tenantId)
+            ->whereHas('role', static fn ($q) => $q->where('name', RoleName::Purchasing->value))
+            ->count());
+        $qcGudangCount = $this->safeCount(static fn (): int => User::query()
+            ->where('tenant_id', $tenantId)
+            ->whereHas('role', static fn ($q) => $q->where('name', RoleName::QcGudang->value))
+            ->count());
+
+        // Reuse governance counts from Manajemen summary
+        $manajemenSummary = $this->getManajemenSummaryMetrics($tenantId);
+        $disputesOpen = (int) ($manajemenSummary['disputes']['open'] ?? 0);
+        $disputesMediation = (int) ($manajemenSummary['disputes']['in_mediation'] ?? 0);
+        $disputesResolved = (int) ($manajemenSummary['disputes']['resolved'] ?? 0);
+
+        return [
+            'procurement' => [
+                'total_orders' => $totalOrders,
+                'draft_and_negotiation' => $draftAndNegotiation,
+                'in_execution' => $inExecution,
+                'invoiced_and_ready_to_pay' => $invoicedAndReadyToPay,
+                'completed_paid' => $completedPaid,
+                'disputed_orders' => $disputedOrders,
+                'cancelled_orders' => $cancelledOrders,
+                'total_agreed_value' => round($totalAgreedValue, 2),
+            ],
+            'invoices' => [
+                'total' => $invoicesTotal,
+                'pending' => $invoicesPending,
+                'matched' => $invoicesMatched,
+                'mismatched' => $invoicesMismatched,
+                'ready_to_pay_orders' => $invoicedAndReadyToPay,
+                'total_invoiced_amount' => round($totalInvoicedAmount, 2),
+                'matched_amount' => round($matchedAmount, 2),
+            ],
+            'employees' => [
+                'total' => $employeesTotal,
+                'active' => $employeesActive,
+                'inactive' => max(0, $employeesTotal - $employeesActive),
+                'owner_count' => $ownerCount,
+                'manajemen_count' => $manajemenCount,
+                'purchasing_count' => $purchasingCount,
+                'qc_gudang_count' => $qcGudangCount,
+            ],
+            'governance' => [
+                'partnerships_total' => (int) ($manajemenSummary['partnerships']['total'] ?? 0),
+                'partnerships_agreed' => (int) ($manajemenSummary['partnerships']['agreed'] ?? 0),
+                'partnerships_pending' => (int) (($manajemenSummary['partnerships']['pending_incoming'] ?? 0) + ($manajemenSummary['partnerships']['pending_outgoing'] ?? 0)),
+                'partnerships_blocked' => (int) ($manajemenSummary['partnerships']['blocked'] ?? 0),
+                'invitations_pending' => (int) ($manajemenSummary['partnerships']['invitations_pending'] ?? 0),
+                'disputes_total' => (int) ($manajemenSummary['disputes']['total'] ?? 0),
+                'disputes_open' => $disputesOpen,
+                'disputes_in_mediation' => $disputesMediation,
+                'disputes_active' => $disputesOpen + $disputesMediation,
+                'disputes_resolved' => $disputesResolved,
+                'qc_total_receipts' => (int) ($manajemenSummary['qc_inspections']['total_receipts'] ?? 0),
+                'qc_in_transit' => (int) ($manajemenSummary['qc_inspections']['in_transit_orders'] ?? 0),
+                'qc_accepted_items' => (int) ($manajemenSummary['qc_inspections']['accepted_items'] ?? 0),
+                'qc_rejected_items' => (int) ($manajemenSummary['qc_inspections']['rejected_items'] ?? 0),
+                'tenant_active_commodities' => (int) ($manajemenSummary['commodities']['tenant_active'] ?? 0),
+                'global_active_commodities' => (int) ($manajemenSummary['commodities']['global_active_total'] ?? 0),
+            ],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getOwnerRecentPurchaseOrders(int $tenantId, int $limit = 5): array
+    {
+        try {
+            return PurchaseOrder::query()
+                ->where('perusahaan_buyer_id', $tenantId)
+                ->with([
+                    'vendor:id,uuid,company_name,business_entity',
+                    'pembuat:id,uuid,name',
+                    'poItems:id,purchase_order_id,jumlah_pesanan,harga_satuan_po,estimated_unit_price,subtotal',
+                ])
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->limit($limit)
+                ->get()
+                ->map(static function (PurchaseOrder $po): array {
+                    $totalAmount = 0.0;
+                    foreach ($po->poItems as $item) {
+                        $sub = (float) ($item->subtotal ?? 0);
+                        if ($sub > 0) {
+                            $totalAmount += $sub;
+                        } else {
+                            $qty = (float) ($item->jumlah_pesanan ?? 0);
+                            $unitPrice = (float) ($item->harga_satuan_po ?? $item->estimated_unit_price ?? 0);
+                            $totalAmount += $qty * $unitPrice;
+                        }
+                    }
+
+                    $statusEnum = $po->status instanceof StatusPurchaseOrder
+                        ? $po->status
+                        : StatusPurchaseOrder::tryFrom((string) $po->status);
+
+                    return [
+                        'uuid' => $po->uuid,
+                        'po_number' => $po->nomor_po,
+                        'vendor_name' => $po->vendor?->company_name ?? 'Vendor',
+                        'vendor_entity' => $po->vendor?->business_entity,
+                        'created_by_name' => $po->pembuat?->name ?? 'Internal Tenant',
+                        'status' => $statusEnum?->value ?? (string) $po->status,
+                        'status_label' => $statusEnum?->label() ?? (string) $po->status,
+                        'items_count' => $po->poItems->count(),
+                        'total_amount' => round($totalAmount, 2),
+                        'tanggal_po' => $po->tanggal_po?->toDateString(),
+                        'created_at' => $po->created_at?->toISOString(),
+                    ];
+                })
+                ->values()
+                ->all();
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getOwnerRecentInvoices(int $tenantId, int $limit = 5): array
+    {
+        try {
+            return Invoice::query()
+                ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+                ->with([
+                    'purchaseOrder:id,uuid,nomor_po,vendor_id,status',
+                    'purchaseOrder.vendor:id,uuid,company_name',
+                    'vendor:id,uuid,company_name',
+                    'verifikator:id,uuid,name',
+                ])
+                ->orderByRaw("CASE WHEN status_matching = 'pending' THEN 0 WHEN status_matching = 'mismatched' THEN 1 ELSE 2 END")
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->limit($limit)
+                ->get()
+                ->map(static function (Invoice $invoice): array {
+                    $po = $invoice->purchaseOrder;
+                    $vendor = $invoice->vendor ?? $po?->vendor;
+                    $matchingEnum = $invoice->statusMatchingEnum();
+
+                    return [
+                        'uuid' => $invoice->uuid,
+                        'invoice_number' => $invoice->nomor_invoice_vendor,
+                        'po_uuid' => $po?->uuid,
+                        'po_number' => $po?->nomor_po ?? '-',
+                        'vendor_name' => $vendor?->company_name ?? 'Vendor',
+                        'amount' => round((float) ($invoice->jumlah_tagihan ?? 0), 2),
+                        'matching_status' => $matchingEnum?->value ?? (string) ($invoice->status_matching ?? 'pending'),
+                        'matching_status_label' => $matchingEnum?->label() ?? 'Menunggu Verifikasi',
+                        'verified_by_name' => $invoice->verifikator?->name,
+                        'verified_at' => $invoice->diverifikasi_pada?->toISOString(),
+                        'invoice_date' => $invoice->tanggal_invoice?->toDateString(),
+                        'created_at' => $invoice->created_at?->toISOString(),
+                    ];
+                })
+                ->values()
+                ->all();
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getOwnerInternalTeam(int $tenantId, int $limit = 6): array
+    {
+        try {
+            return User::query()
+                ->where('tenant_id', $tenantId)
+                ->with('role:id,name')
+                ->orderByDesc('is_active')
+                ->orderBy('id')
+                ->limit($limit)
+                ->get()
+                ->map(static function (User $member): array {
+                    $roleEnum = $member->roleName();
+
+                    return [
+                        'uuid' => $member->uuid,
+                        'name' => $member->name,
+                        'email' => $member->email,
+                        'role' => $roleEnum?->value ?? ($member->role?->name ?? 'purchasing'),
+                        'role_label' => $roleEnum?->label() ?? 'Pegawai Internal',
+                        'is_active' => (bool) $member->is_active,
+                        'email_verified' => $member->email_verified_at !== null,
+                        'created_at' => $member->created_at?->toISOString(),
+                    ];
+                })
+                ->values()
+                ->all();
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getOwnerMonthlyExecutionTrend(int $tenantId, int $months = 6): array
+    {
+        $safeMonths = max(1, min($months, 12));
+        $startDate = Carbon::now()->startOfMonth()->subMonths($safeMonths - 1);
+
+        $buckets = [];
+        for ($i = 0; $i < $safeMonths; $i++) {
+            $monthCursor = $startDate->copy()->addMonths($i);
+            $key = $monthCursor->format('Y-m');
+            $monthNum = (int) $monthCursor->format('n');
+            $monthName = self::INDONESIAN_SHORT_MONTHS[$monthNum] ?? $monthCursor->format('M');
+
+            $buckets[$key] = [
+                'month_key' => $key,
+                'label' => $monthName.' '.$monthCursor->format('Y'),
+                'purchase_orders_count' => 0,
+                'invoices_count' => 0,
+                'qc_inspections_count' => 0,
+                'po_value' => 0.0,
+            ];
+        }
+
+        try {
+            $orders = PurchaseOrder::query()
+                ->where('perusahaan_buyer_id', $tenantId)
+                ->where('created_at', '>=', $startDate)
+                ->with('poItems:id,purchase_order_id,jumlah_pesanan,harga_satuan_po,estimated_unit_price,subtotal')
+                ->get(['id', 'status', 'created_at']);
+
+            foreach ($orders as $order) {
+                if ($order->created_at === null) {
+                    continue;
+                }
+                $key = Carbon::parse($order->created_at)->format('Y-m');
+                if (! isset($buckets[$key])) {
+                    continue;
+                }
+                $buckets[$key]['purchase_orders_count']++;
+
+                foreach ($order->poItems as $item) {
+                    $sub = (float) ($item->subtotal ?? 0);
+                    if ($sub > 0) {
+                        $buckets[$key]['po_value'] += $sub;
+                    } else {
+                        $qty = (float) ($item->jumlah_pesanan ?? 0);
+                        $price = (float) ($item->harga_satuan_po ?? $item->estimated_unit_price ?? 0);
+                        $buckets[$key]['po_value'] += $qty * $price;
+                    }
+                }
+            }
+        } catch (Throwable) {
+            // Skip if unavailable
+        }
+
+        try {
+            $invoiceDates = Invoice::query()
+                ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+                ->where('created_at', '>=', $startDate)
+                ->pluck('created_at');
+
+            foreach ($invoiceDates as $dt) {
+                if ($dt !== null) {
+                    $key = Carbon::parse($dt)->format('Y-m');
+                    if (isset($buckets[$key])) {
+                        $buckets[$key]['invoices_count']++;
+                    }
+                }
+            }
+        } catch (Throwable) {
+            // Skip if unavailable
+        }
+
+        try {
+            $qcDates = PenerimaanBarang::query()
+                ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+                ->where('created_at', '>=', $startDate)
+                ->pluck('created_at');
+
+            foreach ($qcDates as $dt) {
+                if ($dt !== null) {
+                    $key = Carbon::parse($dt)->format('Y-m');
+                    if (isset($buckets[$key])) {
+                        $buckets[$key]['qc_inspections_count']++;
+                    }
+                }
+            }
+        } catch (Throwable) {
+            // Skip if unavailable
+        }
+
+        foreach ($buckets as $key => $bucket) {
+            $buckets[$key]['po_value'] = round($bucket['po_value'], 2);
         }
 
         return array_values($buckets);

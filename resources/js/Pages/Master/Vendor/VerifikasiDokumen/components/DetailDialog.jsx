@@ -8,6 +8,7 @@ import {
 } from '@/Components/ui/dialog';
 import { Button } from '@/Components/ui/button';
 import {
+    AlertTriangle,
     Building2,
     Download,
     FileText,
@@ -40,6 +41,47 @@ export function DetailDialog({ vendor, open, onOpenChange, onApprove, onReject }
                 </DialogHeader>
 
                 <div className="space-y-4 py-2 text-sm">
+                    {/* Warning Duplikasi Dokumen */}
+                    {vendor.has_duplicate_documents && Array.isArray(vendor.duplicate_warnings) && vendor.duplicate_warnings.length > 0 && (
+                        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3.5 space-y-2.5">
+                            <div className="flex items-start gap-2.5 text-amber-800 dark:text-amber-300">
+                                <AlertTriangle className="size-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                                <div>
+                                    <h4 className="font-semibold text-xs sm:text-sm">
+                                        Peringatan: Duplikasi Nomor Dokumen Legalitas
+                                    </h4>
+                                    <p className="text-[11px] leading-relaxed opacity-90 mt-0.5">
+                                        Nomor dokumen pada pendaftaran ini terdeteksi telah digunakan oleh entitas lain. Pastikan verifikasi hubungan resmi (misalnya kantor cabang atau direksi yang sama) untuk mencegah impersonation.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5 pt-1 border-t border-amber-500/20 text-xs">
+                                {vendor.duplicate_warnings.map((warn, wIdx) => (
+                                    <div key={wIdx} className="p-2 rounded bg-background/80 border border-amber-500/20 space-y-1">
+                                        <div className="flex items-center justify-between text-[11px]">
+                                            <span className="font-medium text-foreground">{warn.document_label}: <strong className="font-mono">{warn.document_number}</strong></span>
+                                            <span className="text-[10px] text-muted-foreground">{warn.matches?.length || 0} entitas serupa</span>
+                                        </div>
+                                        <div className="space-y-1 pl-2 border-l-2 border-amber-500/40 text-[11px]">
+                                            {warn.matches?.map((match, mIdx) => (
+                                                <div key={mIdx} className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
+                                                    <span className="font-medium text-foreground">{match.company_name}</span>
+                                                    <span className="capitalize px-1 py-0.2 rounded bg-muted text-[10px]">
+                                                        {match.entity_type === 'vendor' ? 'Vendor (Pemasok)' : 'Tenant (Pembeli)'}
+                                                    </span>
+                                                    <span className="text-[10px]">
+                                                        ({match.verification_status === 'approved' ? 'Terverifikasi' : 'Menunggu Verifikasi'})
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Profil Vendor */}
                     <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
                         <div className="flex items-center justify-between gap-2">

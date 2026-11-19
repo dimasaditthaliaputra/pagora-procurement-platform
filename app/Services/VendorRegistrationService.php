@@ -54,7 +54,8 @@ class VendorRegistrationService
         private readonly UndanganVendorRepositoryInterface $undanganRepository,
         private readonly UserRepositoryInterface $userRepository,
         private readonly OtpService $otpService,
-        private readonly FileStorageService $fileStorage
+        private readonly FileStorageService $fileStorage,
+        private readonly RegistrationSecurityGuardService $securityGuard
     ) {}
 
     /**
@@ -149,6 +150,49 @@ class VendorRegistrationService
                 (string) ($data['otp'] ?? '')
             );
         }
+
+        $taxNumber = isset($data['tax_number']) ? (string) $data['tax_number'] : (isset($data['nomor_npwp']) ? (string) $data['nomor_npwp'] : null);
+        $nib = isset($data['nomor_nib']) ? (string) $data['nomor_nib'] : null;
+        $ktp = isset($data['nomor_ktp']) ? (string) $data['nomor_ktp'] : null;
+        $sppkp = isset($data['nomor_sppkp']) ? (string) $data['nomor_sppkp'] : null;
+        $akta = isset($data['nomor_akta']) ? (string) $data['nomor_akta'] : null;
+        $skKemenkumham = isset($data['nomor_sk_kemenkumham']) ? (string) $data['nomor_sk_kemenkumham'] : null;
+
+        $legalDocs = (array) ($data['legal_documents'] ?? []);
+        foreach ($legalDocs as $doc) {
+            if (! is_array($doc)) {
+                continue;
+            }
+            $type = (string) ($doc['document_type'] ?? '');
+            $num = isset($doc['document_number']) ? trim((string) $doc['document_number']) : '';
+            if ($num === '') {
+                continue;
+            }
+            if ($type === 'npwp' && empty($taxNumber)) {
+                $taxNumber = $num;
+            } elseif ($type === 'nib' && empty($nib)) {
+                $nib = $num;
+            } elseif (in_array($type, ['ktp', 'ktp_penanggung_jawab'], true) && empty($ktp)) {
+                $ktp = $num;
+            } elseif (in_array($type, ['sppkp', 'dokumen_sppkp'], true) && empty($sppkp)) {
+                $sppkp = $num;
+            } elseif (in_array($type, ['akta', 'akta_pendirian'], true) && empty($akta)) {
+                $akta = $num;
+            } elseif ($type === 'sk_kemenkumham' && empty($skKemenkumham)) {
+                $skKemenkumham = $num;
+            }
+        }
+
+        $this->securityGuard->validatePreRegistration(
+            entityType: 'vendor',
+            companyName: (string) ($data['company_name'] ?? ''),
+            taxNumber: $taxNumber,
+            nib: $nib,
+            ktp: $ktp,
+            sppkp: $sppkp,
+            akta: $akta,
+            skKemenkumham: $skKemenkumham
+        );
 
         /** @var list<string> $categoryUuids */
         $categoryUuids = array_values(array_unique(array_filter(

@@ -7,6 +7,7 @@ import {
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
 import {
+    AlertTriangle,
     Building2,
     CheckCircle2,
     Clock,
@@ -64,11 +65,23 @@ export function getColumns({ onViewDetail, onApprove, onReject }) {
 
                 return (
                     <div className="flex flex-col gap-1 py-1">
-                        <div className="flex items-center gap-2">
-                            <Building2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                            <span className="font-semibold text-foreground">
-                                {tenant.company_name}
-                            </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex items-center gap-2">
+                                <Building2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                <span className="font-semibold text-foreground">
+                                    {tenant.company_name}
+                                </span>
+                            </div>
+                            {tenant.has_duplicate_documents && (
+                                <Badge
+                                    variant="outline"
+                                    className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400 gap-1 text-[10px] font-medium px-1.5 py-0.5"
+                                    title="Dokumen legalitas terdeteksi digunakan oleh entitas lain"
+                                >
+                                    <AlertTriangle className="size-3 shrink-0" />
+                                    Duplikasi Dokumen
+                                </Badge>
+                            )}
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                             {tenant.tax_number && (

@@ -8,9 +8,11 @@ use App\Helpers\NpwpHelper;
 use App\Helpers\PhoneHelper;
 use App\Rules\Npwp;
 use App\Rules\PhoneNumber;
+use App\Services\RegistrationSecurityGuardService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
 
 class StoreVendorRegistrationRequest extends FormRequest
@@ -217,7 +219,6 @@ class StoreVendorRegistrationRequest extends FormRequest
                 'string',
                 'max:20',
                 new Npwp,
-                Rule::unique('vendors', 'tax_number')->whereNull('deleted_at'),
             ],
             'contact_email' => [
                 'required',
@@ -400,6 +401,59 @@ class StoreVendorRegistrationRequest extends FormRequest
                         'nomor_sk_kemenkumham',
                         'Nomor SK Kemenkumham wajib diisi untuk badan usaha '.strtoupper($entity).'.'
                     );
+                }
+            }
+
+            // Extract document numbers from either top-level inputs or legal_documents array
+            $taxNumber = (string) ($this->input('tax_number') ?? $this->input('nomor_npwp') ?? '');
+            $nib = (string) ($this->input('nomor_nib') ?? '');
+            $ktp = (string) ($this->input('nomor_ktp') ?? '');
+            $sppkp = (string) ($this->input('nomor_sppkp') ?? '');
+            $akta = (string) ($this->input('nomor_akta') ?? '');
+            $skKemenkumham = (string) ($this->input('nomor_sk_kemenkumham') ?? '');
+
+            if (is_array($docs)) {
+                foreach ($docs as $doc) {
+                    if (! is_array($doc)) {
+                        continue;
+                    }
+                    $type = (string) ($doc['document_type'] ?? '');
+                    $num = isset($doc['document_number']) ? trim((string) $doc['document_number']) : '';
+                    if ($num === '') {
+                        continue;
+                    }
+                    if ($type === 'npwp' && $taxNumber === '') {
+                        $taxNumber = $num;
+                    } elseif ($type === 'nib' && $nib === '') {
+                        $nib = $num;
+                    } elseif (in_array($type, ['ktp', 'ktp_penanggung_jawab'], true) && $ktp === '') {
+                        $ktp = $num;
+                    } elseif (in_array($type, ['sppkp', 'dokumen_sppkp'], true) && $sppkp === '') {
+                        $sppkp = $num;
+                    } elseif (in_array($type, ['akta', 'akta_pendirian'], true) && $akta === '') {
+                        $akta = $num;
+                    } elseif ($type === 'sk_kemenkumham' && $skKemenkumham === '') {
+                        $skKemenkumham = $num;
+                    }
+                }
+            }
+
+            try {
+                app(RegistrationSecurityGuardService::class)->validatePreRegistration(
+                    entityType: 'vendor',
+                    companyName: (string) $this->input('company_name'),
+                    taxNumber: $taxNumber !== '' ? $taxNumber : null,
+                    nib: $nib !== '' ? $nib : null,
+                    ktp: $ktp !== '' ? $ktp : null,
+                    sppkp: $sppkp !== '' ? $sppkp : null,
+                    akta: $akta !== '' ? $akta : null,
+                    skKemenkumham: $skKemenkumham !== '' ? $skKemenkumham : null
+                );
+            } catch (ValidationException $e) {
+                foreach ($e->errors() as $field => $messages) {
+                    foreach ($messages as $msg) {
+                        $validator->errors()->add($field, $msg);
+                    }
                 }
             }
         });

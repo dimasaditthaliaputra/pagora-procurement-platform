@@ -8,10 +8,12 @@ use App\Helpers\NpwpHelper;
 use App\Helpers\PhoneHelper;
 use App\Rules\Npwp;
 use App\Rules\PhoneNumber;
+use App\Services\RegistrationSecurityGuardService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
 
 class RegisterRequest extends FormRequest
@@ -194,7 +196,6 @@ class RegisterRequest extends FormRequest
                 'string',
                 'max:20',
                 new Npwp,
-                Rule::unique('tenants', 'tax_number')->whereNull('deleted_at'),
             ],
             'telepon' => ['required', 'string', 'max:20', new PhoneNumber],
             'alamat' => ['required', 'string', 'max:1000'],
@@ -296,6 +297,22 @@ class RegisterRequest extends FormRequest
                         'legal_documents',
                         'Dokumen legalitas NPWP Perusahaan wajib diunggah (pilih salah satu jenis dokumen sebagai NPWP).'
                     );
+                }
+            }
+
+            try {
+                app(RegistrationSecurityGuardService::class)->validatePreRegistration(
+                    entityType: 'tenant',
+                    companyName: (string) ($this->input('nama_perusahaan') ?? $this->input('company_name')),
+                    taxNumber: (string) ($this->input('nomor_npwp') ?? $this->input('tax_number')),
+                    nib: (string) $this->input('nomor_nib'),
+                    ktp: (string) $this->input('nomor_ktp')
+                );
+            } catch (ValidationException $e) {
+                foreach ($e->errors() as $field => $messages) {
+                    foreach ($messages as $msg) {
+                        $validator->errors()->add($field, $msg);
+                    }
                 }
             }
         });

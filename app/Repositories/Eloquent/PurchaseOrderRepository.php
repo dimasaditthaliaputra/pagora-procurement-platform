@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Eloquent;
 
 use App\Enums\NegotiationStatus;
+use App\Enums\StatusSengketa;
 use App\Models\PoItem;
 use App\Models\PurchaseOrder;
 use App\Repositories\Contracts\PurchaseOrderRepositoryInterface;
@@ -296,8 +297,8 @@ class PurchaseOrderRepository implements PurchaseOrderRepositoryInterface
                 ->orWhereHas('invoices', function ($invQ): void {
                     $invQ->whereIn('status_matching', ['gagal', 'mismatched'])
                         ->orWhereHas('sengketa', function ($disputeQ): void {
-                            $disputeQ->whereNull('tanggal_selesai')
-                                ->where('status', '!=', 'selesai');
+                            $disputeQ->whereNull('resolved_at')
+                                ->where('status', '!=', StatusSengketa::Resolved->value);
                         });
                 })
                 ->orWhereHas('penerimaanBarang.items', function ($qcQ): void {

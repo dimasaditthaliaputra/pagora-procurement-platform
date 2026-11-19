@@ -89,7 +89,7 @@ class PenerimaanBarangPolicy
             return false;
         }
 
-        if ($sengketa === null || $sengketa->status === StatusSengketa::Selesai) {
+        if ($sengketa === null || $sengketa->status === StatusSengketa::Resolved) {
             return false;
         }
 

@@ -8,10 +8,15 @@ use App\Enums\PemicuSengketa;
 use App\Enums\StatusSengketa;
 use App\Helpers\ResponseHelper;
 use App\Http\Requests\Sengketa\IndexSengketaRequest;
+use App\Http\Requests\Sengketa\ProposeResolutionRequest;
+use App\Http\Requests\Sengketa\ResolveSengketaRequest;
+use App\Http\Requests\Sengketa\SettlementDecisionRequest;
 use App\Http\Requests\Sengketa\StoreTinjauanSengketaRequest;
 use App\Http\Resources\SengketaResource;
 use App\Models\User;
+use App\Services\DisputeResolutionService;
 use App\Services\SengketaService;
+use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -35,6 +40,7 @@ class SengketaController extends Controller
 {
     public function __construct(
         private readonly SengketaService $sengketaService,
+        private readonly DisputeResolutionService $resolutionService,
     ) {}
 
     /**
@@ -119,6 +125,7 @@ class SengketaController extends Controller
 
             return Inertia::render('LogSengketa/Show', [
                 'dispute' => (new SengketaResource($sengketa))->resolve($request),
+                'settlement' => $this->resolutionService->context($user, $sengketa),
             ]);
         } catch (ModelNotFoundException) {
             if ($request->expectsJson()) {
@@ -277,7 +284,7 @@ class SengketaController extends Controller
     }
 
     /**
-     * Stream a private attachment belonging to an immutable `log_sengketa` entry (`RULES` §8.7).
+     * Stream a private attachment belonging to an immutable `dispute_logs` entry (`RULES` §8.7).
      */
     public function attachment(
         Request $request,
@@ -311,6 +318,106 @@ class SengketaController extends Controller
             throw $e;
         } catch (Throwable $e) {
             return ResponseHelper::serverError('Gagal memuat lampiran bukti sengketa.', $e, $request);
+        }
+    }
+
+    /**
+     * Settlement form page: reshipment, return, or credit note (`UC-18` step 4, RULES §8.9).
+     */
+    public function createResolution(Request $request, string $uuid): Response|JsonResponse|RedirectResponse
+    {
+        try {
+            /** @var User $user */
+            $user = $request->user();
+            $sengketa = $this->sengketaService->findForUser($user, $uuid);
+            $form = $this->resolutionService->proposalForm($user, $sengketa);
+
+            return Inertia::render('LogSengketa/Penyelesaian', [
+                'dispute' => (new SengketaResource($sengketa))->resolve($request),
+                'form' => $form,
+            ]);
+        } catch (ModelNotFoundException) {
+            throw new NotFoundHttpException('Data sengketa tidak ditemukan.');
+        } catch (AuthorizationException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Gagal memuat form penyelesaian sengketa.', $e, $request);
+        }
+    }
+
+    /**
+     * Owner/Manajemen propose a settlement and issue its document (`UC-18` step 4–5, FR-40..42).
+     */
+    public function proposeResolution(ProposeResolutionRequest $request, string $uuid): JsonResponse|RedirectResponse
+    {
+        return $this->settle($request, $uuid, 'Penyelesaian diajukan dan menunggu konfirmasi Vendor.', fn (User $user) => $this->resolutionService->propose($user, $uuid, $request->validated()));
+    }
+
+    /**
+     * Owner/Manajemen set the dispute to `resolved` after verifying the settlement (`UC-18` step 6, BR-15).
+     */
+    public function resolve(ResolveSengketaRequest $request, string $uuid): JsonResponse|RedirectResponse
+    {
+        return $this->settle($request, $uuid, 'Sengketa ditetapkan Selesai.', fn (User $user) => $this->resolutionService->resolve($user, $uuid, $request->validated('note')));
+    }
+
+    /**
+     * The Vendor accepts or refuses a proposed reshipment (`UC-18` step 5, 5a).
+     */
+    public function decideReshipment(SettlementDecisionRequest $request, string $uuid): JsonResponse|RedirectResponse
+    {
+        $accepted = $request->isAccepted();
+
+        return $this->settle($request, $uuid, $accepted ? 'Pengiriman ulang disetujui.' : 'Pengiriman ulang ditolak.', fn (User $user) => $this->resolutionService->decideReshipment($user, $uuid, $accepted, $request->validated('reason')));
+    }
+
+    /**
+     * The Vendor confirms or refuses a credit note (FR-41, BR-16).
+     */
+    public function decideCreditNote(SettlementDecisionRequest $request, string $uuid, string $creditNoteUuid): JsonResponse|RedirectResponse
+    {
+        $accepted = $request->isAccepted();
+
+        return $this->settle($request, $uuid, $accepted ? 'Credit note dikonfirmasi.' : 'Credit note ditolak.', fn (User $user) => $this->resolutionService->decideCreditNote($user, $creditNoteUuid, $accepted, $request->validated('reason')));
+    }
+
+    /**
+     * The Vendor confirms or refuses a purchase return (FR-42, BR-27).
+     */
+    public function decidePurchaseReturn(SettlementDecisionRequest $request, string $uuid, string $returnUuid): JsonResponse|RedirectResponse
+    {
+        $accepted = $request->isAccepted();
+
+        return $this->settle($request, $uuid, $accepted ? 'Retur dikonfirmasi.' : 'Retur ditolak.', fn (User $user) => $this->resolutionService->decidePurchaseReturn($user, $returnUuid, $accepted, $request->validated('reason')));
+    }
+
+    /**
+     * The Vendor marks the returned goods as received back (`confirmed` → `completed`).
+     */
+    public function completePurchaseReturn(Request $request, string $uuid, string $returnUuid): JsonResponse|RedirectResponse
+    {
+        return $this->settle($request, $uuid, 'Retur ditandai Selesai.', fn (User $user) => $this->resolutionService->completePurchaseReturn($user, $returnUuid));
+    }
+
+    /**
+     * Run a settlement action and answer with the shared response conventions (`RULES` §6), back on the dispute page.
+     */
+    private function settle(Request $request, string $uuid, string $successMessage, Closure $action): JsonResponse|RedirectResponse
+    {
+        try {
+            /** @var User $user */
+            $user = $request->user();
+            $action($user);
+
+            return ResponseHelper::success($successMessage, null, route('log-sengketa.show', $uuid), $request);
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors(), 'Penyelesaian sengketa belum dapat diproses.', $request);
+        } catch (ModelNotFoundException) {
+            return ResponseHelper::notFound('Data sengketa atau dokumen penyelesaian tidak ditemukan.', null, $request);
+        } catch (AuthorizationException) {
+            return ResponseHelper::forbidden('Anda tidak dapat melakukan aksi ini pada sengketa.', null, $request);
+        } catch (Throwable $e) {
+            return ResponseHelper::serverError('Gagal memproses penyelesaian sengketa.', $e, $request);
         }
     }
 }

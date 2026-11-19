@@ -123,6 +123,7 @@ class RoleAccessTest extends TestCase
                 'purchase_order.view_any' => true,
                 'pengiriman.view_any' => true,
                 'penerimaan_barang.view_any' => true,
+                'sengketa.view_any' => true,
                 'perusahaan.view' => true,
                 'pengguna.view_any' => true,
                 'kerja-sama.calon-mitra.view' => true,
@@ -175,7 +176,6 @@ class RoleAccessTest extends TestCase
             'superadmin opens create inspeksi qc' => [RoleName::Superadmin, '/inspeksi-qc/create'],
             'superadmin opens log sengketa' => [RoleName::Superadmin, '/log-sengketa'],
             'qc opens log sengketa' => [RoleName::QcGudang, '/log-sengketa'],
-            'vendor opens log sengketa' => [RoleName::Vendor, '/log-sengketa'],
         ];
     }
 

@@ -42,16 +42,15 @@ export function SengketaTriggerBadge({ triggerType, label }) {
     );
 }
 
+const STATUS_VARIANTS = {
+    open: 'warning',
+    awaiting_response: 'gray',
+    in_mediation: 'sky',
+    resolved: 'green',
+};
+
 export function SengketaStatusBadge({ status, label }) {
-    if (status === 'selesai' || status === 'resolved') {
-        return <Badge variant="green">{label}</Badge>;
-    }
-
-    if (status === 'dalam_mediasi' || status === 'in_mediation') {
-        return <Badge variant="sky">{label}</Badge>;
-    }
-
-    return <Badge variant="warning">{label}</Badge>;
+    return <Badge variant={STATUS_VARIANTS[status] ?? 'warning'}>{label}</Badge>;
 }
 
 export function getSengketaColumns({ onSortChange }) {
@@ -107,7 +106,7 @@ export function getSengketaColumns({ onSortChange }) {
             ),
         },
         {
-            id: 'tanggal_dibuka',
+            id: 'opened_at',
             accessorKey: 'opened_at',
             enableSorting: true,
             header: ({ column }) => (

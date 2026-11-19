@@ -97,4 +97,9 @@ interface InvoiceRepositoryInterface
         Invoice $invoice,
         array $attributes
     ): bool;
+
+    /**
+     * Find an invoice of the given purchase order and lock its row (credit note ceiling, BR-16).
+     */
+    public function lockForPurchaseOrder(int $purchaseOrderId, string $uuid): ?Invoice;
 }

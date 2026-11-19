@@ -302,21 +302,21 @@ class LaporanKerusakanQcTest extends TestCase
         $this->assertSame(StatusPurchaseOrder::PartiallyReceived, $po->fresh()->status);
         $this->assertSame(StatusItemPenerimaan::Rejected, $rejectedItem->status);
         $this->assertSame(PemicuSengketa::GoodsMismatch->value, $dispute->trigger_type);
-        $this->assertSame(StatusSengketa::Terbuka, $dispute->status);
+        $this->assertSame(StatusSengketa::Open, $dispute->status);
         $this->assertSame(
             'Sebanyak 8 karung pecah dan beras basah terkena rembesan air truk.',
             $dispute->reason
         );
 
-        $initialLog = LogSengketa::where('sengketa_id', $dispute->id)->first();
+        $initialLog = LogSengketa::where('dispute_id', $dispute->id)->first();
         $this->assertNotNull($initialLog);
         $this->assertSame('status_change', $initialLog->type);
         $this->assertStringContainsString(
             PemicuSengketa::GoodsMismatch->label(),
-            (string) $initialLog->isi_pesan
+            (string) $initialLog->message
         );
-        $this->assertNotNull($initialLog->file_bukti);
-        Storage::disk(PenerimaanBarangService::STORAGE_DISK)->assertExists($initialLog->file_bukti);
+        $this->assertNotNull($initialLog->attachment_path);
+        Storage::disk(PenerimaanBarangService::STORAGE_DISK)->assertExists($initialLog->attachment_path);
 
         // Receipt show page includes damage_report_url and trigger_type_label
         $this->actingAs($this->qcA)
@@ -358,7 +358,7 @@ class LaporanKerusakanQcTest extends TestCase
 
         $response->assertSessionHasErrors(['items.0.trigger_type']);
         $this->assertDatabaseCount('goods_receipts', 0);
-        $this->assertDatabaseCount('sengketa', 0);
+        $this->assertDatabaseCount('disputes', 0);
     }
 
     public function test_damage_reports_index_and_show_enforce_filters_and_br02_confidentiality(): void
@@ -373,7 +373,7 @@ class LaporanKerusakanQcTest extends TestCase
 
         // Tenant QC Gudang sees damage reports index, statistics, and Tenant shrinkage tolerance
         $this->actingAs($this->qcA)
-            ->get('/inspeksi-qc/laporan-kerusakan?trigger_type=goods_mismatch&dispute_status=terbuka')
+            ->get('/inspeksi-qc/laporan-kerusakan?trigger_type=goods_mismatch&dispute_status=open')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('InspeksiQc/DamageReports')
@@ -426,7 +426,7 @@ class LaporanKerusakanQcTest extends TestCase
             PemicuSengketa::GoodsMismatch->value
         );
 
-        $initialLogsCount = LogSengketa::where('sengketa_id', $dispute->id)->count();
+        $initialLogsCount = LogSengketa::where('dispute_id', $dispute->id)->count();
         $originalNotes = $rejectedItem->notes;
         $originalPhotos = $rejectedItem->rejection_photos;
 
@@ -446,14 +446,14 @@ class LaporanKerusakanQcTest extends TestCase
         $this->assertSame($originalPhotos, $rejectedItem->rejection_photos);
 
         // Two new append-only log_sengketa records created (1 with note+photo1, 1 with photo2)
-        $allLogs = LogSengketa::where('sengketa_id', $dispute->id)->orderBy('id')->get();
+        $allLogs = LogSengketa::where('dispute_id', $dispute->id)->orderBy('id')->get();
         $this->assertCount($initialLogsCount + 2, $allLogs);
 
         $latestEvidenceLog = $allLogs->last();
         $this->assertNotNull($latestEvidenceLog);
         $this->assertSame('evidence', $latestEvidenceLog->type);
-        $this->assertNotNull($latestEvidenceLog->file_bukti);
-        Storage::disk(PenerimaanBarangService::STORAGE_DISK)->assertExists($latestEvidenceLog->file_bukti);
+        $this->assertNotNull($latestEvidenceLog->attachment_path);
+        Storage::disk(PenerimaanBarangService::STORAGE_DISK)->assertExists($latestEvidenceLog->attachment_path);
 
         // Both Tenant QC and Vendor A can stream the supplementary dispute log photo; Tenant B QC gets 404
         $this->actingAs($this->qcA)
@@ -479,7 +479,7 @@ class LaporanKerusakanQcTest extends TestCase
             ])
             ->assertRedirect(route('inspeksi-qc.damage-reports.show', $rejectedItem->uuid));
 
-        $this->assertCount($initialLogsCount + 3, LogSengketa::where('sengketa_id', $dispute->id)->get());
+        $this->assertCount($initialLogsCount + 3, LogSengketa::where('dispute_id', $dispute->id)->get());
 
         // Vendor A received in-app notification pointing to the damage report
         $this->assertTrue(
@@ -502,13 +502,13 @@ class LaporanKerusakanQcTest extends TestCase
             ])
             ->assertSessionHasErrors(['message']);
 
-        // Mark dispute resolved (StatusSengketa::Selesai) -> immutable (BR-17)
+        // Mark dispute resolved (StatusSengketa::Resolved) -> immutable (BR-17)
         $dispute->update([
-            'status' => StatusSengketa::Selesai->value,
-            'tanggal_selesai' => now(),
+            'status' => StatusSengketa::Resolved->value,
+            'resolved_at' => now(),
         ]);
 
-        $logsBefore = LogSengketa::where('sengketa_id', $dispute->id)->count();
+        $logsBefore = LogSengketa::where('dispute_id', $dispute->id)->count();
 
         $this->actingAs($this->qcA)
             ->postJson("/inspeksi-qc/laporan-kerusakan/{$rejectedItem->uuid}/bukti", [
@@ -517,7 +517,7 @@ class LaporanKerusakanQcTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['message']);
 
-        $this->assertSame($logsBefore, LogSengketa::where('sengketa_id', $dispute->id)->count());
+        $this->assertSame($logsBefore, LogSengketa::where('dispute_id', $dispute->id)->count());
     }
 
     /**

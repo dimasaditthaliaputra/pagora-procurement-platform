@@ -12,15 +12,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'uuid',
-    'sengketa_id',
+    'dispute_id',
     'user_id',
     'type',
-    'isi_pesan',
-    'file_bukti',
+    'message',
+    'attachment_path',
 ])]
 #[Hidden([
     'id',
-    'sengketa_id',
+    'dispute_id',
     'user_id',
 ])]
 class LogSengketa extends Model
@@ -29,7 +29,7 @@ class LogSengketa extends Model
 
     public const UPDATED_AT = null;
 
-    protected $table = 'log_sengketa';
+    protected $table = 'dispute_logs';
 
     /**
      * Columns that store UUIDs.
@@ -82,7 +82,7 @@ class LogSengketa extends Model
 
     public function sengketa(): BelongsTo
     {
-        return $this->belongsTo(Sengketa::class, 'sengketa_id');
+        return $this->belongsTo(Sengketa::class, 'dispute_id');
     }
 
     public function penulis(): BelongsTo

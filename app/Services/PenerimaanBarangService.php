@@ -35,7 +35,7 @@ use Throwable;
 
 /**
  * Business logic for Goods Receipt, QC Inspection & Damage Reporting (`goods_receipts`, `goods_receipt_items`,
- * `sengketa`, `log_sengketa` — UC-15 + «extend» Melaporkan Kerusakan Barang, FR-24..26, BR-09, BR-10, BR-14, BR-17, BR-23).
+ * `disputes`, `dispute_logs` — UC-15 + «extend» Melaporkan Kerusakan Barang, FR-24..26, BR-09, BR-10, BR-14, BR-17, BR-23).
  */
 class PenerimaanBarangService
 {
@@ -258,7 +258,7 @@ class PenerimaanBarangService
     }
 
     /**
-     * Resolve an authorized supplementary evidence photo path from `log_sengketa.file_bukti`.
+     * Resolve an authorized supplementary evidence photo path from `dispute_logs.attachment_path`.
      *
      * @throws AuthorizationException|ModelNotFoundException
      */
@@ -270,11 +270,11 @@ class PenerimaanBarangService
         $vendorId = $actor->vendor_id !== null ? (int) $actor->vendor_id : null;
         $log = $this->penerimaanRepository->findDisputeLogByUuid($logUuid, $tenantId, $vendorId);
 
-        if ($log === null || ! is_string($log->file_bukti) || $log->file_bukti === '') {
+        if ($log === null || ! is_string($log->attachment_path) || $log->attachment_path === '') {
             throw (new ModelNotFoundException)->setModel(LogSengketa::class, [$logUuid]);
         }
 
-        return $log->file_bukti;
+        return $log->attachment_path;
     }
 
     /**
@@ -457,19 +457,19 @@ class PenerimaanBarangService
                             'invoice_id' => null,
                             'trigger_type' => $triggerEnum->value,
                             'reason' => $itemNotes,
-                            'dibuka_oleh' => $actor->id,
-                            'status' => StatusSengketa::Terbuka->value,
-                            'tanggal_dibuka' => now(),
-                            'tanggal_selesai' => null,
+                            'opened_by' => $actor->id,
+                            'status' => StatusSengketa::Open->value,
+                            'opened_at' => now(),
+                            'resolved_at' => null,
                         ]);
 
                         $this->penerimaanRepository->createDisputeLog([
                             'uuid' => (string) Str::uuid(),
-                            'sengketa_id' => $dispute->id,
+                            'dispute_id' => $dispute->id,
                             'user_id' => $actor->id,
                             'type' => 'status_change',
-                            'isi_pesan' => "Laporan Kerusakan / Penolakan QC Gudang [{$triggerEnum->label()}] untuk item {$commodityName} (Dipesan: {$orderedFormatted} {$unit}, Diterima: {$receivedFormatted} {$unit}). Catatan: {$itemNotes}",
-                            'file_bukti' => $itemPhotoPaths[0] ?? null,
+                            'message' => "Laporan Kerusakan / Penolakan QC Gudang [{$triggerEnum->label()}] untuk item {$commodityName} (Dipesan: {$orderedFormatted} {$unit}, Diterima: {$receivedFormatted} {$unit}). Catatan: {$itemNotes}",
+                            'attachment_path' => $itemPhotoPaths[0] ?? null,
                         ]);
 
                         $extraPhotos = array_slice($itemPhotoPaths, 1);
@@ -477,11 +477,11 @@ class PenerimaanBarangService
                             $photoOrder = $extraIdx + 2;
                             $this->penerimaanRepository->createDisputeLog([
                                 'uuid' => (string) Str::uuid(),
-                                'sengketa_id' => $dispute->id,
+                                'dispute_id' => $dispute->id,
                                 'user_id' => $actor->id,
                                 'type' => 'evidence',
-                                'isi_pesan' => "Lampiran foto bukti kerusakan ke-{$photoOrder} untuk item {$commodityName}.",
-                                'file_bukti' => $extraPath,
+                                'message' => "Lampiran foto bukti kerusakan ke-{$photoOrder} untuk item {$commodityName}.",
+                                'attachment_path' => $extraPath,
                             ]);
                         }
                     }
@@ -494,11 +494,11 @@ class PenerimaanBarangService
                     if ($linkedDispute !== null) {
                         $this->penerimaanRepository->createDisputeLog([
                             'uuid' => (string) Str::uuid(),
-                            'sengketa_id' => $linkedDispute->id,
+                            'dispute_id' => $linkedDispute->id,
                             'user_id' => $actor->id,
                             'type' => 'note',
-                            'isi_pesan' => "Barang pengiriman ulang ({$shipment->vehicle_plate_number}) telah diperiksa dan disetujui oleh QC Gudang.",
-                            'file_bukti' => null,
+                            'message' => "Barang pengiriman ulang ({$shipment->vehicle_plate_number}) telah diperiksa dan disetujui oleh QC Gudang.",
+                            'attachment_path' => null,
                         ]);
                     }
                 }
@@ -555,7 +555,7 @@ class PenerimaanBarangService
 
     /**
      * Append supplementary damage notes and/or photo evidence to an open QC dispute (`UC-15 «extend»`,
-     * `BR-17`, `RULES` §9.4: strictly append-only `log_sengketa`, never mutates existing records).
+     * `BR-17`, `RULES` §9.4: strictly append-only `dispute_logs`, never mutates existing records).
      *
      * @param  array{message: string}  $validated
      * @param  list<UploadedFile>  $uploadedPhotos
@@ -591,7 +591,7 @@ class PenerimaanBarangService
             ]);
         }
 
-        if ($dispute->status === StatusSengketa::Selesai) {
+        if ($dispute->status === StatusSengketa::Resolved) {
             throw ValidationException::withMessages([
                 'message' => 'Sengketa untuk laporan kerusakan ini telah berstatus Selesai (immutable) dan tidak dapat ditambahkan bukti baru.',
             ]);
@@ -622,11 +622,11 @@ class PenerimaanBarangService
 
                 $this->penerimaanRepository->createDisputeLog([
                     'uuid' => (string) Str::uuid(),
-                    'sengketa_id' => $dispute->id,
+                    'dispute_id' => $dispute->id,
                     'user_id' => $actor->id,
                     'type' => $storedFilePaths !== [] ? 'evidence' : 'note',
-                    'isi_pesan' => "Catatan tambahan kerusakan QC Gudang ({$commodityName}): {$message}",
-                    'file_bukti' => $storedFilePaths[0] ?? null,
+                    'message' => "Catatan tambahan kerusakan QC Gudang ({$commodityName}): {$message}",
+                    'attachment_path' => $storedFilePaths[0] ?? null,
                 ]);
 
                 $extraPhotos = array_slice($storedFilePaths, 1);
@@ -634,11 +634,11 @@ class PenerimaanBarangService
                     $photoOrder = $extraIdx + 2;
                     $this->penerimaanRepository->createDisputeLog([
                         'uuid' => (string) Str::uuid(),
-                        'sengketa_id' => $dispute->id,
+                        'dispute_id' => $dispute->id,
                         'user_id' => $actor->id,
                         'type' => 'evidence',
-                        'isi_pesan' => "Lampiran foto bukti tambahan kerusakan ke-{$photoOrder} untuk item {$commodityName}.",
-                        'file_bukti' => $extraPath,
+                        'message' => "Lampiran foto bukti tambahan kerusakan ke-{$photoOrder} untuk item {$commodityName}.",
+                        'attachment_path' => $extraPath,
                     ]);
                 }
             });

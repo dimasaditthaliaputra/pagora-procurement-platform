@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use App\Enums\StatusMatching;
+use App\Enums\StatusSengketa;
 use App\Models\Invoice;
+use App\Models\Sengketa;
 use App\Models\User;
 
 class InvoicePolicy
@@ -68,12 +69,16 @@ class InvoicePolicy
             return false;
         }
 
-        // Only pending matching status can be verified
-        $status = is_object($invoice->status_matching)
-            ? $invoice->status_matching->value
-            : $invoice->status_matching;
+        if ($invoice->isPending()) {
+            return true;
+        }
 
-        return $status === StatusMatching::Pending->value || $status === 'pending';
+        // A mismatched invoice is verified again once every dispute it raised is resolved,
+        // e.g. settled with a credit note (PRD §9.1, UC-18 step 7).
+        return $invoice->isMismatched()
+            && $invoice->relationLoaded('sengketa')
+            && $invoice->sengketa->isNotEmpty()
+            && $invoice->sengketa->every(fn (Sengketa $dispute): bool => $dispute->status === StatusSengketa::Resolved);
     }
 
     /**

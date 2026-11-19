@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Repositories\Contracts\ChatNegosiasiRepositoryInterface;
 use App\Repositories\Contracts\CommodityCategoryRepositoryInterface;
+use App\Repositories\Contracts\CreditNoteRepositoryInterface;
 use App\Repositories\Contracts\DashboardRepositoryInterface;
 use App\Repositories\Contracts\DokumenLegalitasTenantRepositoryInterface;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
@@ -19,6 +20,7 @@ use App\Repositories\Contracts\PermissionRepositoryInterface;
 use App\Repositories\Contracts\PerusahaanBuyerRepositoryInterface;
 use App\Repositories\Contracts\PrediksiHargaRepositoryInterface;
 use App\Repositories\Contracts\PurchaseOrderRepositoryInterface;
+use App\Repositories\Contracts\PurchaseReturnRepositoryInterface;
 use App\Repositories\Contracts\RoleRepositoryInterface;
 use App\Repositories\Contracts\SengketaRepositoryInterface;
 use App\Repositories\Contracts\UndanganVendorRepositoryInterface;
@@ -26,6 +28,7 @@ use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Contracts\VendorRepositoryInterface;
 use App\Repositories\Eloquent\ChatNegosiasiRepository;
 use App\Repositories\Eloquent\CommodityCategoryRepository;
+use App\Repositories\Eloquent\CreditNoteRepository;
 use App\Repositories\Eloquent\DashboardRepository;
 use App\Repositories\Eloquent\DokumenLegalitasTenantRepository;
 use App\Repositories\Eloquent\DokumenLegalitasVendorRepository;
@@ -39,6 +42,7 @@ use App\Repositories\Eloquent\PermissionRepository;
 use App\Repositories\Eloquent\PerusahaanBuyerRepository;
 use App\Repositories\Eloquent\PrediksiHargaRepository;
 use App\Repositories\Eloquent\PurchaseOrderRepository;
+use App\Repositories\Eloquent\PurchaseReturnRepository;
 use App\Repositories\Eloquent\RoleRepository;
 use App\Repositories\Eloquent\SengketaRepository;
 use App\Repositories\Eloquent\UndanganVendorRepository;
@@ -126,6 +130,16 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             SengketaRepositoryInterface::class,
             SengketaRepository::class
+        );
+
+        $this->app->bind(
+            CreditNoteRepositoryInterface::class,
+            CreditNoteRepository::class
+        );
+
+        $this->app->bind(
+            PurchaseReturnRepositoryInterface::class,
+            PurchaseReturnRepository::class
         );
 
         $this->app->bind(

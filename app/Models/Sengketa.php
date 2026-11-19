@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\DisputeResolutionType;
 use App\Enums\PemicuSengketa;
 use App\Enums\StatusSengketa;
 use Database\Factories\SengketaFactory;
@@ -22,17 +23,24 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'invoice_id',
     'trigger_type',
     'reason',
-    'dibuka_oleh',
+    'opened_by',
     'status',
-    'tanggal_dibuka',
-    'tanggal_selesai',
+    'resolution_type',
+    'resolution_notes',
+    'vendor_confirmed_by',
+    'vendor_confirmed_at',
+    'resolved_by',
+    'opened_at',
+    'resolved_at',
 ])]
 #[Hidden([
     'id',
     'purchase_order_id',
     'purchase_order_item_id',
     'invoice_id',
-    'dibuka_oleh',
+    'opened_by',
+    'vendor_confirmed_by',
+    'resolved_by',
 ])]
 class Sengketa extends Model
 {
@@ -41,7 +49,7 @@ class Sengketa extends Model
 
     public const UPDATED_AT = null;
 
-    protected $table = 'sengketa';
+    protected $table = 'disputes';
 
     /**
      * Columns that store UUIDs.
@@ -70,8 +78,10 @@ class Sengketa extends Model
     {
         return [
             'status' => StatusSengketa::class,
-            'tanggal_dibuka' => 'datetime',
-            'tanggal_selesai' => 'datetime',
+            'resolution_type' => DisputeResolutionType::class,
+            'vendor_confirmed_at' => 'datetime',
+            'opened_at' => 'datetime',
+            'resolved_at' => 'datetime',
             'created_at' => 'datetime',
         ];
     }
@@ -93,12 +103,32 @@ class Sengketa extends Model
 
     public function pembuka(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'dibuka_oleh');
+        return $this->belongsTo(User::class, 'opened_by');
+    }
+
+    public function vendorConfirmer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'vendor_confirmed_by');
+    }
+
+    public function penyelesai(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
+    }
+
+    public function creditNotes(): HasMany
+    {
+        return $this->hasMany(CreditNote::class, 'dispute_id')->orderBy('id');
+    }
+
+    public function purchaseReturns(): HasMany
+    {
+        return $this->hasMany(PurchaseReturn::class, 'dispute_id')->orderBy('id');
     }
 
     public function logs(): HasMany
     {
-        return $this->hasMany(LogSengketa::class, 'sengketa_id')->orderBy('created_at')->orderBy('id');
+        return $this->hasMany(LogSengketa::class, 'dispute_id')->orderBy('created_at')->orderBy('id');
     }
 
     public function triggerEnum(): ?PemicuSengketa

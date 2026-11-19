@@ -570,7 +570,7 @@ class PenerimaanBarangController extends Controller
     }
 
     /**
-     * Stream an immutable dispute log attachment (`log_sengketa.file_bukti`) from private storage.
+     * Stream an immutable dispute log attachment (`dispute_logs.attachment_path`) from private storage.
      */
     public function disputeLogPhoto(Request $request, string $logUuid): StreamedResponse|JsonResponse|RedirectResponse
     {

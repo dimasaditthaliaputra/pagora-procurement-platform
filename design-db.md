@@ -433,7 +433,7 @@ Soft delete hanya untuk PO `draft` (hapus draf, UC-12).
 | proof_file | string(500) null | |
 | created_by | FK→users NN | |
 
-### 4.24 `disputes` (saat ini `sengketa`)
+### 4.24 `disputes` ✅ (modul 9; dulu `sengketa`)
 | Kolom | Tipe | Saat ini | Catatan |
 |---|---|---|---|
 | purchase_order_id | FK→purchase_orders NN, idx | [baru] | |
@@ -453,7 +453,7 @@ Soft delete hanya untuk PO `draft` (hapus draf, UC-12).
 
 Setelah `resolved`, baris tidak boleh diubah (dijaga Service + trigger §7).
 
-### 4.25 `dispute_logs` (saat ini `log_sengketa`, **immutable**)
+### 4.25 `dispute_logs` ✅ (modul 9; dulu `log_sengketa`, **immutable**; trigger PostgreSQL `dispute_logs_immutable`)
 | Kolom | Tipe | Saat ini | Catatan |
 |---|---|---|---|
 | dispute_id | FK→disputes NN, idx | `sengketa_id` | |
@@ -463,7 +463,7 @@ Setelah `resolved`, baris tidak boleh diubah (dijaga Service + trigger §7).
 | attachment_path | string(500) null | `file_bukti` | |
 | created_at | timestamp NN | | |
 
-### 4.26 `credit_notes` [baru]
+### 4.26 `credit_notes` ✅ [baru] (modul 9)
 | Kolom | Tipe | Catatan |
 |---|---|---|
 | credit_note_number | string(50) U NN | |
@@ -477,7 +477,7 @@ Setelah `resolved`, baris tidak boleh diubah (dijaga Service + trigger §7).
 | vendor_confirmed_at | timestamp null | |
 | created_by | FK→users NN | Owner/Manajemen |
 
-### 4.27 `purchase_returns` [baru]
+### 4.27 `purchase_returns` ✅ [baru] (modul 9)
 | Kolom | Tipe | Catatan |
 |---|---|---|
 | return_number | string(50) U NN | |
@@ -490,7 +490,7 @@ Setelah `resolved`, baris tidak boleh diubah (dijaga Service + trigger §7).
 | vendor_confirmed_at | timestamp null | |
 | created_by | FK→users NN | |
 
-### 4.28 `purchase_return_items` [baru]
+### 4.28 `purchase_return_items` ✅ [baru] (modul 9)
 | Kolom | Tipe | Catatan |
 |---|---|---|
 | purchase_return_id | FK→purchase_returns NN | |
@@ -552,7 +552,7 @@ Karena migration lama sudah di `main`, refactor dilakukan **per modul** dengan m
 6. `purchase_orders`, `purchase_order_items`, `negotiation_messages`
 7. `shipments`, `goods_receipts`, `goods_receipt_items`
 8. `invoices`, `invoice_items` [baru], `payments` [baru]
-9. `disputes`, `dispute_logs`, `credit_notes` [baru], `purchase_returns` [baru], `purchase_return_items` [baru]
+9. ✅ `disputes`, `dispute_logs`, `credit_notes` [baru], `purchase_returns` [baru], `purchase_return_items` [baru]
 10. `tenant_invitations` [baru]
 
 **Perubahan nilai enum** dilakukan di migration data (`UPDATE ... SET status = 'negotiation' WHERE status = 'negosiasi'`) bersamaan dengan perubahan Enum PHP.
@@ -728,6 +728,7 @@ Cocok bila untuk setiap item: `invoice_items.quantity ≤ kuantitas diterima yan
 | 2026-11-19 | Drop constraint UNIQUE pada `tenants.tax_number` via migration 2026_11_19_000001 untuk skenario kantor cabang; implementasi `RegistrationSecurityGuardService` (Pre-Registration Blacklist Guard & Pending Spam Guard) serta sistem peringatan flag duplikasi dokumen legalitas untuk Admin Verifikator (Tenant & Vendor) | — |
 | 2026-11-19 | **Modul 5 selesai**: `harga_referensi_komoditas` → `commodity_reference_prices` (`commodity_id`, `date`, `price`, `source` `bank_indonesia`/`seeder`; UNIQUE (`commodity_id`, `date`, `source`) untuk upsert sinkronisasi BI); `prediksi_harga` → `price_predictions` (`commodity_id`, `prediction_date`, `predicted_price`, `recommended_ceiling_price`, `calculated_at`; index tambahan (`commodity_id`, `calculated_at`) untuk batch terbaru). Migration `2026_11_19_083605_*`, `2026_11_19_083606_*`. Permission `harga_pagu.view_any` (default owner, purchasing). `api_reference_code` = kode PIHPS (`com_N`), dipilih dari daftar BI di form Komoditas (unik per komoditas aktif) atau lewat **Impor dari BI**; `KomoditasSeeder` dihapus. Data dari price service (jenis harga 3 = Pedagang Besar) (UC-11, FR-15, FR-16) | — |
 | 2026-11-19 | **Negosiasi per item (FR-19..21)**: `chat_negosiasi` → `negotiation_messages` (`sender_id`, `message`, `offer_amount` = harga satuan; kolom baru `purchase_order_item_id` FK nullable ke `po_item`, `type`; index (`purchase_order_id`, `id`) untuk polling) + trigger immutable PostgreSQL `reject_update_delete()`; `po_item`: kolom baru `estimated_unit_price` (NN, diisi dari `harga_satuan_po` lama), `harga_satuan_po` & `subtotal` nullable, `status_item` `menunggu` → `pending` + index. Migration `2026_11_19_110016_*`, `2026_11_19_110017_*`, `2026_11_19_110050_*`. Rename `purchase_order`/`po_item` tetap di modul 6 | — |
+| 2026-11-19 | **Modul 9 selesai (Sengketa, Credit Note, Retur — UC-18, FR-38, FR-40..42)**: `sengketa` → `disputes` (`dibuka_oleh` → `opened_by` nullable = sistem, `tanggal_dibuka` → `opened_at`, `tanggal_selesai` → `resolved_at`, `reason` NOT NULL; kolom baru `resolution_type`, `resolution_notes`, `vendor_confirmed_by`, `vendor_confirmed_at`, `resolved_by`, index `invoice_id`); status `terbuka/dalam_mediasi/selesai` → `open/in_mediation/resolved` + `awaiting_response`; `log_sengketa` → `dispute_logs` (`sengketa_id` → `dispute_id`, `isi_pesan` → `message`, `file_bukti` → `attachment_path`, `user_id` nullable = sistem); tabel baru `credit_notes`, `purchase_returns`, `purchase_return_items` (+`uuid`, `timestamps`); trigger PostgreSQL `dispute_logs_immutable` dan `disputes_resolved_immutable`. Nomor dokumen otomatis `CN-YYYY-0001` / `RTR-YYYY-0001`. Alur: Owner/Manajemen mengajukan penyelesaian (dokumen langsung `awaiting_vendor_confirmation`, status `draft` belum dipakai) → Vendor konfirmasi/tolak → Owner/Manajemen menetapkan `resolved`; retur `confirmed` → `completed` ditandai **Vendor**. Invoice `mismatched` dapat **diverifikasi ulang** setelah semua sengketanya `resolved`: cocok bila `total_amount` − Σ credit note `confirmed` = Σ min(qty ditagih, qty diterima) × harga PO. Permission baru `sengketa.resolve` (owner, manajemen) dan `sengketa.respond` (vendor). Migration `2026_11_19_150001_*` s.d. `2026_11_19_150006_*` | — |
 
 ## 12. Keputusan Teknis (2026-10-31)
 

@@ -38,10 +38,10 @@ class IndexSengketaRequest extends FormRequest
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
             'sort' => ['nullable', 'string', Rule::in([
-                'tanggal_dibuka',
+                'opened_at',
                 'status',
                 'trigger_type',
-                'tanggal_selesai',
+                'resolved_at',
                 'created_at',
             ])],
             'direction' => ['nullable', 'string', Rule::in(['asc', 'desc'])],

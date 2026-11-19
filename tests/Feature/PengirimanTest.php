@@ -282,10 +282,13 @@ class PengirimanTest extends TestCase
 
         $dispute = Sengketa::create([
             'uuid' => (string) Str::uuid(),
+            'purchase_order_id' => $po->id,
             'invoice_id' => $invoice->id,
-            'dibuka_oleh' => $this->purchasingA->id,
-            'status' => StatusSengketa::Terbuka->value,
-            'tanggal_dibuka' => now(),
+            'trigger_type' => 'amount_mismatch',
+            'reason' => 'Nilai tagihan tidak sesuai.',
+            'opened_by' => $this->purchasingA->id,
+            'status' => StatusSengketa::Open->value,
+            'opened_at' => now(),
         ]);
 
         $this->actingAs($this->vendorUserA)->post('/pengiriman', [

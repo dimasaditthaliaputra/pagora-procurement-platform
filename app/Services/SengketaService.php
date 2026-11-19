@@ -18,7 +18,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
@@ -49,7 +48,7 @@ class SengketaService
     {
         Gate::forUser($actor)->authorize('viewAny', Sengketa::class);
 
-        return $this->sengketaRepository->paginateForTenant((int) $actor->tenant_id, $filters, $perPage);
+        return $this->sengketaRepository->paginateForActor($actor, $filters, $perPage);
     }
 
     /**
@@ -58,6 +57,7 @@ class SengketaService
      * @return array{
      *     total: int,
      *     open: int,
+     *     awaiting_response: int,
      *     in_mediation: int,
      *     resolved: int,
      *     qc_triggered: int,
@@ -70,12 +70,12 @@ class SengketaService
     {
         Gate::forUser($actor)->authorize('viewAny', Sengketa::class);
 
-        return $this->sengketaRepository->getStatisticsForTenant((int) $actor->tenant_id);
+        return $this->sengketaRepository->getStatisticsForActor($actor);
     }
 
     /**
-     * Retrieve a single dispute with full context (PO, item, QC photos, negotiation chat, immutable audit log)
-     * strictly isolated to the actor's Tenant (`RULES` §5.1 & §9.3: cross-tenant returns 404).
+     * Retrieve a single dispute with full context (PO, item, QC photos, negotiation chat, settlement documents,
+     * immutable audit log) on the actor's side of the PO (`RULES` §5.1 & §9.3: other parties get 404).
      *
      * @throws AuthorizationException
      * @throws ModelNotFoundException
@@ -84,7 +84,7 @@ class SengketaService
     {
         Gate::forUser($actor)->authorize('viewAny', Sengketa::class);
 
-        $sengketa = $this->sengketaRepository->findByUuidForTenant((int) $actor->tenant_id, $uuid);
+        $sengketa = $this->sengketaRepository->findByUuidForActor($actor, $uuid);
         if ($sengketa === null) {
             throw new ModelNotFoundException('Data sengketa tidak ditemukan.');
         }
@@ -111,14 +111,15 @@ class SengketaService
     }
 
     /**
-     * Record a review/mediation note by Manajemen or Owner into the immutable `log_sengketa` trail,
-     * automatically transitioning `terbuka` -> `dalam_mediasi` (`UC-18` step 3, `PRD §9.3`, `BR-17`).
+     * Append a note (optionally with evidence) to the immutable `dispute_logs` trail (`UC-18` step 3, PRD §9.3, BR-17).
+     *
+     * - Owner/Manajemen: `open` → `in_mediation`; with `request_vendor_response` → `awaiting_response`.
+     * - Vendor of the PO: a response moves `awaiting_response` → `in_mediation`.
      *
      * @param  array<string, mixed>  $validated
      *
      * @throws AuthorizationException
      * @throws ModelNotFoundException
-     * @throws ValidationException
      */
     public function storeReviewNote(
         User $actor,
@@ -126,22 +127,20 @@ class SengketaService
         array $validated,
         ?UploadedFile $attachment = null,
     ): Sengketa {
-        if ($actor->tenant_id === null || $actor->isSuperadmin()) {
-            throw new AuthorizationException('Anda tidak memiliki akses untuk meninjau sengketa pengadaan.');
-        }
-
-        $sengketa = $this->sengketaRepository->findByUuidForTenant((int) $actor->tenant_id, $uuid);
+        $sengketa = $this->sengketaRepository->findByUuidForActor($actor, $uuid);
         if ($sengketa === null) {
             throw new ModelNotFoundException('Data sengketa tidak ditemukan.');
         }
 
-        Gate::forUser($actor)->authorize('review', $sengketa);
+        $isVendorSide = $actor->vendor_id !== null;
+        Gate::forUser($actor)->authorize($isVendorSide ? 'respond' : 'review', $sengketa);
 
-        if ($sengketa->status === StatusSengketa::Selesai) {
-            throw ValidationException::withMessages([
-                'message' => 'Sengketa yang telah berstatus Selesai bersifat permanen (immutable) dan tidak dapat ditambahkan catatan tinjauan baru.',
-            ]);
-        }
+        $requestsResponse = ! $isVendorSide && (bool) ($validated['request_vendor_response'] ?? false);
+        $nextStatus = match (true) {
+            $isVendorSide => $sengketa->status === StatusSengketa::AwaitingResponse ? StatusSengketa::InMediation : null,
+            $requestsResponse => $sengketa->status !== StatusSengketa::AwaitingResponse ? StatusSengketa::AwaitingResponse : null,
+            default => $sengketa->status === StatusSengketa::Open ? StatusSengketa::InMediation : null,
+        };
 
         $message = trim((string) ($validated['message'] ?? ''));
         $storedPath = null;
@@ -157,28 +156,25 @@ class SengketaService
                 );
             }
 
-            DB::transaction(function () use ($actor, $sengketa, $message, $storedPath): void {
-                $transitionedToMediation = false;
-
-                if ($sengketa->status === StatusSengketa::Terbuka) {
-                    $this->sengketaRepository->updateStatus($sengketa, StatusSengketa::DalamMediasi);
-                    $transitionedToMediation = true;
+            DB::transaction(function () use ($actor, $sengketa, $message, $storedPath, $nextStatus): void {
+                if ($nextStatus !== null) {
+                    $this->sengketaRepository->updateStatus($sengketa, $nextStatus);
                 }
 
                 $logType = $storedPath !== null
                     ? 'evidence'
-                    : ($transitionedToMediation ? 'status_change' : 'note');
+                    : ($nextStatus !== null ? 'status_change' : 'note');
 
-                $prefix = $transitionedToMediation
-                    ? '[Status diubah ke Dalam Mediasi] '
+                $prefix = $nextStatus !== null
+                    ? "[Status diubah ke {$nextStatus->label()}] "
                     : '';
 
                 $this->sengketaRepository->appendLog([
-                    'sengketa_id' => (int) $sengketa->id,
+                    'dispute_id' => (int) $sengketa->id,
                     'user_id' => (int) $actor->id,
                     'type' => $logType,
-                    'isi_pesan' => $prefix.$message,
-                    'file_bukti' => $storedPath,
+                    'message' => $prefix.$message,
+                    'attachment_path' => $storedPath,
                 ]);
             });
         } catch (Throwable $e) {
@@ -189,7 +185,7 @@ class SengketaService
             throw $e;
         }
 
-        $updated = $this->sengketaRepository->findByUuidForTenant((int) $actor->tenant_id, $uuid) ?? $sengketa;
+        $updated = $this->sengketaRepository->findByUuidForActor($actor, $uuid) ?? $sengketa;
         $this->notifyStakeholdersOnReview($actor, $updated);
 
         return $updated;
@@ -237,7 +233,7 @@ class SengketaService
     }
 
     /**
-     * Resolve a private-disk attachment belonging to a `log_sengketa` entry of this dispute (`RULES` §8.7).
+     * Resolve a private-disk attachment belonging to a `dispute_logs` entry of this dispute (`RULES` §8.7).
      *
      * @throws AuthorizationException
      * @throws ModelNotFoundException
@@ -248,15 +244,15 @@ class SengketaService
 
         /** @var LogSengketa|null $log */
         $log = $sengketa->logs->firstWhere('uuid', $logUuid);
-        if ($log === null || ! is_string($log->file_bukti) || $log->file_bukti === '') {
+        if ($log === null || ! is_string($log->attachment_path) || $log->attachment_path === '') {
             throw new ModelNotFoundException('Lampiran bukti log sengketa tidak ditemukan.');
         }
 
-        if (! Storage::disk(self::STORAGE_DISK)->exists($log->file_bukti)) {
+        if (! Storage::disk(self::STORAGE_DISK)->exists($log->attachment_path)) {
             throw new ModelNotFoundException('Berkas lampiran log sengketa tidak ditemukan.');
         }
 
-        return $log->file_bukti;
+        return $log->attachment_path;
     }
 
     private function notifyStakeholdersOnReview(User $actor, Sengketa $sengketa): void
@@ -269,13 +265,10 @@ class SengketaService
 
             $poNumber = $sengketa->purchaseOrder?->nomor_po ?? 'PO';
             $title = "Tinjauan Kendala Pengadaan ({$poNumber})";
-            $summary = "{$actor->name} menambahkan catatan tinjauan pada Log Sengketa {$poNumber} (Status: {$sengketa->status->label()}).";
+            $summary = "{$actor->name} menambahkan catatan pada Log Sengketa {$poNumber} (Status: {$sengketa->status->label()}).";
+            $actionUrl = route('log-sengketa.show', $sengketa->uuid, false);
 
             foreach ($recipients as $recipient) {
-                $actionUrl = $recipient->isVendor()
-                    ? '/inspeksi-qc'
-                    : route('log-sengketa.show', $sengketa->uuid, false);
-
                 $this->notificationService->send(
                     $recipient,
                     'system',

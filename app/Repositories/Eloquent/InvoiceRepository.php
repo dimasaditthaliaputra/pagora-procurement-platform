@@ -159,6 +159,7 @@ class InvoiceRepository implements InvoiceRepositoryInterface
                 'purchaseOrder:id,uuid,nomor_po,status',
                 'vendor:id,uuid,company_name',
                 'items.purchaseOrderItem.komoditas:id,uuid,name,unit',
+                'creditNotes',
             ])
             ->first();
     }
@@ -307,6 +308,7 @@ class InvoiceRepository implements InvoiceRepositoryInterface
                 'items.purchaseOrderItem.komoditas',
                 'items.purchaseOrderItem.penerimaanBarangItems.goodsReceipt',
                 'sengketa.logs.penulis',
+                'creditNotes',
             ])
             ->first();
     }
@@ -346,5 +348,14 @@ class InvoiceRepository implements InvoiceRepositoryInterface
         array $attributes
     ): bool {
         return $invoice->update($attributes);
+    }
+
+    public function lockForPurchaseOrder(int $purchaseOrderId, string $uuid): ?Invoice
+    {
+        return $this->model->newQuery()
+            ->where('purchase_order_id', $purchaseOrderId)
+            ->where('uuid', $uuid)
+            ->lockForUpdate()
+            ->first();
     }
 }

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CreditNoteStatus;
 use App\Enums\PemicuSengketa;
 use App\Enums\StatusItemPenerimaan;
 use App\Enums\StatusMatching;
 use App\Enums\StatusPurchaseOrder;
 use App\Enums\StatusSengketa;
+use App\Models\CreditNote;
 use App\Models\Invoice;
 use App\Models\LogSengketa;
 use App\Models\PoItem;
@@ -16,6 +18,7 @@ use App\Models\PurchaseOrder;
 use App\Models\Sengketa;
 use App\Models\User;
 use App\Repositories\Contracts\InvoiceRepositoryInterface;
+use App\Repositories\Contracts\SengketaRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -34,6 +37,7 @@ class InvoiceService
     public function __construct(
         private readonly InvoiceRepositoryInterface $invoiceRepository,
         private readonly FileStorageService $fileStorage,
+        private readonly SengketaRepositoryInterface $sengketaRepository,
         private readonly ?NotificationService $notificationService = null,
     ) {}
 
@@ -355,6 +359,7 @@ class InvoiceService
     public function calculateThreeWayMatching(Invoice $invoice): array
     {
         $invoice->loadMissing([
+            'creditNotes',
             'purchaseOrder.poItems.komoditas',
             'purchaseOrder.poItems.penerimaanBarangItems.goodsReceipt',
             'items.purchaseOrderItem.komoditas',
@@ -486,8 +491,21 @@ class InvoiceService
 
         $isOverallMatched = $headerTotalMatched && collect($itemsResult)->every(fn ($i) => $i['is_matched']);
 
+        // Re-verification after a dispute (PRD §9.1 "diverifikasi ulang dengan credit note"): the bill minus the
+        // confirmed credit notes must equal what was really received, at the agreed PO prices (BR-26).
+        $confirmedCreditTotal = (float) $invoice->creditNotes
+            ->filter(fn (CreditNote $note): bool => $note->status === CreditNoteStatus::Confirmed)
+            ->sum('amount');
+        $payableAmount = round($headerTotal - $confirmedCreditTotal, 2);
+        $receivedValue = round((float) collect($itemsResult)->sum(
+            fn (array $i): float => round(min($i['invoiced_quantity'], $i['received_quantity']) * $i['po_unit_price'], 2)
+        ), 2);
+        $settledByCreditNote = ! $isOverallMatched
+            && $confirmedCreditTotal > 0
+            && abs($payableAmount - $receivedValue) < 0.01;
+
         return [
-            'is_matched' => $isOverallMatched,
+            'is_matched' => $isOverallMatched || $settledByCreditNote,
             'discrepancy_types' => array_keys($discrepancyTypes),
             'items' => $itemsResult,
             'summary' => [
@@ -498,6 +516,10 @@ class InvoiceService
                 'invoice_header_amount' => $headerTotal,
                 'header_total_matched' => $headerTotalMatched,
                 'mismatch_notes' => $mismatchNotes,
+                'confirmed_credit_total' => $confirmedCreditTotal,
+                'payable_amount' => $payableAmount,
+                'received_value' => $receivedValue,
+                'settled_by_credit_note' => $settledByCreditNote,
             ],
         ];
     }
@@ -519,13 +541,10 @@ class InvoiceService
 
         Gate::forUser($actor)->authorize('verify', $invoice);
 
-        $currentStatus = is_object($invoice->status_matching)
-            ? $invoice->status_matching->value
-            : $invoice->status_matching;
-
-        if ($currentStatus !== StatusMatching::Pending->value && $currentStatus !== 'pending') {
+        // BR-13: an invoice with a dispute that is not resolved stays frozen.
+        if ($this->sengketaRepository->hasOpenForInvoice((int) $invoice->id)) {
             throw ValidationException::withMessages([
-                'invoice' => 'Tagihan ini sudah pernah diverifikasi sebelumnya.',
+                'invoice' => 'Tagihan ini masih memiliki sengketa yang belum Selesai.',
             ]);
         }
 
@@ -604,19 +623,19 @@ class InvoiceService
                 'invoice_id' => $invoice->id,
                 'trigger_type' => $triggerType,
                 'reason' => $reason,
-                'dibuka_oleh' => $actor->id,
-                'status' => StatusSengketa::Terbuka->value,
-                'tanggal_dibuka' => now(),
-                'tanggal_selesai' => null,
+                'opened_by' => $actor->id,
+                'status' => StatusSengketa::Open->value,
+                'opened_at' => now(),
+                'resolved_at' => null,
             ]);
 
             LogSengketa::create([
                 'uuid' => (string) Str::uuid(),
-                'sengketa_id' => $dispute->id,
+                'dispute_id' => $dispute->id,
                 'user_id' => $actor->id,
                 'type' => 'status_change',
-                'isi_pesan' => "Sistem membuka sengketa otomatis akibat ketidaksesuaian 3-Way Matching pada Invoice {$invoice->nomor_invoice_vendor}: {$reason}",
-                'file_bukti' => null,
+                'message' => "Sistem membuka sengketa otomatis akibat ketidaksesuaian 3-Way Matching pada Invoice {$invoice->nomor_invoice_vendor}: {$reason}",
+                'attachment_path' => null,
             ]);
 
             if ($this->notificationService !== null) {

@@ -125,8 +125,8 @@ class SengketaPdfExporter
             ['UUID Sengketa', $sengketa->uuid],
             ['Status Sengketa', $sengketa->status->label()],
             ['Kategori Pemicu', $sengketa->triggerLabel()],
-            ['Tanggal Dibuka', $this->formatDateTimeWib($sengketa->tanggal_dibuka)],
-            ['Tanggal Selesai', $sengketa->tanggal_selesai ? $this->formatDateTimeWib($sengketa->tanggal_selesai) : 'Belum Selesai (Masih Aktif)'],
+            ['Tanggal Dibuka', $this->formatDateTimeWib($sengketa->opened_at)],
+            ['Tanggal Selesai', $sengketa->resolved_at ? $this->formatDateTimeWib($sengketa->resolved_at) : 'Belum Selesai (Masih Aktif)'],
             ['Dibuka Oleh', $openedByLabel],
             ['Nomor Purchase Order', $poNumber.' (Status PO: '.($po?->status?->label() ?? '-').')'],
             ['Tanggal PO', $this->formatDateOnly($po?->tanggal_po)],
@@ -235,9 +235,41 @@ class SengketaPdfExporter
             }
         }
 
-        // Section 4: Jejak Audit Log Sengketa (Immutable)
+        // Section 4: Penyelesaian Sengketa, credit note & retur (UC-18 step 4–7, FR-40..42)
         $this->cursorY -= 8.0;
-        $this->drawSectionHeading('4. Jejak Audit Log Sengketa (Permanen / Immutable)');
+        $this->drawSectionHeading('4. Penyelesaian Sengketa');
+        $this->drawKeyValueRows([
+            ['Jenis Penyelesaian', $sengketa->resolution_type?->label() ?? 'Belum ditentukan'],
+            ['Konfirmasi Vendor', $sengketa->vendor_confirmed_at !== null
+                ? ($sengketa->vendorConfirmer?->name ?? 'Vendor').' — '.$this->formatDateTimeWib($sengketa->vendor_confirmed_at)
+                : 'Belum dikonfirmasi'],
+            ['Ditetapkan Selesai', $sengketa->resolved_at !== null
+                ? ($sengketa->penyelesai?->name ?? '-').' — '.$this->formatDateTimeWib($sengketa->resolved_at)
+                : '-'],
+        ]);
+        if (filled($sengketa->resolution_notes)) {
+            $this->drawParagraphBlock('Catatan Penyelesaian', (string) $sengketa->resolution_notes);
+        }
+
+        $creditNotes = $sengketa->relationLoaded('creditNotes') ? $sengketa->creditNotes : collect();
+        foreach ($creditNotes as $idx => $note) {
+            $headerLine = ($idx + 1).'. Credit Note '.$note->credit_note_number.'  —  '.$this->formatRupiah((float) $note->amount)
+                .'  ['.$note->status->label().']  Invoice '.($note->invoice?->nomor_invoice_vendor ?? '-').', '.$this->formatDateOnly($note->credit_date);
+            $this->drawTimelineEntry($headerLine, trim((string) $note->reason));
+        }
+
+        $purchaseReturns = $sengketa->relationLoaded('purchaseReturns') ? $sengketa->purchaseReturns : collect();
+        foreach ($purchaseReturns as $idx => $return) {
+            $itemsLine = $return->items
+                ->map(fn ($item): string => ($item->poItem?->komoditas?->name ?? 'Komoditas').' '.$this->formatQty((float) $item->quantity).' '.($item->poItem?->komoditas?->unit ?? 'kg'))
+                ->implode(', ');
+            $headerLine = ($idx + 1).'. Retur '.$return->return_number.'  ['.$return->status->label().']  '.$this->formatDateOnly($return->return_date);
+            $this->drawTimelineEntry($headerLine, $itemsLine.'. '.trim((string) $return->reason));
+        }
+
+        // Section 5: Jejak Audit Log Sengketa (Immutable)
+        $this->cursorY -= 8.0;
+        $this->drawSectionHeading('5. Jejak Audit Log Sengketa (Permanen / Immutable)');
         $logs = $sengketa->relationLoaded('logs') ? $sengketa->logs : collect();
 
         if ($logs->isEmpty()) {
@@ -256,11 +288,11 @@ class SengketaPdfExporter
                 $authorName = $log->penulis?->name ?? 'Sistem Otomatis';
                 $authorRole = $log->penulis?->roleName()?->label() ?? 'Sistem';
                 $typeLabel = $this->logTypeLabel((string) ($log->type ?? 'note'));
-                $attachmentNote = filled($log->file_bukti)
-                    ? '  [Lampiran Bukti: '.basename((string) $log->file_bukti).']'
+                $attachmentNote = filled($log->attachment_path)
+                    ? '  [Lampiran Bukti: '.basename((string) $log->attachment_path).']'
                     : '';
                 $headerLine = ($idx + 1).'. ['.$typeLabel.'] '.$authorName." ({$authorRole})  —  ".$this->formatDateTimeWib($log->created_at).$attachmentNote;
-                $bodyText = trim((string) ($log->isi_pesan ?? '-'));
+                $bodyText = trim((string) ($log->message ?? '-'));
                 $this->drawTimelineEntry($headerLine, $bodyText);
             }
         }

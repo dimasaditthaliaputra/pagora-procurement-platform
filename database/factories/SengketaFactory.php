@@ -30,10 +30,10 @@ class SengketaFactory extends Factory
             'invoice_id' => null,
             'trigger_type' => PemicuSengketa::GoodsMismatch->value,
             'reason' => 'Kondisi fisik bahan baku yang diterima di gudang mengalami kerusakan kemasan.',
-            'dibuka_oleh' => User::factory(),
-            'status' => StatusSengketa::Terbuka,
-            'tanggal_dibuka' => now(),
-            'tanggal_selesai' => null,
+            'opened_by' => User::factory(),
+            'status' => StatusSengketa::Open,
+            'opened_at' => now(),
+            'resolved_at' => null,
         ];
     }
 
@@ -43,7 +43,7 @@ class SengketaFactory extends Factory
     public function inMediation(): static
     {
         return $this->state(fn (): array => [
-            'status' => StatusSengketa::DalamMediasi,
+            'status' => StatusSengketa::InMediation,
         ]);
     }
 
@@ -53,8 +53,8 @@ class SengketaFactory extends Factory
     public function resolved(): static
     {
         return $this->state(fn (): array => [
-            'status' => StatusSengketa::Selesai,
-            'tanggal_selesai' => now(),
+            'status' => StatusSengketa::Resolved,
+            'resolved_at' => now(),
         ]);
     }
 }

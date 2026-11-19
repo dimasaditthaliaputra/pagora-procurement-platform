@@ -22,12 +22,17 @@ class DashboardService
     public function buildForUser(?User $user): array
     {
         $isSuperadmin = $user !== null && $user->isSuperadmin();
+        $isManajemen = $user !== null && $user->isManajemen() && $user->tenant_id !== null;
 
         return [
             'user' => $user,
             'is_superadmin' => $isSuperadmin,
             'superadmin_dashboard' => $isSuperadmin
                 ? $this->buildSuperadminDashboard()
+                : null,
+            'is_manajemen' => $isManajemen,
+            'manajemen_dashboard' => $isManajemen
+                ? $this->buildManajemenDashboard((int) $user->tenant_id)
                 : null,
         ];
     }
@@ -65,6 +70,25 @@ class DashboardService
                 'pg_mode' => (string) ($integrasi['pg_mode'] ?? 'sandbox'),
                 'pg_configured' => ! empty($pgClientKey) && ! empty($pgServerKey),
             ],
+        ];
+    }
+
+    /**
+     * Assemble tenant-scoped governance, dispute mediation, vendor partnerships,
+     * QC inspection monitoring, and commodity tolerance metrics for role Manajemen.
+     *
+     * @return array<string, mixed>
+     */
+    public function buildManajemenDashboard(int $tenantId): array
+    {
+        return [
+            'company' => $this->dashboardRepository->getTenantProfileForManajemen($tenantId),
+            'summary' => $this->dashboardRepository->getManajemenSummaryMetrics($tenantId),
+            'active_disputes' => $this->dashboardRepository->getManajemenActiveDisputes($tenantId, 5),
+            'vendor_partnerships' => $this->dashboardRepository->getManajemenVendorPartnerships($tenantId, 5),
+            'recent_qc_rejections' => $this->dashboardRepository->getManajemenRecentQcRejections($tenantId, 5),
+            'tenant_commodities' => $this->dashboardRepository->getManajemenTenantCommodities($tenantId, 6),
+            'monthly_trend' => $this->dashboardRepository->getManajemenMonthlyTrend($tenantId, 6),
         ];
     }
 }

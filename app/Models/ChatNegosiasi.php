@@ -4,27 +4,34 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\NegotiationMessageType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Negotiation chat entry (`negotiation_messages`). Immutable audit trail (NFR-07, BR-17):
+ * blocked here and by a PostgreSQL trigger.
+ */
 #[Fillable([
     'uuid',
-    'pengirim_id',
+    'sender_id',
     'purchase_order_id',
-    'pesan_teks',
-    'nominal_tawar',
+    'purchase_order_item_id',
+    'type',
+    'message',
+    'offer_amount',
 ])]
-#[Hidden(['id'])]
+#[Hidden(['id', 'sender_id', 'purchase_order_id', 'purchase_order_item_id'])]
 class ChatNegosiasi extends Model
 {
     use HasUuids;
 
     public const UPDATED_AT = null;
 
-    protected $table = 'chat_negosiasi';
+    protected $table = 'negotiation_messages';
 
     /**
      * Columns that store UUIDs.
@@ -52,7 +59,8 @@ class ChatNegosiasi extends Model
     protected function casts(): array
     {
         return [
-            'nominal_tawar' => 'decimal:2',
+            'type' => NegotiationMessageType::class,
+            'offer_amount' => 'decimal:2',
             'created_at' => 'datetime',
         ];
     }
@@ -78,11 +86,16 @@ class ChatNegosiasi extends Model
 
     public function pengirim(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'pengirim_id');
+        return $this->belongsTo(User::class, 'sender_id');
     }
 
     public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
+    }
+
+    public function item(): BelongsTo
+    {
+        return $this->belongsTo(PoItem::class, 'purchase_order_item_id');
     }
 }

@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/Components/ui/sidebar';
 import { TooltipProvider } from '@/Components/ui/tooltip';
 import { Separator } from '@/Components/ui/separator';
@@ -33,14 +34,17 @@ export default function DashboardLayout({ children, breadcrumbs = [] }) {
                                             </BreadcrumbItem>
                                         ) : (
                                             breadcrumbs.map((crumb, index) => (
-                                                <BreadcrumbItem key={crumb.label}>
+                                                // Separator and item are both <li>: siblings, never nested.
+                                                <Fragment key={crumb.label}>
                                                     {index > 0 && <BreadcrumbSeparator />}
-                                                    {index === breadcrumbs.length - 1 ? (
-                                                        <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-                                                    ) : (
-                                                        <BreadcrumbLink href={crumb.href}>{crumb.label}</BreadcrumbLink>
-                                                    )}
-                                                </BreadcrumbItem>
+                                                    <BreadcrumbItem>
+                                                        {index === breadcrumbs.length - 1 ? (
+                                                            <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                                                        ) : (
+                                                            <BreadcrumbLink href={crumb.href}>{crumb.label}</BreadcrumbLink>
+                                                        )}
+                                                    </BreadcrumbItem>
+                                                </Fragment>
                                             ))
                                         )}
                                     </BreadcrumbList>

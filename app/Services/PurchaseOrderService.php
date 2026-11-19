@@ -30,6 +30,7 @@ class PurchaseOrderService
         protected readonly PurchaseOrderRepositoryInterface $purchaseOrderRepository,
         protected readonly NotificationService $notificationService,
         protected readonly PricePredictionService $pricePredictionService,
+        protected readonly NegotiationService $negotiationService,
     ) {}
 
     /**
@@ -316,17 +317,12 @@ class PurchaseOrderService
             ]);
         }
 
-        $this->purchaseOrderRepository->update($po, [
-            'status' => StatusPurchaseOrder::Negosiasi->value,
-        ]);
-
-        $totalAwal = (float) $po->poItems->sum('subtotal');
-        $this->purchaseOrderRepository->addChatNegosiasi(
-            $po,
-            $actor,
-            $totalAwal,
-            'Pengajuan Purchase Order awal.'
-        );
+        DB::transaction(function () use ($po, $actor): void {
+            $this->purchaseOrderRepository->update($po, [
+                'status' => StatusPurchaseOrder::Negosiasi->value,
+            ]);
+            $this->negotiationService->recordStart($actor, $po);
+        });
 
         $vendorUsers = $this->getVendorPoNotificationRecipients((int) $po->vendor_id);
         $this->notificationService->sendToMany(
@@ -335,92 +331,6 @@ class PurchaseOrderService
             'Pengajuan PO Baru: '.$po->nomor_po,
             "Tenant mengajukan Purchase Order {$po->nomor_po} untuk dinegosiasikan.",
             "/purchase-order/{$po->uuid}/negosiasi",
-            ['po_uuid' => $po->uuid, 'nomor_po' => $po->nomor_po]
-        );
-
-        return $this->findByUuidForUser($actor, $uuid);
-    }
-
-    /**
-     * Submit an offer (counter-offer) in the negotiation room.
-     *
-     * @param  array{nominal_tawar: numeric, pesan_teks?: string|null}  $data
-     *
-     * @throws AuthorizationException|ValidationException
-     */
-    public function kirimTawaran(User $actor, string $uuid, array $data): PurchaseOrder
-    {
-        $po = $this->findByUuidForUser($actor, $uuid);
-
-        Gate::forUser($actor)->authorize('tawar', $po);
-
-        if ($po->status !== StatusPurchaseOrder::Negosiasi) {
-            throw ValidationException::withMessages([
-                'status' => 'Penawaran harga hanya dapat dikirim saat Purchase Order berstatus negosiasi.',
-            ]);
-        }
-
-        $nominal = (float) $data['nominal_tawar'];
-        $isVendor = $actor->vendor_id !== null && (int) $actor->vendor_id === (int) $po->vendor_id;
-        $defaultPesan = $isVendor
-            ? 'Menolak tawaran sebelumnya dan mengajukan penawaran harga baru.'
-            : 'Mengajukan penawaran harga.';
-        $pesan = isset($data['pesan_teks']) && trim((string) $data['pesan_teks']) !== ''
-            ? trim((string) $data['pesan_teks'])
-            : $defaultPesan;
-
-        $this->purchaseOrderRepository->addChatNegosiasi($po, $actor, $nominal, $pesan);
-        $this->purchaseOrderRepository->updateOfferPrice($po, $actor, $nominal);
-
-        $recipients = $isVendor
-            ? $this->getTenantPoNotificationRecipients((int) $po->perusahaan_buyer_id)
-            : $this->getVendorPoNotificationRecipients((int) $po->vendor_id);
-
-        $senderRole = $isVendor ? 'Vendor' : 'Tenant';
-        $formattedNominal = 'Rp '.number_format($nominal, 0, ',', '.');
-        $this->notificationService->sendToMany(
-            $recipients,
-            'negotiation',
-            "Tawaran Harga Baru PO {$po->nomor_po}",
-            "{$senderRole} mengajukan penawaran harga {$formattedNominal} untuk PO {$po->nomor_po}.",
-            "/purchase-order/{$po->uuid}/negosiasi",
-            ['po_uuid' => $po->uuid, 'nomor_po' => $po->nomor_po, 'nominal' => $nominal]
-        );
-
-        return $this->findByUuidForUser($actor, $uuid);
-    }
-
-    /**
-     * Agree to the offer, lock the purchase order, and transition status to disepakati.
-     *
-     * @throws AuthorizationException|ValidationException
-     */
-    public function setujuiHarga(User $actor, string $uuid): PurchaseOrder
-    {
-        $po = $this->findByUuidForUser($actor, $uuid);
-
-        Gate::forUser($actor)->authorize('setujui', $po);
-
-        if ($po->status !== StatusPurchaseOrder::Negosiasi) {
-            throw ValidationException::withMessages([
-                'status' => 'Persetujuan harga hanya dapat dilakukan saat Purchase Order berstatus negosiasi.',
-            ]);
-        }
-
-        $this->purchaseOrderRepository->setujuiHarga($po, $actor);
-
-        $isVendor = $actor->vendor_id !== null && (int) $actor->vendor_id === (int) $po->vendor_id;
-        $recipients = $isVendor
-            ? $this->getTenantPoNotificationRecipients((int) $po->perusahaan_buyer_id)
-            : $this->getVendorPoNotificationRecipients((int) $po->vendor_id);
-
-        $approvedBy = $isVendor ? 'Vendor' : 'Tenant';
-        $this->notificationService->sendToMany(
-            $recipients,
-            'purchase_order',
-            "PO Disepakati: {$po->nomor_po}",
-            "Purchase Order {$po->nomor_po} telah disetujui dan disepakati oleh {$approvedBy}.",
-            "/purchase-order/{$po->uuid}",
             ['po_uuid' => $po->uuid, 'nomor_po' => $po->nomor_po]
         );
 
@@ -451,7 +361,13 @@ class PurchaseOrderService
             ]);
         }
 
-        $this->purchaseOrderRepository->batalkan($po, $actor, $alasan);
+        DB::transaction(function () use ($po, $actor, $alasan): void {
+            $this->purchaseOrderRepository->update($po, [
+                'status' => StatusPurchaseOrder::Dibatalkan->value,
+                'alasan_pembatalan' => $alasan,
+            ]);
+            $this->negotiationService->recordCancellation($actor, $po, $alasan);
+        });
 
         $vendorUsers = $this->getVendorPoNotificationRecipients((int) $po->vendor_id);
         $this->notificationService->sendToMany(
@@ -528,11 +444,11 @@ class PurchaseOrderService
                 ? $totalPagu + ($qty * (float) $ceiling->recommended_ceiling_price)
                 : null;
 
+            // The form field `harga_satuan_po` is the Purchasing budget estimate (BR-05).
             $items[] = [
                 'komoditas_id' => $commodity->id,
                 'jumlah_pesanan' => $qty,
-                'harga_satuan_po' => (float) $item['harga_satuan_po'],
-                'status_item' => 'menunggu',
+                'estimated_unit_price' => (float) $item['harga_satuan_po'],
             ];
         }
 

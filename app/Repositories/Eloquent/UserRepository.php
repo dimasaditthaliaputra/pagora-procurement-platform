@@ -7,6 +7,7 @@ namespace App\Repositories\Eloquent;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -227,5 +228,35 @@ class UserRepository implements UserRepositoryInterface
     public function update(User $user, array $data): bool
     {
         return $user->update($data);
+    }
+
+    /**
+     * Active users of a Tenant holding one of the given roles.
+     *
+     * @param  list<string>  $roleNames
+     * @return Collection<int, User>
+     */
+    public function getActiveByTenantAndRoles(int $tenantId, array $roleNames): Collection
+    {
+        return User::query()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->whereHas('role', fn ($query) => $query->whereIn('name', $roleNames))
+            ->get()
+            ->toBase();
+    }
+
+    /**
+     * Active users of a Vendor.
+     *
+     * @return Collection<int, User>
+     */
+    public function getActiveByVendor(int $vendorId): Collection
+    {
+        return User::query()
+            ->where('vendor_id', $vendorId)
+            ->where('is_active', true)
+            ->get()
+            ->toBase();
     }
 }

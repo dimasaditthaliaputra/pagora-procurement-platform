@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Repositories\Contracts;
 
-use App\Models\ChatNegosiasi;
+use App\Models\PoItem;
 use App\Models\PurchaseOrder;
-use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface PurchaseOrderRepositoryInterface
@@ -76,22 +75,14 @@ interface PurchaseOrderRepositoryInterface
     public function getStatisticsForVendor(int $vendorId): array;
 
     /**
-     * Add a negotiation message (immutable).
+     * Reload a purchase order with its items under a row lock (call inside a transaction).
      */
-    public function addChatNegosiasi(PurchaseOrder $purchaseOrder, User $sender, ?float $nominalTawar, ?string $pesanTeks): ChatNegosiasi;
+    public function lockForNegotiation(int $purchaseOrderId): PurchaseOrder;
 
     /**
-     * Update offer price for the purchase order items during negotiation.
+     * Update negotiation fields of a single item.
+     *
+     * @param  array<string, mixed>  $attributes
      */
-    public function updateOfferPrice(PurchaseOrder $purchaseOrder, User $actor, float $offerPrice): void;
-
-    /**
-     * Agree to the price, update items, transition status to disepakati, and lock the purchase order.
-     */
-    public function setujuiHarga(PurchaseOrder $purchaseOrder, User $actor): void;
-
-    /**
-     * Cancel the purchase order with a mandatory cancellation reason.
-     */
-    public function batalkan(PurchaseOrder $purchaseOrder, User $actor, string $alasan): void;
+    public function updateItem(PoItem $item, array $attributes): void;
 }

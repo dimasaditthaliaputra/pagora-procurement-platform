@@ -162,6 +162,7 @@ class LogSengketaTest extends TestCase
             'purchase_order_id' => $po->id,
             'komoditas_id' => $this->commodityA->id,
             'jumlah_pesanan' => 1000,
+            'estimated_unit_price' => 20000,
             'harga_satuan_po' => 20000,
             'subtotal' => 20000000,
             'harga_tawar_vendor' => 20000,

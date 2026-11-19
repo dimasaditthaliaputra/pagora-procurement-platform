@@ -157,6 +157,7 @@ class PengirimanTest extends TestCase
             'purchase_order_id' => $po->id,
             'komoditas_id' => $this->commodity->id,
             'jumlah_pesanan' => 200,
+            'estimated_unit_price' => 14500.00,
             'harga_satuan_po' => 14500.00,
             'subtotal' => 2900000.00,
             'status_item' => 'agreed',

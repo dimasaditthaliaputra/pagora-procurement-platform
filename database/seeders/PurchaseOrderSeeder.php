@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\NegotiationMessageType;
+use App\Enums\NegotiationStatus;
 use App\Enums\StatusPurchaseOrder;
 use App\Models\ChatNegosiasi;
 use App\Models\Komoditas;
@@ -70,30 +72,38 @@ class PurchaseOrderSeeder extends Seeder
             );
 
             if (! $po->poItems()->exists()) {
+                $negotiating = $status === StatusPurchaseOrder::Negosiasi;
+                $agreed = ! in_array($status, [StatusPurchaseOrder::Draft, StatusPurchaseOrder::Negosiasi, StatusPurchaseOrder::Dibatalkan], true);
+                $unitPrice = $agreed ? $harga : ($negotiating ? 28000 : null);
+
                 PoItem::create([
                     'purchase_order_id' => $po->id,
                     'komoditas_id' => $komoditas->id,
                     'jumlah_pesanan' => $jumlah,
-                    'harga_satuan_po' => $harga,
-                    'subtotal' => $jumlah * $harga,
-                    'harga_tawar_vendor' => $status === StatusPurchaseOrder::Negosiasi ? 28500 : null,
-                    'status_item' => $status === StatusPurchaseOrder::Draft ? 'menunggu' : 'disepakati',
+                    'estimated_unit_price' => $harga,
+                    'harga_satuan_po' => $unitPrice,
+                    'subtotal' => $unitPrice !== null ? $jumlah * $unitPrice : null,
+                    'harga_tawar_vendor' => $negotiating ? 28500 : null,
+                    'status_item' => $agreed ? NegotiationStatus::Agreed : NegotiationStatus::Pending,
                 ]);
             }
 
             if ($status === StatusPurchaseOrder::Negosiasi && ! $po->chatNegosiasi()->exists()) {
+                $item = $po->poItems()->first();
                 $chats = [
-                    [$userBuyer, 'Selamat pagi, kami tertarik dengan penawaran Anda. Apakah harga bisa lebih kompetitif?', null],
-                    [$userVendor1, 'Harga terbaik kami untuk volume ini adalah Rp 28.500/kg.', 28500],
-                    [$userBuyer, 'Kami tawar Rp 28.000/kg.', 28000],
+                    [$userBuyer, NegotiationMessageType::Text, 'Selamat pagi, kami tertarik dengan penawaran Anda. Apakah harga bisa lebih kompetitif?', null, null],
+                    [$userVendor1, NegotiationMessageType::Offer, 'Harga terbaik kami untuk volume ini.', 28500, $item?->id],
+                    [$userBuyer, NegotiationMessageType::Offer, null, 28000, $item?->id],
                 ];
 
-                foreach ($chats as [$pengirim, $pesan, $nominal]) {
+                foreach ($chats as [$sender, $type, $message, $amount, $itemId]) {
                     ChatNegosiasi::create([
-                        'pengirim_id' => $pengirim->id,
+                        'sender_id' => $sender->id,
                         'purchase_order_id' => $po->id,
-                        'pesan_teks' => $pesan,
-                        'nominal_tawar' => $nominal,
+                        'purchase_order_item_id' => $itemId,
+                        'type' => $type,
+                        'message' => $message,
+                        'offer_amount' => $amount,
                     ]);
                 }
             }

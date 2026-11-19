@@ -31,7 +31,7 @@ class DatabaseMigrationTest extends TestCase
             'price_predictions',
             'purchase_order',
             'po_item',
-            'chat_negosiasi',
+            'negotiation_messages',
             'shipments',
             'goods_receipts',
             'goods_receipt_items',
@@ -256,6 +256,7 @@ class DatabaseMigrationTest extends TestCase
             'purchase_order_id',
             'komoditas_id',
             'jumlah_pesanan',
+            'estimated_unit_price',
             'harga_satuan_po',
             'subtotal',
             'harga_tawar_vendor',
@@ -264,13 +265,15 @@ class DatabaseMigrationTest extends TestCase
             'updated_at',
         ]));
 
-        $this->assertTrue(Schema::hasColumns('chat_negosiasi', [
+        $this->assertTrue(Schema::hasColumns('negotiation_messages', [
             'id',
             'uuid',
             'purchase_order_id',
-            'pengirim_id',
-            'pesan_teks',
-            'nominal_tawar',
+            'purchase_order_item_id',
+            'sender_id',
+            'type',
+            'message',
+            'offer_amount',
             'created_at',
         ]));
 

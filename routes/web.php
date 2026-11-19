@@ -11,6 +11,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\KerjaSamaController;
 use App\Http\Controllers\KomoditasController;
 use App\Http\Controllers\MitraIndustriController;
+use App\Http\Controllers\NegotiationController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\PenerimaanBarangController;
@@ -244,22 +245,31 @@ Route::middleware('auth')->group(function () {
                 ->whereUuid('uuid')
                 ->name('konfirmasi');
 
-            Route::get('/{uuid}/negosiasi', 'negosiasi')
-                ->whereUuid('uuid')
-                ->can('viewAny', PurchaseOrder::class)
-                ->name('negosiasi');
-
-            Route::post('/{uuid}/tawar', 'tawar')
-                ->whereUuid('uuid')
-                ->name('tawar');
-
-            Route::post('/{uuid}/setujui', 'setujui')
-                ->whereUuid('uuid')
-                ->name('setujui');
-
             Route::post('/{uuid}/batalkan', 'batalkan')
                 ->whereUuid('uuid')
                 ->name('batalkan');
+        });
+
+    // Smart Negotiation Chat per item (UC-12, UC-13, FR-19..21). Messages reach the other party by polling (NFR-12).
+    Route::controller(NegotiationController::class)
+        ->prefix('purchase-order/{uuid}/negosiasi')
+        ->whereUuid('uuid')
+        ->name('purchase-order.negosiasi')
+        ->group(function () {
+            Route::get('/', 'show')->can('viewAny', PurchaseOrder::class);
+
+            // ±20 polls/min per open chat at a 3 s interval; headroom for several tabs.
+            Route::get('/pembaruan', 'poll')
+                ->can('viewAny', PurchaseOrder::class)
+                ->middleware('throttle:90,1')
+                ->name('.poll');
+
+            Route::middleware('throttle:30,1')->group(function () {
+                Route::post('/pesan', 'storeMessage')->name('.message');
+                Route::post('/item/{itemUuid}/tawar', 'offer')->whereUuid('itemUuid')->name('.offer');
+                Route::post('/item/{itemUuid}/setujui', 'accept')->whereUuid('itemUuid')->name('.accept');
+                Route::post('/item/{itemUuid}/keluarkan', 'removeItem')->whereUuid('itemUuid')->name('.remove');
+            });
         });
 
     // Pengiriman Logistik (Self-Reporting Logistics — UC-14)

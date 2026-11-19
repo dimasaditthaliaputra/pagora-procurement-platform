@@ -31,3 +31,33 @@ export function formatTime(value) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? '' : timeFormatter.format(date);
 }
+
+/**
+ * Money input helpers. The form keeps a plain numeric string ("15000" or "15000.5", dot as the
+ * decimal point) so backend `numeric` validation is unchanged; only the visible text is localized
+ * ("15.000" / "15.000,5": dot for thousands, comma for decimals, like Indonesian usage).
+ */
+export function parseRupiahInput(text, maxDecimals = 2) {
+    const typed = String(text ?? '').replace(/[^\d,]/g, '');
+    const commaAt = typed.indexOf(',');
+    const hasComma = commaAt !== -1;
+    const integerSource = hasComma ? typed.slice(0, commaAt) : typed;
+    const decimalDigits = hasComma && maxDecimals > 0 ? typed.slice(commaAt + 1).replace(/,/g, '').slice(0, maxDecimals) : '';
+    const integerDigits = integerSource.replace(/^0+(?=\d)/, '') || (decimalDigits ? '0' : '');
+
+    return {
+        raw: integerDigits + (decimalDigits ? `.${decimalDigits}` : ''),
+        // A trailing comma is kept while typing so "15," does not collapse to "15".
+        trailingComma: hasComma && maxDecimals > 0 && decimalDigits === '',
+    };
+}
+
+export function formatRupiahInput(raw, { trailingComma = false } = {}) {
+    const [integerPart = '', decimalPart = ''] = String(raw ?? '').split('.');
+    if (integerPart === '' && decimalPart === '') return trailingComma ? '0,' : '';
+
+    const grouped = (integerPart || '0').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    if (decimalPart !== '') return `${grouped},${decimalPart}`;
+
+    return trailingComma ? `${grouped},` : grouped;
+}

@@ -6,6 +6,7 @@ import { notify } from '@/lib/notify';
 import { formatRupiah } from '@/lib/format';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
+import { CurrencyInput } from '@/Components/currency-input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { Combobox } from '@/Components/combobox';
@@ -258,15 +259,12 @@ export function PurchaseOrderForm({ initialData = null, vendorOptions = [], komo
 
                                 <div className="md:col-span-3 grid gap-1.5">
                                     <Label htmlFor={`items_${index}_harga_satuan_po`} className={cn('text-xs', err('harga_satuan_po') && 'text-destructive')}>
-                                        Estimasi Harga Satuan (Rp) <span className="text-destructive">*</span>
+                                        Estimasi Harga Satuan <span className="text-destructive">*</span>
                                     </Label>
-                                    <Input
+                                    <CurrencyInput
                                         id={`items_${index}_harga_satuan_po`}
-                                        type="number"
-                                        inputMode="numeric"
-                                        min="0"
                                         value={row.harga_satuan_po}
-                                        onChange={(e) => updateItem(index, 'harga_satuan_po', e.target.value)}
+                                        onValueChange={(value) => updateItem(index, 'harga_satuan_po', value)}
                                         aria-invalid={Boolean(err('harga_satuan_po'))}
                                         disabled={processing}
                                         className={cn('h-9 tabular-nums', invalidClass(err('harga_satuan_po')))}

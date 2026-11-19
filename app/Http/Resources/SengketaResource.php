@@ -245,8 +245,8 @@ class SengketaResource extends JsonResource
                         'sender_name' => $sender?->name ?? 'Pengguna',
                         'sender_role_label' => $roleEnum?->label() ?? 'Pengguna',
                         'is_vendor_sender' => $sender?->isVendor() ?? false,
-                        'message' => $msg->pesan_teks,
-                        'offer_amount' => $msg->nominal_tawar !== null ? (float) $msg->nominal_tawar : null,
+                        'message' => $msg->message,
+                        'offer_amount' => $msg->offer_amount !== null ? (float) $msg->offer_amount : null,
                         'created_at' => $msg->created_at?->toISOString(),
                     ];
                 })->values()->all()

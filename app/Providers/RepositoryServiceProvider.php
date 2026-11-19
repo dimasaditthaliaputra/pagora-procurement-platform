@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Repositories\Contracts\ChatNegosiasiRepositoryInterface;
 use App\Repositories\Contracts\CommodityCategoryRepositoryInterface;
 use App\Repositories\Contracts\DokumenLegalitasTenantRepositoryInterface;
 use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
@@ -22,6 +23,7 @@ use App\Repositories\Contracts\SengketaRepositoryInterface;
 use App\Repositories\Contracts\UndanganVendorRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Contracts\VendorRepositoryInterface;
+use App\Repositories\Eloquent\ChatNegosiasiRepository;
 use App\Repositories\Eloquent\CommodityCategoryRepository;
 use App\Repositories\Eloquent\DokumenLegalitasTenantRepository;
 use App\Repositories\Eloquent\DokumenLegalitasVendorRepository;
@@ -137,6 +139,11 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             PrediksiHargaRepositoryInterface::class,
             PrediksiHargaRepository::class
+        );
+
+        $this->app->bind(
+            ChatNegosiasiRepositoryInterface::class,
+            ChatNegosiasiRepository::class
         );
     }
 

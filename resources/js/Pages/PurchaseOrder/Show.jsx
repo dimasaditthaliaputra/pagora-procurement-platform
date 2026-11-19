@@ -20,7 +20,7 @@ import { StatusBadge } from '@/Pages/PurchaseOrder/components/StatusBadge';
 import { PoNotFound } from '@/Pages/PurchaseOrder/components/PoNotFound';
 import { KonfirmasiNegosiasiDialog } from '@/Pages/PurchaseOrder/components/KonfirmasiNegosiasiDialog';
 import { HapusDrafDialog } from '@/Pages/PurchaseOrder/components/HapusDrafDialog';
-import { hasNegotiation, isEditable, isLocked, tawaranTerakhir, totalPagu, totalPo } from '@/Pages/PurchaseOrder/constants';
+import { hasNegotiation, isEditable, isLocked, totalPagu, totalPo } from '@/Pages/PurchaseOrder/constants';
 
 const ALUR = ['draft', 'negosiasi', 'disepakati', 'dalam_pengiriman', 'diterima_gudang', 'ditagih', 'lunas'];
 const ALUR_LABEL = {
@@ -90,7 +90,6 @@ export default function PurchaseOrderShow({ purchase_order }) {
     const locked = isLocked(po) && po.status !== 'dibatalkan';
     const total = totalPo(po.items);
     const pagu = totalPagu(po.items);
-    const sepakat = locked ? tawaranTerakhir(po) : null;
 
     const vendorName = po.vendor?.nama_perusahaan ?? po.vendor?.company_name ?? 'Vendor';
 
@@ -261,7 +260,7 @@ export default function PurchaseOrderShow({ purchase_order }) {
                                             {locked ? 'Total Disepakati' : 'Total Estimasi PO'}
                                         </TableCell>
                                         <TableCell colSpan={pagu > 0 ? 3 : 2} className="text-right pr-5 tabular-nums">
-                                            {formatRupiah(sepakat ? sepakat.nominal_tawar : total)}
+                                            {formatRupiah(total)}
                                         </TableCell>
                                     </TableRow>
                                 </TableFooter>

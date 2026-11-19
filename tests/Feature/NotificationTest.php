@@ -344,10 +344,11 @@ class NotificationTest extends TestCase
             'tanggal_po' => now(),
         ]);
 
-        PoItem::create([
+        $item = PoItem::create([
             'purchase_order_id' => $po->id,
             'komoditas_id' => $komoditas->id,
             'jumlah_pesanan' => 100,
+            'estimated_unit_price' => 15000,
             'harga_satuan_po' => 15000,
             'subtotal' => 1500000,
         ]);
@@ -363,11 +364,11 @@ class NotificationTest extends TestCase
         $this->assertStringContainsString('PO-202611-9999', $vendorNotif->title);
         $this->assertFalse($vendorNotif->isRead());
 
-        // Vendor kirim tawaran baru -> should notify buyerUser
-        $this->actingAs($this->vendorUser)->postJson("/purchase-order/{$po->uuid}/tawar", [
-            'nominal_tawar' => 1600000,
-            'pesan_teks' => 'Harga dinaikkan sesuai stok.',
-        ]);
+        // Vendor kirim tawaran baru untuk item -> should notify buyerUser
+        $this->actingAs($this->vendorUser)->postJson("/purchase-order/{$po->uuid}/negosiasi/item/{$item->uuid}/tawar", [
+            'offer_amount' => 16000,
+            'message' => 'Harga dinaikkan sesuai stok.',
+        ])->assertOk();
 
         $buyerNotif = Notification::where('user_id', $this->buyerUser->id)
             ->where('type', 'negotiation')

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\NegotiationStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -16,12 +17,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'purchase_order_id',
     'komoditas_id',
     'jumlah_pesanan',
+    'estimated_unit_price',
     'harga_satuan_po',
     'subtotal',
     'harga_tawar_vendor',
     'status_item',
 ])]
-#[Hidden(['id'])]
+// Estimate is Tenant-internal (BR-02); expose it only through Tenant resources.
+#[Hidden(['id', 'estimated_unit_price'])]
 class PoItem extends Model
 {
     use HasUuids;
@@ -55,9 +58,11 @@ class PoItem extends Model
     {
         return [
             'jumlah_pesanan' => 'decimal:3',
+            'estimated_unit_price' => 'decimal:2',
             'harga_satuan_po' => 'decimal:2',
             'subtotal' => 'decimal:2',
             'harga_tawar_vendor' => 'decimal:2',
+            'status_item' => NegotiationStatus::class,
         ];
     }
 

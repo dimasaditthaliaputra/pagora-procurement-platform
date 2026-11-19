@@ -6,6 +6,7 @@ namespace App\Repositories\Contracts;
 
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 interface UserRepositoryInterface
 {
@@ -86,4 +87,19 @@ interface UserRepositoryInterface
      * @param  array<string, mixed>  $data
      */
     public function update(User $user, array $data): bool;
+
+    /**
+     * Active users of a Tenant holding one of the given roles.
+     *
+     * @param  list<string>  $roleNames
+     * @return Collection<int, User>
+     */
+    public function getActiveByTenantAndRoles(int $tenantId, array $roleNames): Collection;
+
+    /**
+     * Active users of a Vendor.
+     *
+     * @return Collection<int, User>
+     */
+    public function getActiveByVendor(int $vendorId): Collection;
 }

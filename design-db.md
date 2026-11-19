@@ -58,7 +58,7 @@
 | 14 | `price_predictions` | ✅ `price_predictions` (modul 5; dulu `prediksi_harga`) | `PrediksiHarga` | Hasil regresi + Harga Pagu |
 | 15 | `purchase_orders` | `purchase_order` | `PurchaseOrder` | Header PO |
 | 16 | `purchase_order_items` | `po_item` | `PoItem` | Item PO |
-| 17 | `negotiation_messages` | `chat_negosiasi` | `ChatNegosiasi` | Pesan & tawaran (immutable) |
+| 17 | `negotiation_messages` | ✅ `negotiation_messages` (dulu `chat_negosiasi`) | `ChatNegosiasi` | Pesan & tawaran (immutable) |
 | 18 | `shipments` | ✅ `shipments` (modul 6; dulu `pengiriman`) | `Pengiriman` | Laporan pengiriman vendor |
 | 19 | `goods_receipts` | `penerimaan_barang` | `PenerimaanBarang` | Header inspeksi QC |
 | 20 | `goods_receipt_items` | `penerimaan_barang_item` | `PenerimaanBarangItem` | Hasil inspeksi per item |
@@ -339,27 +339,27 @@ Index: (`commodity_id`, `prediction_date`), (`commodity_id`, `calculated_at`). S
 
 Soft delete hanya untuk PO `draft` (hapus draf, UC-12).
 
-### 4.16 `purchase_order_items` (saat ini `po_item`)
+### 4.16 `purchase_order_items` (saat ini `po_item`; sebagian kolom sudah ada, nama tabel/kolom lama dipertahankan sampai modul 6)
 | Kolom | Tipe | Saat ini | Catatan |
 |---|---|---|---|
 | purchase_order_id | FK→purchase_orders NN, idx | | |
 | commodity_id | FK→commodities NN | `komoditas_id` | |
 | quantity | decimal(15,3) NN | `jumlah_pesanan` | |
-| estimated_unit_price | decimal(15,2) NN | [baru] | Estimasi anggaran; **tidak dikirim ke Vendor** |
+| estimated_unit_price | decimal(15,2) NN | ✅ `estimated_unit_price` | Estimasi anggaran; **tidak dikirim ke Vendor** |
 | vendor_offer_price | decimal(15,2) null | `harga_tawar_vendor` | Tawaran terakhir Vendor |
-| unit_price | decimal(15,2) null | `harga_satuan_po` (NN) | Harga final saat `agreed`; ubah ke nullable |
+| unit_price | decimal(15,2) null | `harga_satuan_po` (✅ nullable) | Selama negosiasi: ajuan Purchasing terakhir; saat `agreed`: harga final |
 | subtotal | decimal(17,2) null | | `quantity × unit_price` |
-| negotiation_status | string(30) NN default `pending`, idx | `status_item` | `pending`, `countered`, `agreed`, `removed` |
+| negotiation_status | string(30) NN default `pending`, idx | `status_item` (✅ nilai baru, idx) | `pending`, `countered`, `agreed`, `removed` (`NegotiationStatus`); `menunggu` → `pending` |
 
-### 4.17 `negotiation_messages` (saat ini `chat_negosiasi`, **immutable**)
+### 4.17 `negotiation_messages` ✅ (dulu `chat_negosiasi`, **immutable**; trigger PostgreSQL `negotiation_messages_immutable`)
 | Kolom | Tipe | Saat ini | Catatan |
 |---|---|---|---|
 | purchase_order_id | FK→purchase_orders NN, idx | | |
 | purchase_order_item_id | FK→purchase_order_items null | [baru] | Tawaran per item |
 | sender_id | FK→users NN | `pengirim_id` | |
-| type | string(30) NN default `text` | [baru] | `text`, `offer`, `acceptance`, `item_removed`, `system` |
+| type | string(30) NN default `text` | [baru] | `text`, `offer`, `acceptance`, `item_removed`, `system` (`NegotiationMessageType`) |
 | message | text null | `pesan_teks` | |
-| offer_amount | decimal(15,2) null | `nominal_tawar` | |
+| offer_amount | decimal(15,2) null | `nominal_tawar` | **Harga satuan** per item (bukan total PO) |
 | created_at | timestamp NN | | |
 
 ### 4.18 `shipments` (saat ini `pengiriman`)
@@ -727,6 +727,7 @@ Cocok bila untuk setiap item: `invoice_items.quantity ≤ kuantitas diterima yan
 | 2026-11-18 | Tambah kolom `business_entity` di tabel `vendors` (string(30) default `pt`) untuk Bentuk Badan Usaha (`pt`, `cv`, `firma`, `koperasi`, `perorangan`), serta pemisahan tipe dokumen `akta` (Akta Pendirian) dan `sk_kemenkumham` (SK Kemenkumham) di `vendor_legal_documents` (Wajib bila badan hukum, disembunyikan bila Perorangan/UD) | — |
 | 2026-11-19 | Drop constraint UNIQUE pada `tenants.tax_number` via migration 2026_11_19_000001 untuk skenario kantor cabang; implementasi `RegistrationSecurityGuardService` (Pre-Registration Blacklist Guard & Pending Spam Guard) serta sistem peringatan flag duplikasi dokumen legalitas untuk Admin Verifikator (Tenant & Vendor) | — |
 | 2026-11-19 | **Modul 5 selesai**: `harga_referensi_komoditas` → `commodity_reference_prices` (`commodity_id`, `date`, `price`, `source` `bank_indonesia`/`seeder`; UNIQUE (`commodity_id`, `date`, `source`) untuk upsert sinkronisasi BI); `prediksi_harga` → `price_predictions` (`commodity_id`, `prediction_date`, `predicted_price`, `recommended_ceiling_price`, `calculated_at`; index tambahan (`commodity_id`, `calculated_at`) untuk batch terbaru). Migration `2026_11_19_083605_*`, `2026_11_19_083606_*`. Permission `harga_pagu.view_any` (default owner, purchasing). `api_reference_code` = kode PIHPS (`com_N`), dipilih dari daftar BI di form Komoditas (unik per komoditas aktif) atau lewat **Impor dari BI**; `KomoditasSeeder` dihapus. Data dari price service (jenis harga 3 = Pedagang Besar) (UC-11, FR-15, FR-16) | — |
+| 2026-11-19 | **Negosiasi per item (FR-19..21)**: `chat_negosiasi` → `negotiation_messages` (`sender_id`, `message`, `offer_amount` = harga satuan; kolom baru `purchase_order_item_id` FK nullable ke `po_item`, `type`; index (`purchase_order_id`, `id`) untuk polling) + trigger immutable PostgreSQL `reject_update_delete()`; `po_item`: kolom baru `estimated_unit_price` (NN, diisi dari `harga_satuan_po` lama), `harga_satuan_po` & `subtotal` nullable, `status_item` `menunggu` → `pending` + index. Migration `2026_11_19_110016_*`, `2026_11_19_110017_*`, `2026_11_19_110050_*`. Rename `purchase_order`/`po_item` tetap di modul 6 | — |
 
 ## 12. Keputusan Teknis (2026-10-31)
 

@@ -226,11 +226,11 @@ class SengketaPdfExporter
                 $senderName = $msg->pengirim?->name ?? 'Pengguna';
                 $senderRole = $msg->pengirim?->roleName()?->label() ?? '';
                 $timestamp = $this->formatDateTimeWib($msg->created_at);
-                $offerPart = $msg->nominal_tawar !== null && (float) $msg->nominal_tawar > 0
-                    ? '  [Tawaran Harga: '.$this->formatRupiah((float) $msg->nominal_tawar).']'
+                $offerPart = $msg->offer_amount !== null && (float) $msg->offer_amount > 0
+                    ? '  [Tawaran Harga: '.$this->formatRupiah((float) $msg->offer_amount).']'
                     : '';
                 $headerLine = ($idx + 1).'. '.$senderName.($senderRole !== '' ? " ({$senderRole})" : '').'  —  '.$timestamp.$offerPart;
-                $bodyText = trim((string) ($msg->pesan_teks ?? '-'));
+                $bodyText = trim((string) ($msg->message ?? '-'));
                 $this->drawTimelineEntry($headerLine, $bodyText);
             }
         }

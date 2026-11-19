@@ -87,7 +87,7 @@ class PurchaseOrderPolicy
     }
 
     /**
-     * Determine whether the user can submit an offer in negotiation.
+     * Determine whether the user can take part in the negotiation chat: send messages and offers.
      */
     public function tawar(User $user, PurchaseOrder $purchaseOrder): bool
     {
@@ -107,11 +107,22 @@ class PurchaseOrderPolicy
     }
 
     /**
-     * Determine whether the user can agree to the price and lock the purchase order.
+     * Determine whether the user can agree to an item price in negotiation.
      */
     public function setujui(User $user, PurchaseOrder $purchaseOrder): bool
     {
         return $this->tawar($user, $purchaseOrder);
+    }
+
+    /**
+     * Determine whether the user can drop an item that could not be agreed (Purchasing side only, Q-24).
+     */
+    public function keluarkanItem(User $user, PurchaseOrder $purchaseOrder): bool
+    {
+        return $purchaseOrder->status === StatusPurchaseOrder::Negosiasi
+            && $user->tenant_id !== null
+            && (int) $user->tenant_id === (int) $purchaseOrder->perusahaan_buyer_id
+            && $user->hasPermission('purchase_order.create');
     }
 
     /**

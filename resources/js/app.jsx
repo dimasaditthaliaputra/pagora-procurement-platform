@@ -8,6 +8,8 @@ import { notify } from '@/lib/notify';
 const pages = import.meta.glob('./Pages/**/*.jsx');
 
 createInertiaApp({
+    // No top loading bar: actions show their own state (LoadingButton, skeletons, toasts).
+    progress: false,
     resolve: (name) => {
         // 1. Direct match
         if (pages[`./Pages/${name}.jsx`]) {

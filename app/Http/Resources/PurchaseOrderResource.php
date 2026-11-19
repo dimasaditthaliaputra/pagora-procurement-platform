@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Enums\NegotiationStatus;
 use App\Models\PurchaseOrder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -27,7 +28,11 @@ class PurchaseOrderResource extends JsonResource
             $komoditas = $item->komoditas;
             // Dummy reference ceiling price if available or standard fallback
             $hargaPagu = 15000.0;
-            $subtotal = (float) $item->subtotal;
+            // Vendor sees Purchasing's proposal/final price only; Tenant falls back to its internal estimate (BR-02).
+            $hargaSatuan = $item->harga_satuan_po !== null
+                ? (float) $item->harga_satuan_po
+                : ($isVendorUser ? null : (float) $item->estimated_unit_price);
+            $removed = $item->status_item === NegotiationStatus::Removed;
 
             return [
                 'uuid' => $item->uuid,
@@ -35,11 +40,13 @@ class PurchaseOrderResource extends JsonResource
                 'nama_komoditas' => $komoditas?->name ?? 'Komoditas',
                 'satuan' => $komoditas?->unit ?? 'kg',
                 'jumlah_pesanan' => (float) $item->jumlah_pesanan,
-                'harga_satuan_po' => (float) $item->harga_satuan_po,
+                'harga_satuan_po' => $hargaSatuan,
+                'estimasi_harga_satuan' => $isVendorUser ? null : (float) $item->estimated_unit_price,
                 'harga_tawar_vendor' => $item->harga_tawar_vendor !== null ? (float) $item->harga_tawar_vendor : null,
-                'subtotal' => $subtotal,
+                'subtotal' => $hargaSatuan !== null && ! $removed ? round((float) $item->jumlah_pesanan * $hargaSatuan, 2) : null,
                 'harga_pagu' => $isVendorUser ? null : $hargaPagu,
-                'status_item' => $item->status_item,
+                'status_item' => $item->status_item?->value,
+                'status_item_label' => $item->status_item?->label(),
             ];
         });
 
@@ -58,8 +65,8 @@ class PurchaseOrderResource extends JsonResource
 
                 return [
                     'uuid' => $chat->uuid,
-                    'pesan_teks' => $chat->pesan_teks,
-                    'nominal_tawar' => $chat->nominal_tawar !== null ? (float) $chat->nominal_tawar : null,
+                    'pesan_teks' => $chat->message,
+                    'nominal_tawar' => $chat->offer_amount !== null ? (float) $chat->offer_amount : null,
                     'created_at' => $chat->created_at?->toISOString(),
                     'pengirim' => [
                         'uuid' => $pengirim?->uuid,
@@ -67,7 +74,7 @@ class PurchaseOrderResource extends JsonResource
                         'peran' => $isVendor ? 'vendor' : 'buyer',
                         'role' => $pengirim?->role?->name ?? 'user',
                         'role_label' => $pengirim?->roleName()?->label() ?? 'Pengguna',
-                        'is_me' => $user !== null && (int) $user->id === (int) $chat->pengirim_id,
+                        'is_me' => $user !== null && (int) $user->id === (int) $chat->sender_id,
                     ],
                 ];
             })->values()->all()

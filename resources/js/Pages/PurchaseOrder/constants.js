@@ -28,12 +28,11 @@ export const hasNegotiation = (po) =>
     ['negosiasi', 'disepakati', 'dalam_pengiriman', 'partially_received', 'diterima_gudang', 'ditagih', 'lunas', 'dibatalkan', 'sengketa'].includes(po?.status)
     && (po?.chat?.length ?? 0) > 0;
 
+// Items dropped during negotiation (`removed`) are not part of the order total.
 export const totalPo = (items = []) =>
-    items.reduce((sum, item) => sum + Number(item.jumlah_pesanan || 0) * Number(item.harga_satuan_po || 0), 0);
-
-// The latest offer in the chat; once the PO is `disepakati` this is the agreed price.
-export const tawaranTerakhir = (po) =>
-    [...(po?.chat ?? [])].reverse().find((c) => c.nominal_tawar !== null && c.nominal_tawar !== undefined) ?? null;
+    items
+        .filter((item) => item.status_item !== 'removed')
+        .reduce((sum, item) => sum + Number(item.jumlah_pesanan || 0) * Number(item.harga_satuan_po || 0), 0);
 
 export const totalPagu = (items = []) =>
     items.reduce((sum, item) => sum + Number(item.jumlah_pesanan || 0) * Number(item.harga_pagu || 0), 0);

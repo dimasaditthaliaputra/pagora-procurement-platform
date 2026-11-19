@@ -23,6 +23,7 @@ class DashboardService
     {
         $isSuperadmin = $user !== null && $user->isSuperadmin();
         $isManajemen = $user !== null && $user->isManajemen() && $user->tenant_id !== null;
+        $isOwner = $user !== null && $user->isOwner() && $user->tenant_id !== null;
 
         return [
             'user' => $user,
@@ -33,6 +34,10 @@ class DashboardService
             'is_manajemen' => $isManajemen,
             'manajemen_dashboard' => $isManajemen
                 ? $this->buildManajemenDashboard((int) $user->tenant_id)
+                : null,
+            'is_owner' => $isOwner,
+            'owner_dashboard' => $isOwner
+                ? $this->buildOwnerDashboard((int) $user->tenant_id)
                 : null,
         ];
     }
@@ -89,6 +94,26 @@ class DashboardService
             'recent_qc_rejections' => $this->dashboardRepository->getManajemenRecentQcRejections($tenantId, 5),
             'tenant_commodities' => $this->dashboardRepository->getManajemenTenantCommodities($tenantId, 6),
             'monthly_trend' => $this->dashboardRepository->getManajemenMonthlyTrend($tenantId, 6),
+        ];
+    }
+
+    /**
+     * Assemble end-to-end tenant executive metrics for role Owner (REQ-TEN-03, UC-07..UC-20):
+     * company profile, internal employees, procurement orders & value, 3-Way Matching invoices,
+     * vendor partnerships, QC inspections, and active disputes.
+     *
+     * @return array<string, mixed>
+     */
+    public function buildOwnerDashboard(int $tenantId): array
+    {
+        return [
+            'company' => $this->dashboardRepository->getTenantProfileForManajemen($tenantId),
+            'summary' => $this->dashboardRepository->getOwnerSummaryMetrics($tenantId),
+            'recent_purchase_orders' => $this->dashboardRepository->getOwnerRecentPurchaseOrders($tenantId, 5),
+            'recent_invoices' => $this->dashboardRepository->getOwnerRecentInvoices($tenantId, 5),
+            'internal_team' => $this->dashboardRepository->getOwnerInternalTeam($tenantId, 6),
+            'active_disputes' => $this->dashboardRepository->getManajemenActiveDisputes($tenantId, 5),
+            'monthly_trend' => $this->dashboardRepository->getOwnerMonthlyExecutionTrend($tenantId, 6),
         ];
     }
 }

@@ -7,14 +7,17 @@ namespace Tests\Feature;
 use App\Enums\PemicuSengketa;
 use App\Enums\RoleName;
 use App\Enums\StatusKerjaSama;
+use App\Enums\StatusMatching;
 use App\Enums\StatusPurchaseOrder;
 use App\Enums\StatusSengketa;
 use App\Enums\VerificationStatus;
 use App\Models\CommodityCategory;
 use App\Models\DokumenLegalitasVendor;
+use App\Models\Invoice;
 use App\Models\KerjaSama;
 use App\Models\Komoditas;
 use App\Models\PerusahaanBuyer;
+use App\Models\PoItem;
 use App\Models\PurchaseOrder;
 use App\Models\Role;
 use App\Models\Sengketa;
@@ -244,9 +247,9 @@ class SuperadminDashboardTest extends TestCase
             'purchase_order_id' => $poA->id,
             'trigger_type' => PemicuSengketa::GoodsMismatch->value,
             'reason' => 'Kemasan beras sobek saat tiba di gudang A.',
-            'dibuka_oleh' => $this->owner->id,
-            'status' => StatusSengketa::Terbuka->value,
-            'tanggal_dibuka' => now(),
+            'opened_by' => $this->owner->id,
+            'status' => StatusSengketa::Open->value,
+            'opened_at' => now(),
         ]);
 
         // Dispute belonging to Tenant B (must not leak to Tenant A)
@@ -255,9 +258,9 @@ class SuperadminDashboardTest extends TestCase
             'purchase_order_id' => $poB->id,
             'trigger_type' => PemicuSengketa::GoodsMismatch->value,
             'reason' => 'Sengketa milik Tenant B.',
-            'dibuka_oleh' => $this->owner->id,
-            'status' => StatusSengketa::Terbuka->value,
-            'tanggal_dibuka' => now(),
+            'opened_by' => $this->owner->id,
+            'status' => StatusSengketa::Open->value,
+            'opened_at' => now(),
         ]);
 
         $this->actingAs($manajemenA)
@@ -284,6 +287,137 @@ class SuperadminDashboardTest extends TestCase
                 ->missing('manajemen_dashboard.vendor_partnerships.0.id')
                 ->has('manajemen_dashboard.tenant_commodities', 1)
                 ->has('manajemen_dashboard.monthly_trend', 6)
+            );
+    }
+
+    public function test_owner_receives_executive_tenant_dashboard_and_excludes_other_tenants(): void
+    {
+        $tenantA = PerusahaanBuyer::where('company_name', 'PT Pangan Makmur Sejahtera')->firstOrFail();
+        $tenantB = PerusahaanBuyer::factory()->create([
+            'company_name' => 'PT Tenant Kompetitor B',
+            'verification_status' => VerificationStatus::Approved->value,
+            'is_active' => true,
+        ]);
+
+        // Add internal employees to Tenant A
+        User::factory()->create([
+            'name' => 'Staf Purchasing A',
+            'email' => 'purchasing-a@pagora.test',
+            'role_id' => Role::where('name', RoleName::Purchasing->value)->value('id'),
+            'tenant_id' => $tenantA->id,
+            'is_active' => true,
+        ]);
+
+        User::factory()->create([
+            'name' => 'Staf QC Gudang A',
+            'email' => 'qc-a@pagora.test',
+            'role_id' => Role::where('name', RoleName::QcGudang->value)->value('id'),
+            'tenant_id' => $tenantA->id,
+            'is_active' => true,
+        ]);
+
+        // Employee in Tenant B (must not be counted in Tenant A)
+        User::factory()->create([
+            'name' => 'Pegawai Tenant B',
+            'email' => 'staff-b@pagora.test',
+            'role_id' => Role::where('name', RoleName::Purchasing->value)->value('id'),
+            'tenant_id' => $tenantB->id,
+            'is_active' => true,
+        ]);
+
+        $vendor = Vendor::create([
+            'company_name' => 'PT Pemasok Beras Nusantara',
+            'slug' => 'pt-pemasok-beras-nusantara-'.Str::lower(Str::random(5)),
+            'business_entity' => 'PT',
+            'contact_email' => 'beras@vendor.test',
+            'phone' => '081234560002',
+            'verification_status' => VerificationStatus::Approved->value,
+            'is_active' => true,
+        ]);
+
+        $commodity = Komoditas::firstOrFail();
+
+        $poA = PurchaseOrder::create([
+            'uuid' => (string) Str::uuid(),
+            'nomor_po' => 'PO-OWN-A001',
+            'perusahaan_buyer_id' => $tenantA->id,
+            'vendor_id' => $vendor->id,
+            'created_by' => $this->owner->id,
+            'status' => StatusPurchaseOrder::Disepakati->value,
+            'tanggal_po' => now()->toDateString(),
+        ]);
+
+        PoItem::create([
+            'uuid' => (string) Str::uuid(),
+            'purchase_order_id' => $poA->id,
+            'komoditas_id' => $commodity->id,
+            'jumlah_pesanan' => 1000,
+            'estimated_unit_price' => 12000,
+            'harga_satuan_po' => 12500,
+            'subtotal' => 12500000,
+        ]);
+
+        Invoice::create([
+            'uuid' => (string) Str::uuid(),
+            'purchase_order_id' => $poA->id,
+            'vendor_id' => $vendor->id,
+            'nomor_invoice_vendor' => 'INV-VND-001',
+            'jumlah_tagihan' => 12500000,
+            'tanggal_invoice' => now()->toDateString(),
+            'status_matching' => StatusMatching::Pending->value,
+        ]);
+
+        // PO & Invoice for Tenant B (must not leak to Owner A)
+        $poB = PurchaseOrder::create([
+            'uuid' => (string) Str::uuid(),
+            'nomor_po' => 'PO-OWN-B001',
+            'perusahaan_buyer_id' => $tenantB->id,
+            'vendor_id' => $vendor->id,
+            'created_by' => $this->owner->id,
+            'status' => StatusPurchaseOrder::Disepakati->value,
+            'tanggal_po' => now()->toDateString(),
+        ]);
+
+        Invoice::create([
+            'uuid' => (string) Str::uuid(),
+            'purchase_order_id' => $poB->id,
+            'vendor_id' => $vendor->id,
+            'nomor_invoice_vendor' => 'INV-VND-B99',
+            'jumlah_tagihan' => 99000000,
+            'tanggal_invoice' => now()->toDateString(),
+            'status_matching' => StatusMatching::Pending->value,
+        ]);
+
+        $this->actingAs($this->owner)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Dashboard')
+                ->where('is_superadmin', false)
+                ->where('superadmin_dashboard', null)
+                ->where('is_manajemen', false)
+                ->where('manajemen_dashboard', null)
+                ->where('is_owner', true)
+                ->where('owner_dashboard.company.company_name', 'PT Pangan Makmur Sejahtera')
+                ->where('owner_dashboard.summary.procurement.total_orders', 1)
+                ->where('owner_dashboard.summary.procurement.in_execution', 1)
+                ->where('owner_dashboard.summary.procurement.total_agreed_value', 12500000)
+                ->where('owner_dashboard.summary.invoices.total', 1)
+                ->where('owner_dashboard.summary.invoices.pending', 1)
+                ->where('owner_dashboard.summary.invoices.total_invoiced_amount', 12500000)
+                ->where('owner_dashboard.summary.employees.total', 3)
+                ->where('owner_dashboard.summary.employees.owner_count', 1)
+                ->where('owner_dashboard.summary.employees.purchasing_count', 1)
+                ->where('owner_dashboard.summary.employees.qc_gudang_count', 1)
+                ->has('owner_dashboard.recent_purchase_orders', 1)
+                ->where('owner_dashboard.recent_purchase_orders.0.po_number', 'PO-OWN-A001')
+                ->missing('owner_dashboard.recent_purchase_orders.0.id')
+                ->has('owner_dashboard.recent_invoices', 1)
+                ->where('owner_dashboard.recent_invoices.0.invoice_number', 'INV-VND-001')
+                ->missing('owner_dashboard.recent_invoices.0.id')
+                ->has('owner_dashboard.internal_team', 3)
+                ->missing('owner_dashboard.internal_team.0.id')
+                ->has('owner_dashboard.monthly_trend', 6)
             );
     }
 }

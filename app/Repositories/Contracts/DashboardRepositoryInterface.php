@@ -110,4 +110,40 @@ interface DashboardRepositoryInterface
      * @return list<array{month_key: string, label: string, purchase_orders_count: int, qc_inspections_count: int, disputes_count: int}>
      */
     public function getManajemenMonthlyTrend(int $tenantId, int $months = 6): array;
+
+    /**
+     * Get comprehensive tenant-scoped executive summary metrics for role Owner
+     * covering Procurement (PO), 3-Way Matching Invoices, Internal Employees, and Governance.
+     *
+     * @return array<string, array<string, int|float>>
+     */
+    public function getOwnerSummaryMetrics(int $tenantId): array;
+
+    /**
+     * Get recent Purchase Orders for the given Tenant (UC-12).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getOwnerRecentPurchaseOrders(int $tenantId, int $limit = 5): array;
+
+    /**
+     * Get recent vendor invoices prioritized by pending/mismatched 3-Way Matching status (UC-17).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getOwnerRecentInvoices(int $tenantId, int $limit = 5): array;
+
+    /**
+     * Get internal company employees across roles for the given Tenant (UC-08).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getOwnerInternalTeam(int $tenantId, int $limit = 6): array;
+
+    /**
+     * Get 6-month executive procurement & billing trend for the given Tenant.
+     *
+     * @return list<array{month_key: string, label: string, purchase_orders_count: int, invoices_count: int, qc_inspections_count: int, po_value: float}>
+     */
+    public function getOwnerMonthlyExecutionTrend(int $tenantId, int $months = 6): array;
 }

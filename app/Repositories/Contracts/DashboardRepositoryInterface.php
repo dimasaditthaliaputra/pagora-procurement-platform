@@ -146,4 +146,36 @@ interface DashboardRepositoryInterface
      * @return list<array{month_key: string, label: string, purchase_orders_count: int, invoices_count: int, qc_inspections_count: int, po_value: float}>
      */
     public function getOwnerMonthlyExecutionTrend(int $tenantId, int $months = 6): array;
+
+    // -------------------------------------------------------------------------
+    // Buyer (Purchasing / Finance) Dashboard
+    // -------------------------------------------------------------------------
+
+    /**
+     * Get procurement & invoice KPI summary for role Purchasing (Buyer).
+     *
+     * @return array<string, array<string, int|float>>
+     */
+    public function getBuyerSummaryMetrics(int $tenantId): array;
+
+    /**
+     * Get recent Purchase Orders visible to Buyer for the given Tenant.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getBuyerRecentPurchaseOrders(int $tenantId, int $limit = 5): array;
+
+    /**
+     * Get invoices pending 3-Way Matching verification for Buyer.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getBuyerPendingInvoices(int $tenantId, int $limit = 5): array;
+
+    /**
+     * Get active disputes initiated from this Tenant (Buyer perspective).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getBuyerActiveDisputes(int $tenantId, int $limit = 5): array;
 }

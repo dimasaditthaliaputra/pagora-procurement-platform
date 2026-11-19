@@ -4,6 +4,7 @@ import DashboardOverview from '@/Components/DashboardOverview';
 import ManajemenDashboard from '@/Pages/Dashboard/ManajemenDashboard';
 import OwnerDashboard from '@/Pages/Dashboard/OwnerDashboard';
 import SuperadminDashboard from '@/Pages/Dashboard/SuperadminDashboard';
+import BuyerDashboard from '@/Pages/Dashboard/BuyerDashboard';
 
 export default function Dashboard({
     user,
@@ -13,12 +14,15 @@ export default function Dashboard({
     manajemen_dashboard = null,
     is_owner = false,
     owner_dashboard = null,
+    is_purchasing = false,
+    buyer_dashboard = null,
 }) {
     const { auth } = usePage().props;
     const roleName = auth?.role?.name;
     const isSuperadminRole = Boolean(is_superadmin) || roleName === 'superadmin';
     const isManajemenRole = Boolean(is_manajemen) || roleName === 'manajemen';
     const isOwnerRole = Boolean(is_owner) || roleName === 'owner';
+    const isPurchasingRole = Boolean(is_purchasing) || roleName === 'purchasing';
 
     const pageTitle = isSuperadminRole
         ? 'Dashboard Superadmin - PAGORA'
@@ -26,7 +30,9 @@ export default function Dashboard({
           ? 'Dashboard Manajemen - PAGORA'
           : isOwnerRole
             ? 'Dashboard Owner - PAGORA'
-            : 'Dashboard - PAGORA';
+            : isPurchasingRole
+              ? 'Dashboard Purchasing - PAGORA'
+              : 'Dashboard - PAGORA';
 
     return (
         <DashboardLayout>
@@ -46,6 +52,11 @@ export default function Dashboard({
                 <OwnerDashboard
                     userName={user?.name}
                     dashboard={owner_dashboard}
+                />
+            ) : isPurchasingRole && buyer_dashboard ? (
+                <BuyerDashboard
+                    userName={user?.name}
+                    dashboard={buyer_dashboard}
                 />
             ) : (
                 <DashboardOverview userName={user?.name} />

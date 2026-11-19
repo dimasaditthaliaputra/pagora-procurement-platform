@@ -9,10 +9,10 @@ use App\Models\ChatNegosiasi;
 use App\Models\Komoditas;
 use App\Models\PerusahaanBuyer;
 use App\Models\PoItem;
-use App\Models\PrediksiHarga;
 use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\PricePredictionService;
 use Illuminate\Database\Seeder;
 
 /**
@@ -21,7 +21,7 @@ use Illuminate\Database\Seeder;
  */
 class PurchaseOrderSeeder extends Seeder
 {
-    public function run(): void
+    public function run(PricePredictionService $pricePredictionService): void
     {
         if (! app()->environment(['local', 'testing'])) {
             return;
@@ -33,8 +33,11 @@ class PurchaseOrderSeeder extends Seeder
         $vendor1 = Vendor::where('contact_email', 'kontak@mitra-agro.test')->firstOrFail();
         $vendor2 = Vendor::where('contact_email', 'info@sumber-pangan.test')->firstOrFail();
 
-        $beras = Komoditas::where('sku', 'BERAS')->firstOrFail();
-        $bawangMerah = Komoditas::where('sku', 'BAWANG_MERAH')->firstOrFail();
+        // Commodities are imported from Bank Indonesia via the UI (no KomoditasSeeder); skip until two exist.
+        [$beras, $bawangMerah] = Komoditas::where('is_active', true)->orderBy('id')->take(2)->get()->pad(2, null)->all();
+        if ($beras === null || $bawangMerah === null) {
+            return;
+        }
 
         $skenario = [
             ['PO-2026-0001', StatusPurchaseOrder::Draft,             $vendor1, $beras,       500,  12500, 10, 'PO draft untuk pengujian tampilan awal.'],
@@ -50,7 +53,7 @@ class PurchaseOrderSeeder extends Seeder
         ];
 
         foreach ($skenario as [$nomor, $status, $vendor, $komoditas, $jumlah, $harga, $hariLalu, $catatan]) {
-            $prediksi = PrediksiHarga::where('komoditas_id', $komoditas->id)->latest('tanggal_prediksi')->first();
+            $prediksi = $pricePredictionService->latestCeiling($komoditas->id);
 
             $po = PurchaseOrder::updateOrCreate(
                 ['nomor_po' => $nomor],
@@ -59,7 +62,7 @@ class PurchaseOrderSeeder extends Seeder
                     'created_by' => $userBuyer->id,
                     'prediksi_harga_id' => $prediksi?->id,
                     'perusahaan_buyer_id' => $buyer->id,
-                    'harga_pagu_acuan' => $prediksi?->harga_pagu_rekomendasi,
+                    'harga_pagu_acuan' => $prediksi?->recommended_ceiling_price,
                     'status' => $status->value,
                     'tanggal_po' => now()->subDays($hariLalu)->toDateString(),
                     'catatan' => $catatan,

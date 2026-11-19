@@ -9,6 +9,7 @@ use App\Models\PenerimaanBarang;
 use App\Models\Pengaturan;
 use App\Models\Pengiriman;
 use App\Models\PerusahaanBuyer;
+use App\Models\PrediksiHarga;
 use App\Models\PurchaseOrder;
 use App\Models\Role;
 use App\Models\Sengketa;
@@ -92,6 +93,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             'purchase_order.view_any' => $user->can('viewAny', PurchaseOrder::class),
+            'harga_pagu.view_any' => $user->can('viewAny', PrediksiHarga::class),
             'pengiriman.view_any' => $user->can('viewAny', Pengiriman::class),
             'penerimaan_barang.view_any' => $user->can('viewAny', PenerimaanBarang::class),
             'sengketa.view_any' => $user->can('viewAny', Sengketa::class),

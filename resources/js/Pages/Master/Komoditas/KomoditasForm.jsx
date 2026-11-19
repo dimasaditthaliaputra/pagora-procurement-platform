@@ -23,6 +23,7 @@ export function KomoditasForm({
     isEdit = false,
     satuan_options = [],
     category_options = [],
+    bi_commodities = { available: false, options: [] },
 }) {
     const { data, setData, post, put, processing, errors, setError, clearErrors } = useForm({
         name: initialData?.name ?? '',
@@ -34,6 +35,11 @@ export function KomoditasForm({
         specification: initialData?.specification ?? '',
         is_active: initialData?.is_active ?? true,
     });
+
+    // Keep a stored code selectable even if Bank Indonesia no longer lists it.
+    const biOptions = bi_commodities.options.some((option) => option.value === data.api_reference_code) || !data.api_reference_code
+        ? bi_commodities.options
+        : [{ value: data.api_reference_code, label: data.api_reference_code }, ...bi_commodities.options];
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -199,26 +205,44 @@ export function KomoditasForm({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                         <div className="grid gap-1.5">
                             <Label htmlFor="api_reference_code" className={cn('text-sm', errors.api_reference_code && 'text-destructive')}>
-                                Kode Referensi API Pangan
+                                Komoditas Bank Indonesia
                             </Label>
-                            <Input
-                                id="api_reference_code"
-                                placeholder="Contoh: 101 (ID komoditas PIHPS / Bapanas)"
-                                value={data.api_reference_code}
-                                onChange={(e) => {
-                                    setData('api_reference_code', e.target.value);
-                                    if (errors.api_reference_code) clearErrors('api_reference_code');
-                                }}
-                                aria-invalid={Boolean(errors.api_reference_code)}
-                                className={cn('h-9', errors.api_reference_code && 'border-destructive focus-visible:ring-destructive')}
-                            />
+                            {bi_commodities.available ? (
+                                <Combobox
+                                    options={biOptions}
+                                    value={data.api_reference_code}
+                                    onChange={(value) => {
+                                        setData('api_reference_code', value);
+                                        if (errors.api_reference_code) clearErrors('api_reference_code');
+                                    }}
+                                    placeholder="Tidak dipetakan"
+                                    searchPlaceholder="Cari komoditas Bank Indonesia..."
+                                    emptyMessage="Komoditas Bank Indonesia tidak ditemukan."
+                                    error={errors.api_reference_code}
+                                    disabled={processing}
+                                />
+                            ) : (
+                                <Input
+                                    id="api_reference_code"
+                                    placeholder="Contoh: com_11"
+                                    value={data.api_reference_code}
+                                    onChange={(e) => {
+                                        setData('api_reference_code', e.target.value);
+                                        if (errors.api_reference_code) clearErrors('api_reference_code');
+                                    }}
+                                    aria-invalid={Boolean(errors.api_reference_code)}
+                                    className={cn('h-9', errors.api_reference_code && 'border-destructive focus-visible:ring-destructive')}
+                                />
+                            )}
                             {errors.api_reference_code && (
                                 <p className="text-xs font-medium text-destructive">
                                     {errors.api_reference_code}
                                 </p>
                             )}
                             <p className="text-[11px] text-muted-foreground">
-                                Terhubung ke API Bank Indonesia / Bapanas untuk sinkronisasi harga acuan otomatis.
+                                {bi_commodities.available
+                                    ? 'Padanan di PIHPS Bank Indonesia untuk tren harga & Harga Pagu. Pilih lagi untuk mengosongkan.'
+                                    : 'Daftar Bank Indonesia tidak dapat dimuat; isi kode PIHPS secara manual (format com_N) atau kosongkan.'}
                             </p>
                         </div>
 

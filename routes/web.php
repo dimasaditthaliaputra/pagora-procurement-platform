@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\RoleName;
+use App\Http\Controllers\AnalitikHargaController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
@@ -32,6 +33,7 @@ use App\Models\PenerimaanBarang;
 use App\Models\Pengaturan;
 use App\Models\Pengiriman;
 use App\Models\PerusahaanBuyer;
+use App\Models\PrediksiHarga;
 use App\Models\PurchaseOrder;
 use App\Models\Role;
 use App\Models\Sengketa;
@@ -166,6 +168,11 @@ Route::middleware('auth')->group(function () {
                 ->can('create', Komoditas::class)
                 ->name('store');
 
+            Route::post('/impor-bi', 'importBankIndonesia')
+                ->can('create', Komoditas::class)
+                ->middleware('throttle:6,1')
+                ->name('import-bi');
+
             Route::get('/{uuid}/edit', 'edit')
                 ->whereUuid('uuid')
                 ->can('viewAny', Komoditas::class)
@@ -180,6 +187,22 @@ Route::middleware('auth')->group(function () {
                 ->whereUuid('uuid')
                 ->can('viewAny', Komoditas::class)
                 ->name('destroy');
+        });
+
+    // Dashboard Analitik: tren harga & Harga Pagu (UC-11)
+    Route::controller(AnalitikHargaController::class)
+        ->prefix('analitik-harga')
+        ->name('analitik-harga.')
+        ->group(function () {
+            Route::get('/', 'index')
+                ->can('viewAny', PrediksiHarga::class)
+                ->name('index');
+
+            Route::post('/{uuid}/perbarui', 'refresh')
+                ->whereUuid('uuid')
+                ->can('refresh', PrediksiHarga::class)
+                ->middleware('throttle:6,1')
+                ->name('refresh');
         });
 
     // Purchase Order & Negosiasi Routes

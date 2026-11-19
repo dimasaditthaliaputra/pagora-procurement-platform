@@ -12,6 +12,7 @@ import { getColumns } from '@/Pages/Master/Komoditas/columns';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Combobox } from '@/Components/combobox';
+import { ImporBankIndonesiaDialog } from '@/Pages/Master/Komoditas/components/ImporBankIndonesiaDialog';
 import {
     Select,
     SelectContent,
@@ -201,7 +202,8 @@ export default function KomoditasIndex({
                         </p>
                     </div>
                     {can.create && (
-                        <div>
+                        <div className="flex flex-wrap gap-2">
+                            <ImporBankIndonesiaDialog />
                             <Button asChild className="gap-2 cursor-pointer shadow-sm">
                                 <Link href="/master/komoditas/create">
                                     <Plus className="size-4" />

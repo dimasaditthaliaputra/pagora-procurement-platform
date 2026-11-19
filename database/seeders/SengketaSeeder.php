@@ -26,8 +26,8 @@ class SengketaSeeder extends Seeder
         $userBuyer = User::where('email', 'buyer@pagora.test')->firstOrFail();
         $userManajemen = User::where('email', 'manajemen@pagora.test')->firstOrFail();
 
-        $po = PurchaseOrder::where('nomor_po', 'PO-2026-0009')->firstOrFail();
-        $invoice = Invoice::where('purchase_order_id', $po->id)->first();
+        $po = PurchaseOrder::where('nomor_po', 'PO-2026-0009')->first();
+        $invoice = $po ? Invoice::where('purchase_order_id', $po->id)->first() : null;
 
         if (! $invoice || Sengketa::where('invoice_id', $invoice->id)->exists()) {
             return;

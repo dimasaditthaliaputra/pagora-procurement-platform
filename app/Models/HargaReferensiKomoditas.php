@@ -12,19 +12,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'uuid',
-    'komoditas_id',
-    'tanggal',
-    'harga',
-    'sumber_data',
+    'commodity_id',
+    'date',
+    'price',
+    'source',
 ])]
-#[Hidden(['id'])]
+#[Hidden(['id', 'commodity_id'])]
 class HargaReferensiKomoditas extends Model
 {
     use HasUuids;
 
+    public const SOURCE_BANK_INDONESIA = 'bank_indonesia';
+
+    public const SOURCE_SEEDER = 'seeder';
+
     public const UPDATED_AT = null;
 
-    protected $table = 'harga_referensi_komoditas';
+    protected $table = 'commodity_reference_prices';
 
     /**
      * Columns that store UUIDs.
@@ -52,14 +56,14 @@ class HargaReferensiKomoditas extends Model
     protected function casts(): array
     {
         return [
-            'tanggal' => 'date',
-            'harga' => 'decimal:2',
+            'date' => 'date',
+            'price' => 'decimal:2',
             'created_at' => 'datetime',
         ];
     }
 
     public function komoditas(): BelongsTo
     {
-        return $this->belongsTo(Komoditas::class, 'komoditas_id');
+        return $this->belongsTo(Komoditas::class, 'commodity_id');
     }
 }

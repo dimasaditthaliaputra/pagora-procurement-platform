@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 
 /**
  * Reference seeder: harus jalan di semua environment termasuk production.
- * Idempotent: firstOrCreate dengan kunci 'name'. Harus jalan sebelum KomoditasSeeder.
+ * Idempotent: firstOrCreate dengan kunci 'name'. Nama kategori dipakai KomoditasService::CATEGORY_BY_BI_GROUP saat impor komoditas Bank Indonesia.
  */
 class CommodityCategorySeeder extends Seeder
 {

@@ -12,7 +12,8 @@ class DatabaseSeeder extends Seeder
      * Seed the application's database.
      *
      * Urutan mengikuti ketergantungan FK — jangan ubah tanpa memeriksa §5 design-db.md.
-     * Reference seeders (RoleSeeder, CommodityCategorySeeder, KomoditasSeeder) jalan di semua environment.
+     * Reference seeders (RoleSeeder, CommodityCategorySeeder) jalan di semua environment.
+     * Komoditas tidak di-seed: Superadmin mengimpornya dari Bank Indonesia (Master Komoditas → Impor dari BI).
      * Demo seeders bungkus environment check secara internal.
      */
     public function run(): void
@@ -21,7 +22,6 @@ class DatabaseSeeder extends Seeder
             // 1–2: Reference seeders (all environments)
             RoleSeeder::class,
             CommodityCategorySeeder::class,
-            KomoditasSeeder::class,
 
             // 3–14: Demo seeders (local/testing only — tiap seeder cek sendiri)
             PerusahaanBuyerSeeder::class,

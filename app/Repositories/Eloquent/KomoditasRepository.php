@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Repositories\Eloquent;
 
 use App\Models\Komoditas;
+use App\Models\TenantCommodity;
 use App\Repositories\Contracts\KomoditasRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -147,6 +149,65 @@ class KomoditasRepository implements KomoditasRepositoryInterface
         return $this->model->newQuery()
             ->where('sku', $sku)
             ->when($ignoreUuid, fn ($q) => $q->where('uuid', '!=', $ignoreUuid))
+            ->exists();
+    }
+
+    /**
+     * Active commodities enabled for a Tenant, ordered by name.
+     *
+     * @return Collection<int, Komoditas>
+     */
+    public function getActiveForTenant(int $tenantId): Collection
+    {
+        $enabledIds = TenantCommodity::query()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->pluck('commodity_id');
+
+        return $this->model->newQuery()
+            ->where('is_active', true)
+            ->when($enabledIds->isNotEmpty(), fn ($query) => $query->whereIn('id', $enabledIds))
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Active commodities mapped to a Bank Indonesia commodity code.
+     *
+     * @return Collection<int, Komoditas>
+     */
+    public function getActiveWithApiReference(): Collection
+    {
+        return $this->model->newQuery()
+            ->where('is_active', true)
+            ->whereNotNull('api_reference_code')
+            ->where('api_reference_code', '!=', '')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Bank Indonesia codes already mapped to a (non-deleted) commodity.
+     *
+     * @return list<string>
+     */
+    public function getMappedApiReferenceCodes(): array
+    {
+        return $this->model->newQuery()
+            ->whereNotNull('api_reference_code')
+            ->where('api_reference_code', '!=', '')
+            ->pluck('api_reference_code')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Check if a (non-deleted) commodity already uses this name, case-insensitively.
+     */
+    public function nameExists(string $name): bool
+    {
+        return $this->model->newQuery()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($name))])
             ->exists();
     }
 }

@@ -9,7 +9,6 @@ use App\Enums\StatusKerjaSama;
 use App\Enums\StatusPurchaseOrder;
 use App\Models\KerjaSama;
 use App\Models\Komoditas;
-use App\Models\PrediksiHarga;
 use App\Models\PurchaseOrder;
 use App\Models\Role;
 use App\Models\TenantCommodity;
@@ -30,6 +29,7 @@ class PurchaseOrderService
     public function __construct(
         protected readonly PurchaseOrderRepositoryInterface $purchaseOrderRepository,
         protected readonly NotificationService $notificationService,
+        protected readonly PricePredictionService $pricePredictionService,
     ) {}
 
     /**
@@ -100,7 +100,7 @@ class PurchaseOrderService
      * - partner vendors (mitra agreed & tidak diblokir)
      * - active commodities for the tenant with reference ceiling prices.
      *
-     * @return array{vendor_options: list<array{value: string, label: string}>, komoditas_options: list<array{value: string, label: string, satuan: string, harga_pagu: float}>}
+     * @return array{vendor_options: list<array{value: string, label: string}>, komoditas_options: list<array{value: string, label: string, satuan: string, harga_pagu: float|null}>}
      */
     public function getFormData(User $actor): array
     {
@@ -141,15 +141,8 @@ class PurchaseOrderService
         $commodities = $commodityQuery->orderBy('name')->get();
 
         $komoditasOptions = $commodities->map(function (Komoditas $commodity) {
-            // Find reference ceiling price or dummy fallback
-            $prediksi = PrediksiHarga::query()
-                ->where('komoditas_id', $commodity->id)
-                ->latest('tanggal_prediksi')
-                ->first();
-
-            $hargaPagu = $prediksi?->harga_pagu_rekomendasi !== null
-                ? (float) $prediksi->harga_pagu_rekomendasi
-                : 15000.0;
+            $ceiling = $this->pricePredictionService->latestCeiling($commodity->id);
+            $hargaPagu = $ceiling !== null ? (float) $ceiling->recommended_ceiling_price : null;
 
             return [
                 'value' => $commodity->uuid,
@@ -501,7 +494,7 @@ class PurchaseOrderService
      * Prepare items data by resolving commodities and calculating reference prices.
      *
      * @param  list<array{komoditas_uuid: string, jumlah_pesanan: numeric, harga_satuan_po: numeric}>  $rawItems
-     * @return array{items: list<array<string, mixed>>, total_pagu: float, prediksi_harga_id: int|null}
+     * @return array{items: list<array<string, mixed>>, total_pagu: float|null, prediksi_harga_id: int|null}
      */
     protected function prepareItemsData(array $rawItems): array
     {
@@ -522,21 +515,18 @@ class PurchaseOrderService
                 ]);
             }
 
-            $prediksi = PrediksiHarga::query()
-                ->where('komoditas_id', $commodity->id)
-                ->latest('tanggal_prediksi')
-                ->first();
+            $ceiling = $this->pricePredictionService->latestCeiling($commodity->id);
 
-            if ($firstPrediksiId === null && $prediksi) {
-                $firstPrediksiId = $prediksi->id;
+            if ($firstPrediksiId === null && $ceiling) {
+                $firstPrediksiId = $ceiling->id;
             }
 
-            $hargaPagu = $prediksi?->harga_pagu_rekomendasi !== null
-                ? (float) $prediksi->harga_pagu_rekomendasi
-                : 15000.0;
-
             $qty = (float) $item['jumlah_pesanan'];
-            $totalPagu += ($qty * $hargaPagu);
+
+            // The snapshot is only meaningful when every item has a Harga Pagu (UC-11 2b otherwise).
+            $totalPagu = $ceiling !== null && $totalPagu !== null
+                ? $totalPagu + ($qty * (float) $ceiling->recommended_ceiling_price)
+                : null;
 
             $items[] = [
                 'komoditas_id' => $commodity->id,

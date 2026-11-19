@@ -35,6 +35,16 @@ return [
         ],
     ],
 
+    /*
+     * PAGORA price service (FastAPI, repo `pagora-price-service`): Bank Indonesia PIHPS
+     * prices and the forecast behind Harga Pagu (UC-11). The API key must match its API_KEY.
+     */
+    'price_service' => [
+        'url' => env('PRICE_SERVICE_URL'),
+        'key' => env('PRICE_SERVICE_API_KEY'),
+        'timeout' => (int) env('PRICE_SERVICE_TIMEOUT', 120),
+    ],
+
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

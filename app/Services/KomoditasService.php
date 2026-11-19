@@ -11,6 +11,7 @@ use App\Repositories\Contracts\KomoditasRepositoryInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -37,9 +38,33 @@ class KomoditasService
         'gram',
     ];
 
+    /**
+     * PIHPS commodity group → PAGORA master category used when importing.
+     * Unknown (new) groups fall back to FALLBACK_CATEGORY; Superadmin can recategorize afterwards.
+     *
+     * @var array<string, string>
+     */
+    public const CATEGORY_BY_BI_GROUP = [
+        'Beras' => 'Pangan Pokok',
+        'Daging Ayam' => 'Daging & Unggas',
+        'Daging Sapi' => 'Daging & Unggas',
+        'Telur Ayam' => 'Daging & Unggas',
+        'Bawang Merah' => 'Bumbu & Rempah',
+        'Bawang Putih' => 'Bumbu & Rempah',
+        'Cabai Merah' => 'Bumbu & Rempah',
+        'Cabai Rawit' => 'Bumbu & Rempah',
+        'Minyak Goreng' => 'Minyak & Lemak',
+        'Gula Pasir' => 'Gula & Pemanis',
+    ];
+
+    public const FALLBACK_CATEGORY = 'Lainnya';
+
+    private const BI_OPTIONS_CACHE_KEY = 'komoditas:bi-options';
+
     public function __construct(
         protected KomoditasRepositoryInterface $repository,
-        protected CommodityCategoryRepositoryInterface $categoryRepository
+        protected CommodityCategoryRepositoryInterface $categoryRepository,
+        protected PriceServiceClient $priceServiceClient,
     ) {}
 
     /**
@@ -236,5 +261,73 @@ class KomoditasService
         return $this->categoryRepository->getActive()
             ->map(fn ($category): array => ['uuid' => $category->uuid, 'name' => $category->name])
             ->all();
+    }
+
+    /**
+     * Bank Indonesia commodities for the mapping dropdown, cached for an hour.
+     * When the price service is unreachable the form still works, only without the list.
+     *
+     * @return array{available: bool, options: list<array{value: string, label: string}>}
+     */
+    public function getBiCommodityOptions(): array
+    {
+        $cached = Cache::get(self::BI_OPTIONS_CACHE_KEY);
+        if (is_array($cached)) {
+            return ['available' => true, 'options' => $cached];
+        }
+
+        try {
+            $options = array_map(fn (array $item): array => [
+                'value' => $item['code'],
+                'label' => "{$item['name']} ({$item['code']})",
+            ], $this->priceServiceClient->commodities());
+        } catch (PriceServiceException) {
+            return ['available' => false, 'options' => []];
+        }
+
+        Cache::put(self::BI_OPTIONS_CACHE_KEY, $options, now()->addHour());
+
+        return ['available' => true, 'options' => $options];
+    }
+
+    /**
+     * Create a commodity for every Bank Indonesia commodity not mapped yet.
+     *
+     * @return array{created: int, skipped: int}
+     *
+     * @throws AuthorizationException
+     * @throws PriceServiceException
+     */
+    public function importFromBankIndonesia(User $actor): array
+    {
+        Gate::forUser($actor)->authorize('create', Komoditas::class);
+
+        $biCommodities = $this->priceServiceClient->commodities();
+        $mappedCodes = array_flip($this->repository->getMappedApiReferenceCodes());
+        $categories = $this->categoryRepository->getActive()->keyBy('name');
+
+        return DB::transaction(function () use ($biCommodities, $mappedCodes, $categories): array {
+            $created = 0;
+
+            foreach ($biCommodities as $item) {
+                if (isset($mappedCodes[$item['code']]) || $this->repository->nameExists($item['name'])) {
+                    continue;
+                }
+
+                $categoryName = self::CATEGORY_BY_BI_GROUP[$item['category'] ?? ''] ?? self::FALLBACK_CATEGORY;
+
+                $this->create([
+                    'name' => $item['name'],
+                    'commodity_category_uuid' => $categories->get($categoryName)?->uuid,
+                    'unit' => in_array($item['unit'], self::SATUAN_OPTIONS, true) ? $item['unit'] : 'kg',
+                    'api_reference_code' => $item['code'],
+                    'default_shrinkage_tolerance' => 0,
+                    'is_active' => true,
+                ]);
+                $created++;
+            }
+
+            return ['created' => $created, 'skipped' => count($biCommodities) - $created];
+        });
     }
 }

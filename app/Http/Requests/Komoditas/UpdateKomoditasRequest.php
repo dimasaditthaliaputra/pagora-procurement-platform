@@ -6,6 +6,8 @@ namespace App\Http\Requests\Komoditas;
 
 use App\Models\Komoditas;
 use App\Services\KomoditasService;
+use App\Services\PriceServiceClient;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -47,7 +49,17 @@ class UpdateKomoditasRequest extends FormRequest
                 'max:100',
                 'regex:'.KomoditasService::SHRINKAGE_TOLERANCE_PATTERN,
             ],
-            'api_reference_code' => ['nullable', 'string', 'max:50'],
+            'api_reference_code' => [
+                'bail',
+                'nullable',
+                'string',
+                'max:50',
+                'regex:'.PriceServiceClient::CODE_PATTERN,
+                Rule::unique('commodities', 'api_reference_code')
+                    ->whereNull('deleted_at')
+                    ->ignore($ignoreId),
+                $this->knownBankIndonesiaCode(...),
+            ],
             'sku' => [
                 'nullable',
                 'string',
@@ -84,6 +96,8 @@ class UpdateKomoditasRequest extends FormRequest
             'default_shrinkage_tolerance.max' => 'Batas susut maksimal 100 persen.',
             'default_shrinkage_tolerance.regex' => 'Batas susut hanya menerima format angka desimal dengan titik (contoh: 2.5).',
             'api_reference_code.max' => 'Kode referensi API maksimal 50 karakter.',
+            'api_reference_code.regex' => 'Kode komoditas Bank Indonesia tidak valid.',
+            'api_reference_code.unique' => 'Komoditas Bank Indonesia ini sudah dipetakan ke komoditas lain.',
             'sku.unique' => 'SKU komoditas sudah digunakan oleh data lain.',
             'sku.max' => 'SKU tidak boleh lebih dari 50 karakter.',
             'commodity_category_uuid.exists' => 'Kategori yang dipilih tidak valid.',
@@ -91,5 +105,17 @@ class UpdateKomoditasRequest extends FormRequest
             'specification.max' => 'Spesifikasi tidak boleh lebih dari 2000 karakter.',
             'is_active.boolean' => 'Format status aktif tidak valid.',
         ];
+    }
+
+    /**
+     * Only checked while the Bank Indonesia list can be loaded, so the form keeps working when the price service is down.
+     */
+    private function knownBankIndonesiaCode(string $attribute, mixed $value, Closure $fail): void
+    {
+        $bankIndonesia = app(KomoditasService::class)->getBiCommodityOptions();
+
+        if ($bankIndonesia['available'] && ! in_array($value, array_column($bankIndonesia['options'], 'value'), true)) {
+            $fail('Komoditas Bank Indonesia yang dipilih tidak ditemukan.');
+        }
     }
 }

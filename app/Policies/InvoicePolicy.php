@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\StatusPurchaseOrder;
 use App\Enums\StatusSengketa;
 use App\Models\Invoice;
 use App\Models\Sengketa;
@@ -79,6 +80,27 @@ class InvoicePolicy
             && $invoice->relationLoaded('sengketa')
             && $invoice->sengketa->isNotEmpty()
             && $invoice->sengketa->every(fn (Sengketa $dispute): bool => $dispute->status === StatusSengketa::Resolved);
+    }
+
+    /**
+     * Buyer (Owner / Purchasing) pays a matched invoice of a PO that is ready to pay, with no open dispute
+     * (FR-29, BR-13). The unpaid balance is checked by `PaymentService`.
+     */
+    public function pay(User $user, Invoice $invoice): bool
+    {
+        if (! $this->verifyAny($user)) {
+            return false;
+        }
+
+        $purchaseOrder = $invoice->purchaseOrder;
+
+        if ((int) $user->tenant_id !== (int) $purchaseOrder?->perusahaan_buyer_id) {
+            return false;
+        }
+
+        return $invoice->isMatched()
+            && $purchaseOrder->status === StatusPurchaseOrder::ReadyToPay
+            && ! ($invoice->relationLoaded('sengketa') && $invoice->sengketa->contains(fn (Sengketa $dispute): bool => $dispute->status !== StatusSengketa::Resolved));
     }
 
     /**

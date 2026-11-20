@@ -45,6 +45,18 @@ return [
         'timeout' => (int) env('PRICE_SERVICE_TIMEOUT', 120),
     ],
 
+    /*
+     * Midtrans Snap (FR-29, NFR-06). Keys come from the Midtrans dashboard → Settings → Access Keys;
+     * `is_production` switches the same code between Sandbox and Production.
+     */
+    'midtrans' => [
+        'merchant_id' => env('MIDTRANS_MERCHANT_ID'),
+        'client_key' => env('MIDTRANS_CLIENT_KEY'),
+        'server_key' => env('MIDTRANS_SERVER_KEY'),
+        'is_production' => (bool) env('MIDTRANS_IS_PRODUCTION', false),
+        'timeout' => (int) env('MIDTRANS_TIMEOUT', 20),
+    ],
+
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

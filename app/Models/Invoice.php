@@ -98,6 +98,11 @@ class Invoice extends Model
         return $this->hasMany(CreditNote::class, 'invoice_id')->orderBy('id');
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'invoice_id')->orderBy('id');
+    }
+
     public function statusMatchingEnum(): ?StatusMatching
     {
         return is_string($this->status_matching)

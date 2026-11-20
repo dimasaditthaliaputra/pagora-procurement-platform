@@ -13,6 +13,7 @@ use App\Repositories\Contracts\DokumenLegalitasVendorRepositoryInterface;
 use App\Repositories\Contracts\HargaReferensiKomoditasRepositoryInterface;
 use App\Repositories\Contracts\KomoditasRepositoryInterface;
 use App\Repositories\Contracts\NotificationRepositoryInterface;
+use App\Repositories\Contracts\PaymentRepositoryInterface;
 use App\Repositories\Contracts\PenerimaanBarangRepositoryInterface;
 use App\Repositories\Contracts\PengaturanRepositoryInterface;
 use App\Repositories\Contracts\PengirimanRepositoryInterface;
@@ -35,6 +36,7 @@ use App\Repositories\Eloquent\DokumenLegalitasVendorRepository;
 use App\Repositories\Eloquent\HargaReferensiKomoditasRepository;
 use App\Repositories\Eloquent\KomoditasRepository;
 use App\Repositories\Eloquent\NotificationRepository;
+use App\Repositories\Eloquent\PaymentRepository;
 use App\Repositories\Eloquent\PenerimaanBarangRepository;
 use App\Repositories\Eloquent\PengaturanRepository;
 use App\Repositories\Eloquent\PengirimanRepository;
@@ -135,6 +137,11 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             CreditNoteRepositoryInterface::class,
             CreditNoteRepository::class
+        );
+
+        $this->app->bind(
+            PaymentRepositoryInterface::class,
+            PaymentRepository::class
         );
 
         $this->app->bind(

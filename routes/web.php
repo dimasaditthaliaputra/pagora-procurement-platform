@@ -14,6 +14,7 @@ use App\Http\Controllers\MitraIndustriController;
 use App\Http\Controllers\NegotiationController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PegawaiController;
+use App\Http\Controllers\PembayaranController;
 use App\Http\Controllers\PenerimaanBarangController;
 use App\Http\Controllers\PengaturanController;
 use App\Http\Controllers\PengirimanController;
@@ -54,6 +55,11 @@ Route::get('/files/{path}', PublicFileController::class)
     ->name('files.show');
 
 // Guest Authentication Routes
+// Midtrans HTTP notification: public, authenticated by its signature instead of login and CSRF (NFR-03, NFR-04).
+Route::post('/pembayaran/midtrans/notifikasi', [PembayaranController::class, 'notification'])
+    ->middleware('throttle:120,1')
+    ->name('pembayaran.midtrans.notification');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'login'])->name('login');
     Route::post('/login', [AuthController::class, 'storeAuth'])->name('login.store');
@@ -604,5 +610,14 @@ Route::middleware('auth')->group(function () {
             Route::get('/', 'index')->name('index');
             Route::get('/{uuid}', 'show')->whereUuid('uuid')->name('show');
             Route::post('/{uuid}/verifikasi', 'verify')->whereUuid('uuid')->name('verify');
+        });
+
+    // Invoice payment through Midtrans Snap (UC-17, FR-29, FR-39)
+    Route::controller(PembayaranController::class)
+        ->prefix('pembayaran')
+        ->name('pembayaran.')
+        ->group(function () {
+            Route::post('/{uuid}', 'store')->whereUuid('uuid')->middleware('throttle:20,1')->name('store');
+            Route::post('/{uuid}/sinkron', 'sync')->whereUuid('uuid')->middleware('throttle:30,1')->name('sync');
         });
 });

@@ -24,6 +24,7 @@ class DashboardService
         $isSuperadmin = $user !== null && $user->isSuperadmin();
         $isManajemen = $user !== null && $user->isManajemen() && $user->tenant_id !== null;
         $isOwner = $user !== null && $user->isOwner() && $user->tenant_id !== null;
+        $isPurchasing = $user !== null && $user->isPurchasing() && $user->tenant_id !== null;
 
         return [
             'user' => $user,
@@ -38,6 +39,10 @@ class DashboardService
             'is_owner' => $isOwner,
             'owner_dashboard' => $isOwner
                 ? $this->buildOwnerDashboard((int) $user->tenant_id)
+                : null,
+            'is_purchasing' => $isPurchasing,
+            'buyer_dashboard' => $isPurchasing
+                ? $this->buildBuyerDashboard((int) $user->tenant_id)
                 : null,
         ];
     }
@@ -114,6 +119,22 @@ class DashboardService
             'internal_team' => $this->dashboardRepository->getOwnerInternalTeam($tenantId, 6),
             'active_disputes' => $this->dashboardRepository->getManajemenActiveDisputes($tenantId, 5),
             'monthly_trend' => $this->dashboardRepository->getOwnerMonthlyExecutionTrend($tenantId, 6),
+        ];
+    }
+
+    /**
+     * Assemble procurement-focused dashboard for role Purchasing / Finance (UC-11, UC-12, UC-17, UC-18).
+     *
+     * @return array<string, mixed>
+     */
+    public function buildBuyerDashboard(int $tenantId): array
+    {
+        return [
+            'company' => $this->dashboardRepository->getTenantProfileForManajemen($tenantId),
+            'summary' => $this->dashboardRepository->getBuyerSummaryMetrics($tenantId),
+            'recent_purchase_orders' => $this->dashboardRepository->getBuyerRecentPurchaseOrders($tenantId, 5),
+            'pending_invoices' => $this->dashboardRepository->getBuyerPendingInvoices($tenantId, 5),
+            'active_disputes' => $this->dashboardRepository->getBuyerActiveDisputes($tenantId, 5),
         ];
     }
 }

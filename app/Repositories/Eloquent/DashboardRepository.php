@@ -1478,4 +1478,227 @@ class DashboardRepository implements DashboardRepositoryInterface
 
         return array_values($buckets);
     }
+
+    // =========================================================================
+    // Buyer (Purchasing / Finance) Dashboard
+    // =========================================================================
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getBuyerSummaryMetrics(int $tenantId): array
+    {
+        $totalOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->count());
+
+        $draftNegotiation = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->whereIn('status', [
+                StatusPurchaseOrder::Draft->value,
+                StatusPurchaseOrder::MenungguTanggapan->value,
+                StatusPurchaseOrder::Negosiasi->value,
+            ])
+            ->count());
+
+        $inExecution = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->whereIn('status', [
+                StatusPurchaseOrder::Disepakati->value,
+                StatusPurchaseOrder::DalamPengiriman->value,
+                StatusPurchaseOrder::PartiallyReceived->value,
+                StatusPurchaseOrder::DiterimaGudang->value,
+            ])
+            ->count());
+
+        $pendingPayment = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->whereIn('status', [
+                StatusPurchaseOrder::Ditagih->value,
+                StatusPurchaseOrder::ReadyToPay->value,
+            ])
+            ->count());
+
+        $completedPaid = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->where('status', StatusPurchaseOrder::Lunas->value)
+            ->count());
+
+        $disputed = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->where('status', StatusPurchaseOrder::Sengketa->value)
+            ->count());
+
+        // Invoices & 3-Way Matching
+        $invoicePending = $this->safeCount(static fn (): int => Invoice::query()
+            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->where('status_matching', StatusMatching::Pending->value)
+            ->count());
+
+        $invoiceMatched = $this->safeCount(static fn (): int => Invoice::query()
+            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->where('status_matching', StatusMatching::Matched->value)
+            ->count());
+
+        $invoiceMismatched = $this->safeCount(static fn (): int => Invoice::query()
+            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->where('status_matching', StatusMatching::Mismatched->value)
+            ->count());
+
+        $totalInvoicedAmount = 0.0;
+        try {
+            $totalInvoicedAmount = (float) Invoice::query()
+                ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+                ->sum('jumlah_tagihan');
+        } catch (Throwable) {
+            $totalInvoicedAmount = 0.0;
+        }
+
+        // Active disputes
+        $activeDisputes = $this->safeCount(static fn (): int => Sengketa::query()
+            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->whereIn('status', [
+                StatusSengketa::Open->value,
+                StatusSengketa::AwaitingResponse->value,
+                StatusSengketa::InMediation->value,
+            ])
+            ->count());
+
+        // Active vendor partnerships
+        $activePartnerships = $this->safeCount(static fn (): int => KerjaSama::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', StatusKerjaSama::Agreed->value)
+            ->count());
+
+        return [
+            'orders' => [
+                'total' => $totalOrders,
+                'draft_negotiation' => $draftNegotiation,
+                'in_execution' => $inExecution,
+                'pending_payment' => $pendingPayment,
+                'completed_paid' => $completedPaid,
+                'disputed' => $disputed,
+            ],
+            'invoices' => [
+                'pending' => $invoicePending,
+                'matched' => $invoiceMatched,
+                'mismatched' => $invoiceMismatched,
+                'total_invoiced_amount' => round($totalInvoicedAmount, 2),
+            ],
+            'disputes' => [
+                'active' => $activeDisputes,
+            ],
+            'partnerships' => [
+                'active' => $activePartnerships,
+            ],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getBuyerRecentPurchaseOrders(int $tenantId, int $limit = 5): array
+    {
+        try {
+            return PurchaseOrder::query()
+                ->where('perusahaan_buyer_id', $tenantId)
+                ->with([
+                    'vendor:id,uuid,company_name,business_entity',
+                    'pembuat:id,uuid,name',
+                    'poItems:id,purchase_order_id,jumlah_pesanan,harga_satuan_po,estimated_unit_price,subtotal',
+                ])
+                ->orderByDesc('created_at')
+                ->limit($limit)
+                ->get()
+                ->map(static function (PurchaseOrder $po): array {
+                    $totalAmount = 0.0;
+                    foreach ($po->poItems as $item) {
+                        $sub = (float) ($item->subtotal ?? 0);
+                        if ($sub > 0) {
+                            $totalAmount += $sub;
+                        } else {
+                            $qty = (float) ($item->jumlah_pesanan ?? 0);
+                            $unitPrice = (float) ($item->harga_satuan_po ?? $item->estimated_unit_price ?? 0);
+                            $totalAmount += $qty * $unitPrice;
+                        }
+                    }
+
+                    $statusEnum = $po->status instanceof StatusPurchaseOrder
+                        ? $po->status
+                        : StatusPurchaseOrder::tryFrom((string) $po->status);
+
+                    return [
+                        'uuid' => $po->uuid,
+                        'po_number' => $po->nomor_po,
+                        'vendor_name' => $po->vendor?->company_name ?? 'Vendor',
+                        'vendor_entity' => $po->vendor?->business_entity,
+                        'created_by_name' => $po->pembuat?->name ?? 'Internal',
+                        'status' => $statusEnum?->value ?? (string) $po->status,
+                        'status_label' => $statusEnum?->label() ?? (string) $po->status,
+                        'items_count' => $po->poItems->count(),
+                        'total_amount' => round($totalAmount, 2),
+                        'tanggal_po' => $po->tanggal_po?->toDateString(),
+                        'created_at' => $po->created_at?->toISOString(),
+                    ];
+                })
+                ->values()
+                ->all();
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getBuyerPendingInvoices(int $tenantId, int $limit = 5): array
+    {
+        try {
+            return Invoice::query()
+                ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+                ->whereIn('status_matching', [
+                    StatusMatching::Pending->value,
+                    StatusMatching::Mismatched->value,
+                ])
+                ->with([
+                    'purchaseOrder:id,uuid,nomor_po,vendor_id',
+                    'purchaseOrder.vendor:id,uuid,company_name',
+                    'vendor:id,uuid,company_name',
+                ])
+                ->orderByRaw("CASE WHEN status_matching = 'mismatched' THEN 0 ELSE 1 END")
+                ->orderByDesc('created_at')
+                ->limit($limit)
+                ->get()
+                ->map(static function (Invoice $invoice): array {
+                    $po = $invoice->purchaseOrder;
+                    $vendor = $invoice->vendor ?? $po?->vendor;
+                    $matchingEnum = $invoice->statusMatchingEnum();
+
+                    return [
+                        'uuid' => $invoice->uuid,
+                        'invoice_number' => $invoice->nomor_invoice_vendor,
+                        'po_number' => $po?->nomor_po ?? '-',
+                        'po_uuid' => $po?->uuid,
+                        'vendor_name' => $vendor?->company_name ?? 'Vendor',
+                        'amount' => round((float) ($invoice->jumlah_tagihan ?? 0), 2),
+                        'matching_status' => $matchingEnum?->value ?? (string) ($invoice->status_matching ?? 'pending'),
+                        'matching_status_label' => $matchingEnum?->label() ?? 'Menunggu Verifikasi',
+                        'invoice_date' => $invoice->tanggal_invoice?->toDateString(),
+                        'created_at' => $invoice->created_at?->toISOString(),
+                    ];
+                })
+                ->values()
+                ->all();
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getBuyerActiveDisputes(int $tenantId, int $limit = 5): array
+    {
+        return $this->getManajemenActiveDisputes($tenantId, $limit);
+    }
 }

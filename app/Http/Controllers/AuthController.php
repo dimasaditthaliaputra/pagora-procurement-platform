@@ -264,15 +264,21 @@ class AuthController extends Controller
         try {
             $result = $this->authService->register($request);
 
-            session()->flash('registered_email', (string) $request->validated('email'));
+            $registeredEmail = (string) ($request->validated('email') ?? $request->input('email', ''));
+            session()->put('registered_email', $registeredEmail);
+            session()->flash('registered_email', $registeredEmail);
 
             if ($result['success']) {
-                return ResponseHelper::success(
-                    $result['message'],
-                    $result['user'] ?? null,
-                    route('register.success'),
-                    $request
-                );
+                if ($request->expectsJson()) {
+                    return ResponseHelper::success(
+                        $result['message'],
+                        $result['user'] ?? null,
+                        route('register.success'),
+                        $request
+                    );
+                }
+
+                return redirect()->route('register.success')->with('status', $result['message']);
             }
 
             return ResponseHelper::badRequest(
@@ -313,7 +319,7 @@ class AuthController extends Controller
 
                     return redirect()->route($targetRoute)->with(
                         'status',
-                        'Akun Google ('.($result['google_user']['email'] ?? '').') berhasil terhubung. Silakan lengkapi data perusahaan Anda.'
+                        'Profil dasar berhasil dibuat dari akun Google Anda. Silakan lanjutkan dengan melengkapi data dan legalitas perusahaan.'
                     );
                 }
 

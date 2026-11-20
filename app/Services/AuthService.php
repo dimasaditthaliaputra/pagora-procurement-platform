@@ -762,7 +762,7 @@ class AuthService
                 'code' => 404,
                 'message' => 'Akun Google belum terdaftar.',
                 'errors' => [
-                    'google' => 'Akun Google ini belum terdaftar dalam sistem PAGORA. Silakan lakukan pendaftaran terlebih dahulu.',
+                    'google' => 'Akun Google ini belum terdaftar di sistem PAGORA. Silakan lakukan pendaftaran akun terlebih dahulu.',
                 ],
             ];
         }

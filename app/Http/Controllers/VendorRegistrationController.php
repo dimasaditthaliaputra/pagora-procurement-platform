@@ -128,8 +128,10 @@ class VendorRegistrationController extends Controller
      */
     public function success(Request $request): Response
     {
+        $email = session('registered_email') ?: (string) $request->query('email', '');
+
         return Inertia::render('Auth/RegisterSuccess', [
-            'email' => session('registered_email'),
+            'email' => $email !== '' ? $email : null,
         ]);
     }
 
@@ -141,12 +143,19 @@ class VendorRegistrationController extends Controller
         try {
             $this->service->register($request->validated());
 
-            session()->flash('registered_email', (string) $request->validated('contact_email'));
+            $registeredEmail = (string) ($request->validated('contact_email') ?: $request->validated('email') ?: $request->input('contact_email') ?: $request->input('email', ''));
+            session()->put('registered_email', $registeredEmail);
+            session()->flash('registered_email', $registeredEmail);
 
-            return ResponseHelper::success(
-                'Pendaftaran sukses! Akun dan dokumen legalitas Anda sedang menunggu verifikasi.',
-                redirectTo: route('register.success')
-            );
+            if ($request->expectsJson()) {
+                return ResponseHelper::success(
+                    'Pendaftaran sukses! Akun dan dokumen legalitas Anda sedang menunggu verifikasi.',
+                    redirectTo: route('register.success'),
+                    request: $request
+                );
+            }
+
+            return redirect()->route('register.success')->with('status', 'Pendaftaran sukses! Akun dan dokumen legalitas Anda sedang menunggu verifikasi.');
         } catch (ValidationException $e) {
             return ResponseHelper::validationError($e->errors());
         } catch (Throwable $e) {

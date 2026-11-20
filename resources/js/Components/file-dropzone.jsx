@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import {
     AlertCircle,
@@ -14,6 +14,7 @@ import { describeRejection, formatBytes, getFileExtension, isImageSource } from 
 import { useObjectUrl } from '@/hooks/use-object-url';
 import { Button } from '@/Components/ui/button';
 import { Progress } from '@/Components/ui/progress';
+import { playSound } from '@/lib/sound';
 
 const DEFAULT_ACCEPT = {
     'application/pdf': ['.pdf'],
@@ -46,16 +47,19 @@ export function FileDropzone({
     description = 'Format PDF, JPG, JPEG, atau PNG (Maksimal 2 MB)',
     className,
 }) {
+    const [localError, setLocalError] = useState(null);
     const objectUrl = useObjectUrl(value instanceof File ? value : null);
     const previewUrl = value instanceof File ? objectUrl : value;
     const isImage = isImageSource(value);
     const isNewFile = value instanceof File;
     const locked = disabled || uploading;
-    const hasError = Boolean(error) || status === 'error';
+    const displayError = error || localError;
+    const hasError = Boolean(displayError) || status === 'error';
 
     const onDropAccepted = useCallback(
         (acceptedFiles) => {
             if (acceptedFiles.length > 0) {
+                setLocalError(null);
                 onChange?.(acceptedFiles[0]);
             }
         },
@@ -65,7 +69,10 @@ export function FileDropzone({
     const onDropRejected = useCallback(
         (fileRejections) => {
             if (fileRejections.length > 0) {
-                onError?.(describeRejection(fileRejections[0], { accept, maxSize }));
+                const rejectionMessage = describeRejection(fileRejections[0], { accept, maxSize });
+                playSound('failure');
+                setLocalError(rejectionMessage);
+                onError?.(rejectionMessage);
             }
         },
         [accept, maxSize, onError]
@@ -86,6 +93,7 @@ export function FileDropzone({
 
     const handleRemove = (e) => {
         e.stopPropagation();
+        setLocalError(null);
         onChange?.(null);
     };
 
@@ -212,10 +220,10 @@ export function FileDropzone({
                 </div>
             )}
 
-            {error && (
+            {displayError && (
                 <p className="text-xs text-destructive flex items-center gap-1.5 mt-1" role="alert">
                     <AlertCircle className="size-3.5 shrink-0" />
-                    <span>{error}</span>
+                    <span>{displayError}</span>
                 </p>
             )}
         </div>

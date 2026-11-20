@@ -1701,4 +1701,160 @@ class DashboardRepository implements DashboardRepositoryInterface
     {
         return $this->getManajemenActiveDisputes($tenantId, $limit);
     }
+
+    // =========================================================================
+    // QC Gudang Dashboard
+    // =========================================================================
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getQcSummaryMetrics(int $tenantId): array
+    {
+        $totalReceipts = $this->safeCount(static fn (): int => PenerimaanBarang::query()
+            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->count());
+
+        $pendingReceipts = $this->safeCount(static fn (): int => PenerimaanBarang::query()
+            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId)
+                ->whereIn('status', [
+                    StatusPurchaseOrder::DalamPengiriman->value,
+                    StatusPurchaseOrder::PartiallyReceived->value,
+                ]))
+            ->whereNull('inspected_at')
+            ->count());
+
+        $acceptedItems = $this->safeCount(static fn (): int => PenerimaanBarangItem::query()
+            ->whereHas('penerimaanBarang.purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->where('status', StatusItemPenerimaan::Diterima->value)
+            ->count());
+
+        $rejectedItems = $this->safeCount(static fn (): int => PenerimaanBarangItem::query()
+            ->whereHas('penerimaanBarang.purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->where('status', StatusItemPenerimaan::Ditolak->value)
+            ->count());
+
+        $inTransitOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->whereIn('status', [
+                StatusPurchaseOrder::DalamPengiriman->value,
+                StatusPurchaseOrder::PartiallyReceived->value,
+            ])
+            ->count());
+
+        $completedReceipts = $this->safeCount(static fn (): int => PenerimaanBarang::query()
+            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->whereNotNull('inspected_at')
+            ->count());
+
+        $totalItems = $acceptedItems + $rejectedItems;
+        $acceptanceRate = $totalItems > 0 ? round(($acceptedItems / $totalItems) * 100, 1) : 0.0;
+
+        return [
+            'inspections' => [
+                'total_receipts' => $totalReceipts,
+                'pending_receipts' => $pendingReceipts,
+                'completed_receipts' => $completedReceipts,
+                'in_transit_orders' => $inTransitOrders,
+                'accepted_items' => $acceptedItems,
+                'rejected_items' => $rejectedItems,
+                'total_items_inspected' => $totalItems,
+                'acceptance_rate' => $acceptanceRate,
+            ],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getQcPendingDeliveries(int $tenantId, int $limit = 5): array
+    {
+        try {
+            return PurchaseOrder::query()
+                ->where('perusahaan_buyer_id', $tenantId)
+                ->whereIn('status', [
+                    StatusPurchaseOrder::DalamPengiriman->value,
+                    StatusPurchaseOrder::PartiallyReceived->value,
+                    StatusPurchaseOrder::DiterimaGudang->value,
+                ])
+                ->with([
+                    'vendor:id,uuid,company_name',
+                    'poItems:id,purchase_order_id,jumlah_pesanan,harga_satuan_po,estimated_unit_price,subtotal',
+                    'poItems.komoditas:id,uuid,name,unit',
+                ])
+                ->orderByDesc('created_at')
+                ->limit($limit)
+                ->get()
+                ->map(static function (PurchaseOrder $po): array {
+                    $statusEnum = $po->status instanceof StatusPurchaseOrder
+                        ? $po->status
+                        : StatusPurchaseOrder::tryFrom((string) $po->status);
+
+                    $commodityNames = $po->poItems
+                        ->map(static fn ($item) => $item->komoditas?->name)
+                        ->filter()
+                        ->values()
+                        ->all();
+
+                    return [
+                        'uuid' => $po->uuid,
+                        'po_number' => $po->nomor_po,
+                        'vendor_name' => $po->vendor?->company_name ?? 'Vendor',
+                        'status' => $statusEnum?->value ?? (string) $po->status,
+                        'status_label' => $statusEnum?->label() ?? (string) $po->status,
+                        'items_count' => $po->poItems->count(),
+                        'commodity_names' => $commodityNames,
+                        'tanggal_po' => $po->tanggal_po?->toDateString(),
+                        'created_at' => $po->created_at?->toISOString(),
+                    ];
+                })
+                ->values()
+                ->all();
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getQcRecentInspections(int $tenantId, int $limit = 5): array
+    {
+        try {
+            return PenerimaanBarang::query()
+                ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+                ->with([
+                    'purchaseOrder:id,uuid,nomor_po,vendor_id',
+                    'purchaseOrder.vendor:id,uuid,company_name',
+                    'inspector:id,uuid,name',
+                    'items:id,penerimaan_barang_id,status',
+                ])
+                ->whereNotNull('inspected_at')
+                ->orderByDesc('inspected_at')
+                ->limit($limit)
+                ->get()
+                ->map(static function (PenerimaanBarang $receipt): array {
+                    $po = $receipt->purchaseOrder;
+                    $vendor = $po?->vendor;
+                    $accepted = $receipt->items->where('status', StatusItemPenerimaan::Diterima->value)->count();
+                    $rejected = $receipt->items->where('status', StatusItemPenerimaan::Ditolak->value)->count();
+
+                    return [
+                        'uuid' => $receipt->uuid,
+                        'po_number' => $po?->nomor_po ?? '-',
+                        'po_uuid' => $po?->uuid,
+                        'vendor_name' => $vendor?->company_name ?? 'Vendor',
+                        'inspector_name' => $receipt->inspector?->name ?? '-',
+                        'accepted_count' => $accepted,
+                        'rejected_count' => $rejected,
+                        'total_items' => $accepted + $rejected,
+                        'inspected_at' => $receipt->inspected_at?->toISOString(),
+                    ];
+                })
+                ->values()
+                ->all();
+        } catch (Throwable) {
+            return [];
+        }
+    }
 }

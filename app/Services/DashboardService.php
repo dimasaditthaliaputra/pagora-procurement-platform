@@ -25,6 +25,7 @@ class DashboardService
         $isManajemen = $user !== null && $user->isManajemen() && $user->tenant_id !== null;
         $isOwner = $user !== null && $user->isOwner() && $user->tenant_id !== null;
         $isPurchasing = $user !== null && $user->isPurchasing() && $user->tenant_id !== null;
+        $isQcGudang = $user !== null && $user->isQcGudang() && $user->tenant_id !== null;
 
         return [
             'user' => $user,
@@ -43,6 +44,10 @@ class DashboardService
             'is_purchasing' => $isPurchasing,
             'buyer_dashboard' => $isPurchasing
                 ? $this->buildBuyerDashboard((int) $user->tenant_id)
+                : null,
+            'is_qc_gudang' => $isQcGudang,
+            'qc_dashboard' => $isQcGudang
+                ? $this->buildQcDashboard((int) $user->tenant_id)
                 : null,
         ];
     }
@@ -135,6 +140,21 @@ class DashboardService
             'recent_purchase_orders' => $this->dashboardRepository->getBuyerRecentPurchaseOrders($tenantId, 5),
             'pending_invoices' => $this->dashboardRepository->getBuyerPendingInvoices($tenantId, 5),
             'active_disputes' => $this->dashboardRepository->getBuyerActiveDisputes($tenantId, 5),
+        ];
+    }
+
+    /**
+     * Assemble inspection-focused dashboard for role QC Gudang (UC-15).
+     *
+     * @return array<string, mixed>
+     */
+    public function buildQcDashboard(int $tenantId): array
+    {
+        return [
+            'company' => $this->dashboardRepository->getTenantProfileForManajemen($tenantId),
+            'summary' => $this->dashboardRepository->getQcSummaryMetrics($tenantId),
+            'pending_deliveries' => $this->dashboardRepository->getQcPendingDeliveries($tenantId, 5),
+            'recent_inspections' => $this->dashboardRepository->getQcRecentInspections($tenantId, 5),
         ];
     }
 }

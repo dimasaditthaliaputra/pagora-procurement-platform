@@ -54,7 +54,10 @@ function getInitials(name) {
 }
 
 export function AppSidebar({ className, ...props }) {
-    const { user, auth, aplikasi } = usePage().props;
+    const { props: pageProps, url } = usePage();
+    const { user, auth, aplikasi } = pageProps;
+    const currentPath = (url || '').split('?')[0].split('#')[0];
+
     const namaAplikasi = aplikasi?.nama || 'PAGORA';
     const roleLabel = auth?.role?.label ?? 'Pengguna';
     const permissions = auth?.can ?? {};
@@ -69,14 +72,21 @@ export function AppSidebar({ className, ...props }) {
         const isSuperadmin = auth?.role?.name === 'superadmin';
         const isVendor = auth?.role?.name === 'vendor';
         const query = searchQuery.trim().toLowerCase();
+        const isDashboardOrAnalitik =
+            currentPath === '/dashboard' || currentPath.startsWith('/analitik-harga');
 
         const groups = [
             {
                 label: 'Menu Utama',
                 items: [
-                    { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', routeName: 'dashboard' },
+                    {
+                        title: 'Dashboard',
+                        icon: LayoutDashboard,
+                        href: '/dashboard',
+                        routeName: 'dashboard',
+                        active: isDashboardOrAnalitik,
+                    },
                     { title: 'Pengadaan', icon: FileText, href: '/purchase-order', routeName: 'purchase-order', ability: 'purchase_order.view_any' },
-                    { title: 'Dashboard Analitik', icon: ChartLine, href: '/analitik-harga', routeName: 'analitik-harga', ability: 'harga_pagu.view_any' },
                     { title: 'Pengiriman', icon: Truck, href: '/pengiriman', routeName: 'pengiriman', ability: 'pengiriman.view_any' },
                     { title: 'Inspeksi QC', icon: ClipboardCheck, href: '/inspeksi-qc', routeName: 'inspeksi-qc', ability: 'penerimaan_barang.view_any' },
                     { title: 'Verifikasi Tagihan', icon: Receipt, href: '/verifikasi-tagihan', routeName: 'verifikasi-tagihan.index', ability: 'invoice.verify_any' },
@@ -123,7 +133,7 @@ export function AppSidebar({ className, ...props }) {
                 }),
             }))
             .filter((group) => group.items.length > 0);
-    }, [auth?.role?.name, permissions, searchQuery]);
+    }, [auth?.role?.name, permissions, searchQuery, currentPath]);
 
     const hasResults = navGroups.length > 0;
 
@@ -221,6 +231,7 @@ export function AppSidebar({ className, ...props }) {
                                             href={item.href}
                                             routeName={item.routeName}
                                             exact={item.exact}
+                                            active={item.active}
                                             badge={item.badge}
                                         />
                                     ))}

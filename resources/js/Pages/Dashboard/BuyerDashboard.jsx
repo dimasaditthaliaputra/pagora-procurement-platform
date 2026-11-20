@@ -95,42 +95,42 @@ const QUICK_MODULES = [
     {
         title: 'Purchase Order',
         description: 'Buat & kelola pesanan pengadaan',
-        href: '/purchase-orders',
+        href: '/purchase-order',
         icon: ShoppingCart,
         tone: 'text-sky-600 dark:text-sky-400 bg-sky-500/10',
     },
     {
         title: 'Verifikasi Tagihan',
         description: '3-Way Matching & pembayaran invoice',
-        href: '/invoice',
+        href: '/verifikasi-tagihan',
         icon: Receipt,
         tone: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
     },
     {
-        title: 'Dasbor Harga',
+        title: 'Dashboard Analitik',
         description: 'Pantau harga pagu & tren komoditas',
-        href: '/harga-pangan',
+        href: '/analitik-harga',
         icon: TrendingUp,
         tone: 'text-violet-600 dark:text-violet-400 bg-violet-500/10',
     },
     {
-        title: 'Kerja Sama',
+        title: 'Rekanan Vendor',
         description: 'Daftar vendor mitra aktif',
-        href: '/kerja-sama',
+        href: '/master/vendor',
         icon: Handshake,
         tone: 'text-amber-600 dark:text-amber-400 bg-amber-500/10',
     },
     {
-        title: 'Sengketa',
+        title: 'Log Sengketa',
         description: 'Pantau & kelola sengketa aktif',
-        href: '/sengketa',
+        href: '/log-sengketa',
         icon: Scale,
         tone: 'text-rose-600 dark:text-rose-400 bg-rose-500/10',
     },
     {
         title: 'Laporan Pengadaan',
         description: 'Riwayat PO & ringkasan pengeluaran',
-        href: '/purchase-orders',
+        href: '/purchase-order',
         icon: ClipboardList,
         tone: 'text-teal-600 dark:text-teal-400 bg-teal-500/10',
     },
@@ -200,13 +200,13 @@ export default function BuyerDashboard({ userName, dashboard }) {
 
                 <div className="flex flex-wrap items-center gap-2">
                     <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
-                        <Link href="/harga-pangan">
+                        <Link href="/analitik-harga">
                             <TrendingUp className="size-4" />
                             <span>Pantau Harga Pagu</span>
                         </Link>
                     </Button>
                     <Button asChild size="sm" className="h-9 gap-1.5">
-                        <Link href="/purchase-orders/create">
+                        <Link href="/purchase-order/create">
                             <ShoppingCart className="size-4" />
                             <span>Buat Purchase Order</span>
                         </Link>
@@ -253,7 +253,7 @@ export default function BuyerDashboard({ userName, dashboard }) {
                                 size="sm"
                                 className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white"
                             >
-                                <Link href="/invoice">
+                                <Link href="/verifikasi-tagihan">
                                     Verifikasi Tagihan ({invoicesStats.pending + invoicesStats.mismatched})
                                 </Link>
                             </Button>
@@ -311,7 +311,7 @@ export default function BuyerDashboard({ userName, dashboard }) {
                         </div>
 
                         <Link
-                            href="/purchase-orders"
+                            href="/purchase-order"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline pt-0.5"
                         >
                             <span>Kelola Purchase Order</span>
@@ -369,7 +369,7 @@ export default function BuyerDashboard({ userName, dashboard }) {
                         </div>
 
                         <Link
-                            href="/invoice"
+                            href="/verifikasi-tagihan"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline pt-0.5"
                         >
                             <span>Verifikasi Tagihan</span>
@@ -417,7 +417,7 @@ export default function BuyerDashboard({ userName, dashboard }) {
                         </div>
 
                         <Link
-                            href="/sengketa"
+                            href="/log-sengketa"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline pt-0.5"
                         >
                             <span>Kelola Sengketa</span>
@@ -453,7 +453,7 @@ export default function BuyerDashboard({ userName, dashboard }) {
                         </div>
 
                         <Link
-                            href="/kerja-sama"
+                            href="/master/vendor"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline pt-0.5"
                         >
                             <span>Lihat Daftar Mitra</span>
@@ -509,7 +509,7 @@ export default function BuyerDashboard({ userName, dashboard }) {
                             </CardDescription>
                         </div>
                         <Button asChild variant="outline" size="sm" className="h-8 text-xs shrink-0">
-                            <Link href="/purchase-orders">Lihat Semua</Link>
+                            <Link href="/purchase-order">Lihat Semua</Link>
                         </Button>
                     </CardHeader>
                     <CardContent className="flex-1">
@@ -523,7 +523,7 @@ export default function BuyerDashboard({ userName, dashboard }) {
                                     Buat PO pertama untuk memulai proses pengadaan.
                                 </p>
                                 <Button asChild size="sm" className="mt-3 h-8 text-xs">
-                                    <Link href="/purchase-orders/create">Buat PO Baru</Link>
+                                    <Link href="/purchase-order/create">Buat PO Baru</Link>
                                 </Button>
                             </div>
                         ) : (
@@ -564,7 +564,7 @@ export default function BuyerDashboard({ userName, dashboard }) {
                                             </div>
                                         </div>
                                         <Button asChild size="sm" variant="outline" className="h-8 text-xs shrink-0">
-                                            <Link href={`/purchase-orders/${po.uuid}`}>Detail</Link>
+                                            <Link href={`/purchase-order/${po.uuid}`}>Detail</Link>
                                         </Button>
                                     </div>
                                 ))}
@@ -596,7 +596,7 @@ export default function BuyerDashboard({ userName, dashboard }) {
                             </CardDescription>
                         </div>
                         <Button asChild variant="outline" size="sm" className="h-8 text-xs shrink-0">
-                            <Link href="/invoice">Lihat Semua</Link>
+                            <Link href="/verifikasi-tagihan">Lihat Semua</Link>
                         </Button>
                     </CardHeader>
                     <CardContent className="flex-1">
@@ -642,7 +642,7 @@ export default function BuyerDashboard({ userName, dashboard }) {
                                             </div>
                                         </div>
                                         <Button asChild size="sm" className="h-8 text-xs shrink-0">
-                                            <Link href={`/invoice/${invoice.uuid}`}>Verifikasi</Link>
+                                            <Link href={`/verifikasi-tagihan/${invoice.uuid}`}>Verifikasi</Link>
                                         </Button>
                                     </div>
                                 ))}
@@ -668,7 +668,7 @@ export default function BuyerDashboard({ userName, dashboard }) {
                             </CardDescription>
                         </div>
                         <Button asChild variant="outline" size="sm" className="h-8 text-xs shrink-0">
-                            <Link href="/sengketa">Lihat Semua</Link>
+                            <Link href="/log-sengketa">Lihat Semua</Link>
                         </Button>
                     </CardHeader>
                     <CardContent>
@@ -695,7 +695,7 @@ export default function BuyerDashboard({ userName, dashboard }) {
                                         {dispute.reason}
                                     </p>
                                     <Link
-                                        href={`/sengketa/${dispute.uuid}`}
+                                        href={`/log-sengketa/${dispute.uuid}`}
                                         className="text-[11px] font-semibold text-primary hover:underline"
                                     >
                                         Tinjau Sengketa →

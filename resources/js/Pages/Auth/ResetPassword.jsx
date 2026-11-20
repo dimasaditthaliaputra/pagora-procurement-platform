@@ -93,6 +93,7 @@ export default function ResetPassword({ token, email }) {
                                         setData('password', e.target.value);
                                         clearErrors('password');
                                     }}
+                                    placeholder="Minimal 8 karakter"
                                     error={errors.password}
                                     disabled={processing}
                                 />
@@ -117,6 +118,7 @@ export default function ResetPassword({ token, email }) {
                                         setData('password_confirmation', e.target.value);
                                         clearErrors('password_confirmation');
                                     }}
+                                    placeholder="Ulangi kata sandi"
                                     error={errors.password_confirmation}
                                     disabled={processing}
                                 />

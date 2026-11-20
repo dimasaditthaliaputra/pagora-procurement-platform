@@ -71,6 +71,7 @@ export default function ForgotPassword() {
                                         setData('email', e.target.value);
                                         clearErrors('email');
                                     }}
+                                    placeholder="Contoh: procurement@perusahaan.co.id"
                                     aria-invalid={!!errors.email}
                                     aria-describedby={errors.email ? 'email-error' : undefined}
                                     className={cn(errors.email && 'border-destructive focus-visible:ring-destructive')}

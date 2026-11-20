@@ -212,7 +212,7 @@ export default function Login({ status, otp = null }) {
                                             setData('email', e.target.value);
                                             if (errors.email) clearErrors('email');
                                         }}
-                                        placeholder="nama@perusahaan.co.id"
+                                        placeholder="Contoh: procurement@perusahaan.co.id"
                                         aria-invalid={errors.email ? 'true' : 'false'}
                                         aria-describedby={errors.email ? 'email-error' : undefined}
                                         className={cn(
@@ -246,7 +246,7 @@ export default function Login({ status, otp = null }) {
                                                 setData('password', e.target.value);
                                                 if (errors.password) clearErrors('password');
                                             }}
-                                            placeholder="••••••••••••"
+                                            placeholder="Minimal 8 karakter"
                                             aria-invalid={errors.password ? 'true' : 'false'}
                                             aria-describedby={errors.password ? 'password-error' : undefined}
                                             className={cn(

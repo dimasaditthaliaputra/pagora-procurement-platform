@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Enums\CreditNoteStatus;
+use App\Enums\PaymentStatus;
 use App\Models\CreditNote;
 use App\Models\Invoice;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -87,6 +89,22 @@ class InvoiceResource extends JsonResource
             ])->values()),
             'confirmed_credit_total' => $this->whenLoaded('creditNotes', fn (): float => (float) $this->creditNotes
                 ->filter(fn (CreditNote $note): bool => $note->status === CreditNoteStatus::Confirmed)
+                ->sum('amount')),
+
+            // Gateway payments (FR-39); only `paid` ones count towards the bill (BR-26).
+            'payments' => $this->whenLoaded('payments', fn () => $this->payments->map(fn (Payment $payment): array => [
+                'uuid' => $payment->uuid,
+                'number' => $payment->payment_number,
+                'amount' => (float) $payment->amount,
+                'method' => $payment->payment_method,
+                'status' => $payment->payment_status->value,
+                'status_label' => $payment->payment_status->label(),
+                'reference_number' => $payment->reference_number,
+                'paid_at' => $payment->payment_date?->toISOString(),
+                'created_at' => $payment->created_at?->toISOString(),
+            ])->values()),
+            'paid_total' => $this->whenLoaded('payments', fn (): float => (float) $this->payments
+                ->filter(fn (Payment $payment): bool => $payment->payment_status === PaymentStatus::Paid)
                 ->sum('amount')),
 
             'created_at' => $this->created_at?->toISOString(),

@@ -11,6 +11,7 @@ use App\Http\Resources\InvoiceResource;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Services\InvoiceService;
+use App\Services\PaymentService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -24,7 +25,8 @@ use Throwable;
 class VerifikasiTagihanController extends Controller
 {
     public function __construct(
-        protected readonly InvoiceService $service
+        protected readonly InvoiceService $service,
+        protected readonly PaymentService $payments,
     ) {}
 
     /**
@@ -117,6 +119,8 @@ class VerifikasiTagihanController extends Controller
                 'invoice' => $resource,
                 'matching_evaluation' => $threeWayMatching,
                 'can_verify' => $user->can('verify', $invoice),
+                'can_pay' => $this->payments->canPay($user, $invoice),
+                'remaining_amount' => $this->payments->remainingAmount($invoice),
             ]);
         } catch (ModelNotFoundException) {
             return ResponseHelper::notFound('Tagihan tidak ditemukan.', null, $request);

@@ -160,6 +160,7 @@ class InvoiceRepository implements InvoiceRepositoryInterface
                 'vendor:id,uuid,company_name',
                 'items.purchaseOrderItem.komoditas:id,uuid,name,unit',
                 'creditNotes',
+                'payments',
             ])
             ->first();
     }
@@ -309,6 +310,7 @@ class InvoiceRepository implements InvoiceRepositoryInterface
                 'items.purchaseOrderItem.penerimaanBarangItems.goodsReceipt',
                 'sengketa.logs.penulis',
                 'creditNotes',
+                'payments',
             ])
             ->first();
     }

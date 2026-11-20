@@ -30,6 +30,9 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
         ]);
 
+        // Midtrans calls this endpoint server-to-server; it is verified by signature instead.
+        $middleware->validateCsrfTokens(except: ['pembayaran/midtrans/notifikasi']);
+
         $middleware->alias([
             'superadmin' => EnsureSuperadmin::class,
         ]);

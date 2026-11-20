@@ -420,18 +420,22 @@ Soft delete hanya untuk PO `draft` (hapus draf, UC-12).
 | unit_price | decimal(15,2) NN | Salinan `purchase_order_items.unit_price` |
 | subtotal | decimal(17,2) NN | |
 
-### 4.23 `payments` [baru]
+### 4.23 `payments` ✅ (modul 10)
 | Kolom | Tipe | Catatan |
 |---|---|---|
-| invoice_id | FK→invoices NN, idx | 1 invoice : N payments |
-| payment_number | string(50) U NN | |
+| uuid | uuid U NN | |
+| invoice_id | FK→invoice NN, idx | 1 invoice : N payments |
+| payment_number | string(50) U NN | `PAY-YYYY-0001` |
+| gateway_order_id | string(100) U NN | `order_id` ke Midtrans: `payment_number` + sufiks acak (database yang di-reset tidak boleh memakai ulang order id) |
 | payment_date | timestamp null | Diisi saat berhasil |
-| amount | decimal(17,2) NN | |
-| payment_method | string(50) null | Dari gateway |
+| amount | decimal(17,2) NN | Tagihan − credit note `confirmed` − pembayaran `paid` (rupiah bulat, syarat Midtrans) |
+| payment_method | string(50) null | `payment_type` dari gateway |
 | payment_status | string(30) NN default `pending`, idx | `pending`, `paid`, `failed` |
-| reference_number | string(100) null, idx | Ref. gateway (Midtrans/Xendit) |
-| proof_file | string(500) null | |
+| reference_number | string(100) null, idx | `transaction_id` Midtrans |
+| snap_token | string(100) null | Token Snap untuk melanjutkan pembayaran `pending`; tidak dikirim ke frontend selain saat memulai |
+| proof_file | string(500) null | Belum diisi (Midtrans tidak memberi berkas) |
 | created_by | FK→users NN | |
+| created_at, updated_at | timestamp | |
 
 ### 4.24 `disputes` ✅ (modul 9; dulu `sengketa`)
 | Kolom | Tipe | Saat ini | Catatan |
@@ -729,6 +733,7 @@ Cocok bila untuk setiap item: `invoice_items.quantity ≤ kuantitas diterima yan
 | 2026-11-19 | **Modul 5 selesai**: `harga_referensi_komoditas` → `commodity_reference_prices` (`commodity_id`, `date`, `price`, `source` `bank_indonesia`/`seeder`; UNIQUE (`commodity_id`, `date`, `source`) untuk upsert sinkronisasi BI); `prediksi_harga` → `price_predictions` (`commodity_id`, `prediction_date`, `predicted_price`, `recommended_ceiling_price`, `calculated_at`; index tambahan (`commodity_id`, `calculated_at`) untuk batch terbaru). Migration `2026_11_19_083605_*`, `2026_11_19_083606_*`. Permission `harga_pagu.view_any` (default owner, purchasing). `api_reference_code` = kode PIHPS (`com_N`), dipilih dari daftar BI di form Komoditas (unik per komoditas aktif) atau lewat **Impor dari BI**; `KomoditasSeeder` dihapus. Data dari price service (jenis harga 3 = Pedagang Besar) (UC-11, FR-15, FR-16) | — |
 | 2026-11-19 | **Negosiasi per item (FR-19..21)**: `chat_negosiasi` → `negotiation_messages` (`sender_id`, `message`, `offer_amount` = harga satuan; kolom baru `purchase_order_item_id` FK nullable ke `po_item`, `type`; index (`purchase_order_id`, `id`) untuk polling) + trigger immutable PostgreSQL `reject_update_delete()`; `po_item`: kolom baru `estimated_unit_price` (NN, diisi dari `harga_satuan_po` lama), `harga_satuan_po` & `subtotal` nullable, `status_item` `menunggu` → `pending` + index. Migration `2026_11_19_110016_*`, `2026_11_19_110017_*`, `2026_11_19_110050_*`. Rename `purchase_order`/`po_item` tetap di modul 6 | — |
 | 2026-11-19 | **Modul 9 selesai (Sengketa, Credit Note, Retur — UC-18, FR-38, FR-40..42)**: `sengketa` → `disputes` (`dibuka_oleh` → `opened_by` nullable = sistem, `tanggal_dibuka` → `opened_at`, `tanggal_selesai` → `resolved_at`, `reason` NOT NULL; kolom baru `resolution_type`, `resolution_notes`, `vendor_confirmed_by`, `vendor_confirmed_at`, `resolved_by`, index `invoice_id`); status `terbuka/dalam_mediasi/selesai` → `open/in_mediation/resolved` + `awaiting_response`; `log_sengketa` → `dispute_logs` (`sengketa_id` → `dispute_id`, `isi_pesan` → `message`, `file_bukti` → `attachment_path`, `user_id` nullable = sistem); tabel baru `credit_notes`, `purchase_returns`, `purchase_return_items` (+`uuid`, `timestamps`); trigger PostgreSQL `dispute_logs_immutable` dan `disputes_resolved_immutable`. Nomor dokumen otomatis `CN-YYYY-0001` / `RTR-YYYY-0001`. Alur: Owner/Manajemen mengajukan penyelesaian (dokumen langsung `awaiting_vendor_confirmation`, status `draft` belum dipakai) → Vendor konfirmasi/tolak → Owner/Manajemen menetapkan `resolved`; retur `confirmed` → `completed` ditandai **Vendor**. Invoice `mismatched` dapat **diverifikasi ulang** setelah semua sengketanya `resolved`: cocok bila `total_amount` − Σ credit note `confirmed` = Σ min(qty ditagih, qty diterima) × harga PO. Permission baru `sengketa.resolve` (owner, manajemen) dan `sengketa.respond` (vendor). Migration `2026_11_19_150001_*` s.d. `2026_11_19_150006_*` | — |
+| 2026-11-20 | **Modul 10 selesai (Pembayaran Midtrans — UC-17 langkah 5–7, FR-29, FR-39, BR-13, BR-26, NFR-04)**: tabel baru `payments` (`uuid`, `gateway_order_id` unik, `snap_token`, `timestamps`; nomor `PAY-YYYY-0001`). Midtrans Snap lewat HTTP client Laravel (tanpa paket baru); `.env`: `MIDTRANS_MERCHANT_ID`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_SERVER_KEY`, `MIDTRANS_IS_PRODUCTION` (`false` = Sandbox; `true` = Production dengan kode yang sama). Pembayaran dimulai Owner/Purchasing hanya bila invoice `matched`, PO `ready_to_pay`, tanpa sengketa terbuka; jumlah = tagihan − credit note `confirmed` − pembayaran `paid`. Notifikasi Midtrans `POST /pembayaran/midtrans/notifikasi` (publik, tanpa CSRF) diverifikasi `signature_key` (SHA512) dan jumlahnya; `settlement`/`capture` → `paid`, `deny`/`cancel`/`expire`/`failure` → `failed` (boleh dicoba lagi), `paid` tidak pernah berubah. Semua invoice PO lunas → PO `lunas`. Tombol tutup Snap memanggil `POST /pembayaran/{uuid}/sinkron` (status API Midtrans) agar tetap sinkron tanpa URL publik. Migration `2026_11_20_100001_*` | — |
 
 ## 12. Keputusan Teknis (2026-10-31)
 

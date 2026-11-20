@@ -40,6 +40,7 @@ import {
     DialogTitle,
 } from '@/Components/ui/dialog';
 import { LoadingButton } from '@/Components/loading-button';
+import { PembayaranCard } from '@/Pages/VerifikasiTagihan/components/PembayaranCard';
 import { formatDate, formatNumber, formatRupiah } from '@/lib/format';
 import { notify } from '@/lib/notify';
 
@@ -82,7 +83,7 @@ function MatchingBadge({ status }) {
     );
 }
 
-export default function VerifikasiTagihanShow({ invoice, matching_evaluation, can_verify = false }) {
+export default function VerifikasiTagihanShow({ invoice, matching_evaluation, can_verify = false, can_pay = false, remaining_amount = 0 }) {
     const data = invoice?.data ?? invoice;
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -555,6 +556,8 @@ export default function VerifikasiTagihanShow({ invoice, matching_evaluation, ca
                         </div>
                     </CardContent>
                 </Card>
+
+                {isMatched && <PembayaranCard invoice={data} canPay={can_pay} remainingAmount={remaining_amount} />}
 
                 {/* Mismatch Detail Log if any */}
                 {matchingData.summary?.mismatch_notes && matchingData.summary.mismatch_notes.length > 0 && (

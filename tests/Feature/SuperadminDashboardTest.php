@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Enums\PemicuSengketa;
 use App\Enums\RoleName;
+use App\Enums\StatusItemPenerimaan;
 use App\Enums\StatusKerjaSama;
 use App\Enums\StatusMatching;
 use App\Enums\StatusPurchaseOrder;
@@ -16,6 +17,9 @@ use App\Models\DokumenLegalitasVendor;
 use App\Models\Invoice;
 use App\Models\KerjaSama;
 use App\Models\Komoditas;
+use App\Models\PenerimaanBarang;
+use App\Models\PenerimaanBarangItem;
+use App\Models\Pengiriman;
 use App\Models\PerusahaanBuyer;
 use App\Models\PoItem;
 use App\Models\PurchaseOrder;
@@ -418,6 +422,196 @@ class SuperadminDashboardTest extends TestCase
                 ->has('owner_dashboard.internal_team', 3)
                 ->missing('owner_dashboard.internal_team.0.id')
                 ->has('owner_dashboard.monthly_trend', 6)
+            );
+    }
+
+    public function test_qc_gudang_receives_inspection_metrics_and_recent_inspections(): void
+    {
+        $tenant = PerusahaanBuyer::where('company_name', 'PT Pangan Makmur Sejahtera')->firstOrFail();
+
+        $qcUser = User::factory()->create([
+            'name' => 'Petugas QC Gudang',
+            'email' => 'qc-gudang@pagora.test',
+            'role_id' => Role::where('name', RoleName::QcGudang->value)->value('id'),
+            'tenant_id' => $tenant->id,
+            'is_active' => true,
+        ]);
+
+        $vendor = Vendor::create([
+            'company_name' => 'PT Pemasok QC',
+            'slug' => 'pt-pemasok-qc-'.Str::lower(Str::random(5)),
+            'business_entity' => 'PT',
+            'contact_email' => 'qc@vendor.test',
+            'phone' => '081234560003',
+            'verification_status' => VerificationStatus::Approved->value,
+            'is_active' => true,
+        ]);
+
+        $commodity = Komoditas::firstOrFail();
+
+        $poInTransit = PurchaseOrder::create([
+            'uuid' => (string) Str::uuid(),
+            'nomor_po' => 'PO-QC-001',
+            'perusahaan_buyer_id' => $tenant->id,
+            'vendor_id' => $vendor->id,
+            'created_by' => $this->owner->id,
+            'status' => StatusPurchaseOrder::DalamPengiriman->value,
+            'tanggal_po' => now()->toDateString(),
+        ]);
+
+        $poReceived = PurchaseOrder::create([
+            'uuid' => (string) Str::uuid(),
+            'nomor_po' => 'PO-QC-002',
+            'perusahaan_buyer_id' => $tenant->id,
+            'vendor_id' => $vendor->id,
+            'created_by' => $this->owner->id,
+            'status' => StatusPurchaseOrder::DiterimaGudang->value,
+            'tanggal_po' => now()->toDateString(),
+        ]);
+
+        $poItem = PoItem::create([
+            'uuid' => (string) Str::uuid(),
+            'purchase_order_id' => $poReceived->id,
+            'komoditas_id' => $commodity->id,
+            'jumlah_pesanan' => 500,
+            'estimated_unit_price' => 10000,
+            'harga_satuan_po' => 10000,
+            'subtotal' => 5000000,
+        ]);
+
+        $shipment = Pengiriman::create([
+            'uuid' => (string) Str::uuid(),
+            'purchase_order_id' => $poReceived->id,
+            'route' => 'Darat',
+            'carrier_name' => 'PT Ekspedisi Nusantara',
+            'vehicle_plate_number' => 'B 1234 XYZ',
+            'estimated_arrival_date' => now()->toDateString(),
+            'status' => 'arrived',
+            'reported_by' => $this->owner->id,
+        ]);
+
+        $receipt = PenerimaanBarang::create([
+            'uuid' => (string) Str::uuid(),
+            'purchase_order_id' => $poReceived->id,
+            'shipment_id' => $shipment->id,
+            'inspected_by' => $qcUser->id,
+            'inspected_at' => now(),
+            'notes' => 'Pemeriksaan fisik sesuai.',
+        ]);
+
+        PenerimaanBarangItem::create([
+            'uuid' => (string) Str::uuid(),
+            'goods_receipt_id' => $receipt->id,
+            'purchase_order_item_id' => $poItem->id,
+            'received_quantity' => 500,
+            'status' => StatusItemPenerimaan::Accepted->value,
+        ]);
+
+        $this->actingAs($qcUser)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Dashboard')
+                ->where('is_qc_gudang', true)
+                ->where('qc_dashboard.summary.inspections.total_receipts', 1)
+                ->where('qc_dashboard.summary.inspections.in_transit_orders', 1)
+                ->where('qc_dashboard.summary.inspections.accepted_items', 1)
+                ->where('qc_dashboard.summary.inspections.rejected_items', 0)
+                ->where('qc_dashboard.summary.inspections.acceptance_rate', 100)
+                ->has('qc_dashboard.pending_deliveries', 1)
+                ->where('qc_dashboard.pending_deliveries.0.po_number', 'PO-QC-001')
+                ->has('qc_dashboard.recent_inspections', 1)
+                ->where('qc_dashboard.recent_inspections.0.po_number', 'PO-QC-002')
+                ->where('qc_dashboard.recent_inspections.0.accepted_count', 1)
+            );
+    }
+
+    public function test_vendor_receives_dashboard_excluding_buyer_draft_pos_and_internal_estimated_price(): void
+    {
+        $tenant = PerusahaanBuyer::where('company_name', 'PT Pangan Makmur Sejahtera')->firstOrFail();
+
+        $vendor = Vendor::create([
+            'company_name' => 'PT Vendor Mandiri',
+            'slug' => 'pt-vendor-mandiri-'.Str::lower(Str::random(5)),
+            'business_entity' => 'PT',
+            'contact_email' => 'mandiri@vendor.test',
+            'phone' => '081234560004',
+            'verification_status' => VerificationStatus::Approved->value,
+            'is_active' => true,
+        ]);
+
+        $vendorUser = User::factory()->create([
+            'name' => 'PIC Vendor Mandiri',
+            'email' => 'pic@vendor.test',
+            'role_id' => Role::where('name', RoleName::Vendor->value)->value('id'),
+            'vendor_id' => $vendor->id,
+            'is_active' => true,
+        ]);
+
+        KerjaSama::create([
+            'uuid' => (string) Str::uuid(),
+            'tenant_id' => $tenant->id,
+            'vendor_id' => $vendor->id,
+            'requested_by' => 'tenant',
+            'status' => StatusKerjaSama::Agreed->value,
+        ]);
+
+        $commodity = Komoditas::firstOrFail();
+
+        // Draft PO created by Buyer (must NOT appear on Vendor dashboard)
+        $draftPo = PurchaseOrder::create([
+            'uuid' => (string) Str::uuid(),
+            'nomor_po' => 'PO-VND-DRAFT',
+            'perusahaan_buyer_id' => $tenant->id,
+            'vendor_id' => $vendor->id,
+            'created_by' => $this->owner->id,
+            'status' => StatusPurchaseOrder::Draft->value,
+            'tanggal_po' => now()->toDateString(),
+        ]);
+
+        PoItem::create([
+            'uuid' => (string) Str::uuid(),
+            'purchase_order_id' => $draftPo->id,
+            'komoditas_id' => $commodity->id,
+            'jumlah_pesanan' => 100,
+            'estimated_unit_price' => 15000,
+        ]);
+
+        // Negotiation PO where only estimated_unit_price is filled (must NOT leak estimated_unit_price to Vendor)
+        $negPo = PurchaseOrder::create([
+            'uuid' => (string) Str::uuid(),
+            'nomor_po' => 'PO-VND-NEG',
+            'perusahaan_buyer_id' => $tenant->id,
+            'vendor_id' => $vendor->id,
+            'created_by' => $this->owner->id,
+            'status' => StatusPurchaseOrder::Negosiasi->value,
+            'tanggal_po' => now()->toDateString(),
+        ]);
+
+        PoItem::create([
+            'uuid' => (string) Str::uuid(),
+            'purchase_order_id' => $negPo->id,
+            'komoditas_id' => $commodity->id,
+            'jumlah_pesanan' => 200,
+            'estimated_unit_price' => 15000,
+            'harga_satuan_po' => null,
+            'subtotal' => null,
+        ]);
+
+        $this->actingAs($vendorUser)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Dashboard')
+                ->where('is_vendor', true)
+                ->where('vendor_dashboard.summary.orders.total', 1)
+                ->where('vendor_dashboard.summary.orders.pending_response', 1)
+                ->where('vendor_dashboard.summary.partnerships.active', 1)
+                ->has('vendor_dashboard.recent_orders', 1)
+                ->where('vendor_dashboard.recent_orders.0.po_number', 'PO-VND-NEG')
+                ->where('vendor_dashboard.recent_orders.0.total_amount', 0)
+                ->has('vendor_dashboard.partnerships', 1)
+                ->where('vendor_dashboard.partnerships.0.buyer_name', 'PT Pangan Makmur Sejahtera')
             );
     }
 }

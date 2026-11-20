@@ -103,14 +103,14 @@ const QUICK_MODULES = [
     {
         title: 'Purchase Order',
         description: 'Pantau & tanggapi pesanan dari buyer',
-        href: '/purchase-orders',
+        href: '/purchase-order',
         icon: ShoppingBag,
         tone: 'text-sky-600 dark:text-sky-400 bg-sky-500/10',
     },
     {
-        title: 'Kerja Sama',
+        title: 'Calon Mitra & Kerja Sama',
         description: 'Kelola kemitraan dengan perusahaan buyer',
-        href: '/kerja-sama',
+        href: '/kerja-sama/calon-mitra',
         icon: Handshake,
         tone: 'text-teal-600 dark:text-teal-400 bg-teal-500/10',
     },
@@ -122,9 +122,9 @@ const QUICK_MODULES = [
         tone: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
     },
     {
-        title: 'Status Logistik',
+        title: 'Pengiriman Logistik',
         description: 'Laporkan status pengiriman fisik barang',
-        href: '/purchase-orders',
+        href: '/pengiriman',
         icon: Truck,
         tone: 'text-amber-600 dark:text-amber-400 bg-amber-500/10',
     },
@@ -185,13 +185,13 @@ export default function VendorDashboard({ userName, dashboard }) {
 
                 <div className="flex flex-wrap items-center gap-2">
                     <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
-                        <Link href="/kerja-sama/mitra-potensial">
+                        <Link href="/kerja-sama/calon-mitra">
                             <Handshake className="size-4" />
                             <span>Ajukan Kerja Sama</span>
                         </Link>
                     </Button>
                     <Button asChild size="sm" className="h-9 gap-1.5">
-                        <Link href="/purchase-orders">
+                        <Link href="/purchase-order">
                             <ShoppingBag className="size-4" />
                             <span>Lihat Pesanan</span>
                         </Link>
@@ -221,7 +221,7 @@ export default function VendorDashboard({ userName, dashboard }) {
                         size="sm"
                         className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white shrink-0"
                     >
-                        <Link href="/purchase-orders">
+                        <Link href="/purchase-order">
                             Tanggapi Pesanan ({ordersStats.pending_response})
                         </Link>
                     </Button>
@@ -279,7 +279,7 @@ export default function VendorDashboard({ userName, dashboard }) {
                         </div>
 
                         <Link
-                            href="/purchase-orders"
+                            href="/purchase-order"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline pt-0.5"
                         >
                             <span>Kelola Pesanan</span>
@@ -384,7 +384,7 @@ export default function VendorDashboard({ userName, dashboard }) {
                         </div>
 
                         <Link
-                            href="/kerja-sama"
+                            href="/kerja-sama/calon-mitra"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline pt-0.5"
                         >
                             <span>Kelola Kerja Sama</span>
@@ -435,7 +435,7 @@ export default function VendorDashboard({ userName, dashboard }) {
                         </div>
 
                         <Link
-                            href="/purchase-orders"
+                            href="/purchase-order"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline pt-0.5"
                         >
                             <span>Lihat Riwayat Pesanan</span>
@@ -491,7 +491,7 @@ export default function VendorDashboard({ userName, dashboard }) {
                             </CardDescription>
                         </div>
                         <Button asChild variant="outline" size="sm" className="h-8 text-xs shrink-0">
-                            <Link href="/purchase-orders">Lihat Semua</Link>
+                            <Link href="/purchase-order">Lihat Semua</Link>
                         </Button>
                     </CardHeader>
                     <CardContent className="flex-1">
@@ -538,7 +538,7 @@ export default function VendorDashboard({ userName, dashboard }) {
                                             </div>
                                         </div>
                                         <Button asChild size="sm" variant="outline" className="h-8 text-xs shrink-0">
-                                            <Link href={`/purchase-orders/${po.uuid}`}>Detail</Link>
+                                            <Link href={`/purchase-order/${po.uuid}`}>Detail</Link>
                                         </Button>
                                     </div>
                                 ))}
@@ -639,7 +639,7 @@ export default function VendorDashboard({ userName, dashboard }) {
                         </CardDescription>
                     </div>
                     <Button asChild variant="outline" size="sm" className="h-8 text-xs shrink-0">
-                        <Link href="/kerja-sama">Kelola Semua</Link>
+                        <Link href="/kerja-sama/calon-mitra">Kelola Semua</Link>
                     </Button>
                 </CardHeader>
                 <CardContent>
@@ -653,7 +653,7 @@ export default function VendorDashboard({ userName, dashboard }) {
                                 Ajukan kerja sama ke perusahaan buyer untuk mulai menerima pesanan.
                             </p>
                             <Button asChild size="sm" className="mt-3 h-8 text-xs">
-                                <Link href="/kerja-sama/mitra-potensial">Ajukan Kerja Sama</Link>
+                                <Link href="/kerja-sama/calon-mitra">Ajukan Kerja Sama</Link>
                             </Button>
                         </div>
                     ) : (

@@ -1715,37 +1715,23 @@ class DashboardRepository implements DashboardRepositoryInterface
             ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
             ->count());
 
-        $pendingReceipts = $this->safeCount(static fn (): int => PenerimaanBarang::query()
-            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId)
-                ->whereIn('status', [
-                    StatusPurchaseOrder::DalamPengiriman->value,
-                    StatusPurchaseOrder::PartiallyReceived->value,
-                ]))
-            ->whereNull('inspected_at')
+        $inTransitOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
+            ->where('perusahaan_buyer_id', $tenantId)
+            ->where('status', StatusPurchaseOrder::DalamPengiriman->value)
             ->count());
 
         $acceptedItems = $this->safeCount(static fn (): int => PenerimaanBarangItem::query()
             ->whereHas('penerimaanBarang.purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status', StatusItemPenerimaan::Diterima->value)
+            ->where('status', StatusItemPenerimaan::Accepted->value)
             ->count());
 
         $rejectedItems = $this->safeCount(static fn (): int => PenerimaanBarangItem::query()
             ->whereHas('penerimaanBarang.purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status', StatusItemPenerimaan::Ditolak->value)
+            ->where('status', StatusItemPenerimaan::Rejected->value)
             ->count());
 
-        $inTransitOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->whereIn('status', [
-                StatusPurchaseOrder::DalamPengiriman->value,
-                StatusPurchaseOrder::PartiallyReceived->value,
-            ])
-            ->count());
-
-        $completedReceipts = $this->safeCount(static fn (): int => PenerimaanBarang::query()
-            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->whereNotNull('inspected_at')
-            ->count());
+        $completedReceipts = $totalReceipts;
+        $pendingReceipts = $inTransitOrders;
 
         $totalItems = $acceptedItems + $rejectedItems;
         $acceptanceRate = $totalItems > 0 ? round(($acceptedItems / $totalItems) * 100, 1) : 0.0;
@@ -1775,11 +1761,10 @@ class DashboardRepository implements DashboardRepositoryInterface
                 ->whereIn('status', [
                     StatusPurchaseOrder::DalamPengiriman->value,
                     StatusPurchaseOrder::PartiallyReceived->value,
-                    StatusPurchaseOrder::DiterimaGudang->value,
                 ])
                 ->with([
                     'vendor:id,uuid,company_name',
-                    'poItems:id,purchase_order_id,jumlah_pesanan,harga_satuan_po,estimated_unit_price,subtotal',
+                    'poItems:id,purchase_order_id,komoditas_id,jumlah_pesanan',
                     'poItems.komoditas:id,uuid,name,unit',
                 ])
                 ->orderByDesc('created_at')
@@ -1827,17 +1812,21 @@ class DashboardRepository implements DashboardRepositoryInterface
                     'purchaseOrder:id,uuid,nomor_po,vendor_id',
                     'purchaseOrder.vendor:id,uuid,company_name',
                     'inspector:id,uuid,name',
-                    'items:id,penerimaan_barang_id,status',
+                    'items:id,goods_receipt_id,status',
                 ])
-                ->whereNotNull('inspected_at')
                 ->orderByDesc('inspected_at')
+                ->orderByDesc('id')
                 ->limit($limit)
                 ->get()
                 ->map(static function (PenerimaanBarang $receipt): array {
                     $po = $receipt->purchaseOrder;
                     $vendor = $po?->vendor;
-                    $accepted = $receipt->items->where('status', StatusItemPenerimaan::Diterima->value)->count();
-                    $rejected = $receipt->items->where('status', StatusItemPenerimaan::Ditolak->value)->count();
+                    $accepted = $receipt->items
+                        ->filter(static fn ($item): bool => ($item->status->value ?? $item->status) === StatusItemPenerimaan::Accepted->value)
+                        ->count();
+                    $rejected = $receipt->items
+                        ->filter(static fn ($item): bool => ($item->status->value ?? $item->status) === StatusItemPenerimaan::Rejected->value)
+                        ->count();
 
                     return [
                         'uuid' => $receipt->uuid,
@@ -1848,7 +1837,7 @@ class DashboardRepository implements DashboardRepositoryInterface
                         'accepted_count' => $accepted,
                         'rejected_count' => $rejected,
                         'total_items' => $accepted + $rejected,
-                        'inspected_at' => $receipt->inspected_at?->toISOString(),
+                        'inspected_at' => ($receipt->inspected_at ?? $receipt->created_at)?->toISOString(),
                     ];
                 })
                 ->values()
@@ -1869,6 +1858,7 @@ class DashboardRepository implements DashboardRepositoryInterface
     {
         $totalOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
             ->where('vendor_id', $vendorId)
+            ->where('status', '!=', StatusPurchaseOrder::Draft->value)
             ->count());
 
         $pendingResponse = $this->safeCount(static fn (): int => PurchaseOrder::query()
@@ -1962,9 +1952,10 @@ class DashboardRepository implements DashboardRepositoryInterface
         try {
             return PurchaseOrder::query()
                 ->where('vendor_id', $vendorId)
+                ->where('status', '!=', StatusPurchaseOrder::Draft->value)
                 ->with([
                     'perusahaanBuyer:id,uuid,company_name',
-                    'poItems:id,purchase_order_id,jumlah_pesanan,harga_satuan_po,estimated_unit_price,subtotal',
+                    'poItems:id,purchase_order_id,jumlah_pesanan,harga_satuan_po,harga_tawar_vendor,subtotal',
                 ])
                 ->orderByDesc('created_at')
                 ->limit($limit)
@@ -1977,7 +1968,8 @@ class DashboardRepository implements DashboardRepositoryInterface
                             $totalAmount += $sub;
                         } else {
                             $qty = (float) ($item->jumlah_pesanan ?? 0);
-                            $unitPrice = (float) ($item->harga_satuan_po ?? $item->estimated_unit_price ?? 0);
+                            // Never expose Buyer internal estimated_unit_price to Vendor (BR-02, UC-13)
+                            $unitPrice = (float) ($item->harga_satuan_po ?? $item->harga_tawar_vendor ?? 0);
                             $totalAmount += $qty * $unitPrice;
                         }
                     }
@@ -2017,7 +2009,7 @@ class DashboardRepository implements DashboardRepositoryInterface
                     StatusKerjaSama::Agreed->value,
                     StatusKerjaSama::Pending->value,
                 ])
-                ->with('perusahaanBuyer:id,uuid,company_name,city')
+                ->with('perusahaanBuyer:id,uuid,company_name,address')
                 ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
                 ->orderByDesc('updated_at')
                 ->limit($limit)
@@ -2026,7 +2018,7 @@ class DashboardRepository implements DashboardRepositoryInterface
                     return [
                         'uuid' => $ks->uuid,
                         'buyer_name' => $ks->perusahaanBuyer?->company_name ?? 'Buyer',
-                        'buyer_city' => $ks->perusahaanBuyer?->city,
+                        'buyer_city' => $ks->perusahaanBuyer?->address,
                         'status' => $ks->status instanceof StatusKerjaSama ? $ks->status->value : (string) $ks->status,
                         'status_label' => $ks->status instanceof StatusKerjaSama ? $ks->status->label() : (string) $ks->status,
                         'agreed_at' => $ks->updated_at?->toISOString(),

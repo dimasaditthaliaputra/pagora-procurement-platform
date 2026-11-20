@@ -3,13 +3,14 @@ import {
     AlertTriangle,
     ArrowUpRight,
     CheckCircle2,
-    ClipboardList,
+    ClipboardCheck,
     FileText,
     Handshake,
     Receipt,
     Scale,
     ShoppingCart,
     TrendingUp,
+    Truck,
     Wallet,
 } from 'lucide-react';
 import { Badge } from '@/Components/ui/badge';
@@ -114,11 +115,18 @@ const QUICK_MODULES = [
         tone: 'text-violet-600 dark:text-violet-400 bg-violet-500/10',
     },
     {
-        title: 'Rekanan Vendor',
-        description: 'Daftar vendor mitra aktif',
-        href: '/master/vendor',
-        icon: Handshake,
+        title: 'Pengiriman Logistik',
+        description: 'Pantau armada & jadwal pengiriman PO',
+        href: '/pengiriman',
+        icon: Truck,
         tone: 'text-amber-600 dark:text-amber-400 bg-amber-500/10',
+    },
+    {
+        title: 'Inspeksi Fisik QC',
+        description: 'Hasil penerimaan & laporan kerusakan',
+        href: '/inspeksi-qc',
+        icon: ClipboardCheck,
+        tone: 'text-teal-600 dark:text-teal-400 bg-teal-500/10',
     },
     {
         title: 'Log Sengketa',
@@ -126,13 +134,6 @@ const QUICK_MODULES = [
         href: '/log-sengketa',
         icon: Scale,
         tone: 'text-rose-600 dark:text-rose-400 bg-rose-500/10',
-    },
-    {
-        title: 'Laporan Pengadaan',
-        description: 'Riwayat PO & ringkasan pengeluaran',
-        href: '/purchase-order',
-        icon: ClipboardList,
-        tone: 'text-teal-600 dark:text-teal-400 bg-teal-500/10',
     },
 ];
 
@@ -453,10 +454,10 @@ export default function BuyerDashboard({ userName, dashboard }) {
                         </div>
 
                         <Link
-                            href="/master/vendor"
+                            href="/purchase-order/create"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline pt-0.5"
                         >
-                            <span>Lihat Daftar Mitra</span>
+                            <span>Buat PO ke Mitra Aktif</span>
                             <ArrowUpRight className="size-3.5" />
                         </Link>
                     </CardContent>

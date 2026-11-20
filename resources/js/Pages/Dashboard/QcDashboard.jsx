@@ -50,16 +50,23 @@ function getPoStatusClass(status) {
 
 const QUICK_MODULES = [
     {
-        title: 'Penerimaan Barang',
-        description: 'Catat & inspeksi barang masuk dari vendor',
-        href: '/penerimaan-barang',
+        title: 'Inspeksi & Penerimaan QC',
+        description: 'Catat & inspeksi fisik barang masuk dari vendor',
+        href: '/inspeksi-qc',
         icon: ClipboardCheck,
         tone: 'text-sky-600 dark:text-sky-400 bg-sky-500/10',
     },
     {
-        title: 'Purchase Order',
-        description: 'Pantau status PO & jadwal pengiriman',
-        href: '/purchase-orders',
+        title: 'Laporan Kerusakan Barang',
+        description: 'Riwayat item ditolak & bukti kerusakan QC',
+        href: '/inspeksi-qc/laporan-kerusakan',
+        icon: PackageX,
+        tone: 'text-rose-600 dark:text-rose-400 bg-rose-500/10',
+    },
+    {
+        title: 'Pengiriman Logistik',
+        description: 'Pantau armada & jadwal kedatangan barang',
+        href: '/pengiriman',
         icon: Truck,
         tone: 'text-amber-600 dark:text-amber-400 bg-amber-500/10',
     },
@@ -119,8 +126,14 @@ export default function QcDashboard({ userName, dashboard }) {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
+                        <Link href="/inspeksi-qc/laporan-kerusakan">
+                            <PackageX className="size-4" />
+                            <span>Laporan Kerusakan</span>
+                        </Link>
+                    </Button>
                     <Button asChild size="sm" className="h-9 gap-1.5">
-                        <Link href="/penerimaan-barang">
+                        <Link href="/inspeksi-qc/create">
                             <ClipboardCheck className="size-4" />
                             <span>Inspeksi Barang</span>
                         </Link>
@@ -150,7 +163,7 @@ export default function QcDashboard({ userName, dashboard }) {
                         size="sm"
                         className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white shrink-0"
                     >
-                        <Link href="/penerimaan-barang">
+                        <Link href="/inspeksi-qc/pesanan-in-transit">
                             Mulai Inspeksi ({inspectionsStats.pending_receipts})
                         </Link>
                     </Button>
@@ -193,10 +206,10 @@ export default function QcDashboard({ userName, dashboard }) {
                         </div>
 
                         <Link
-                            href="/purchase-orders"
+                            href="/inspeksi-qc/pesanan-in-transit"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline pt-0.5"
                         >
-                            <span>Lihat Semua PO</span>
+                            <span>Lihat Antrean In Transit</span>
                             <ArrowUpRight className="size-3.5" />
                         </Link>
                     </CardContent>
@@ -240,7 +253,7 @@ export default function QcDashboard({ userName, dashboard }) {
                         </div>
 
                         <Link
-                            href="/penerimaan-barang"
+                            href="/inspeksi-qc"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline pt-0.5"
                         >
                             <span>Riwayat Penerimaan</span>
@@ -298,7 +311,7 @@ export default function QcDashboard({ userName, dashboard }) {
                         </div>
 
                         <Link
-                            href="/penerimaan-barang"
+                            href="/inspeksi-qc"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline pt-0.5"
                         >
                             <span>Detail Inspeksi</span>
@@ -344,7 +357,7 @@ export default function QcDashboard({ userName, dashboard }) {
                         </div>
 
                         <Link
-                            href="/penerimaan-barang"
+                            href="/inspeksi-qc/laporan-kerusakan"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline pt-0.5"
                         >
                             <span>Lihat Laporan Tolak</span>
@@ -355,7 +368,7 @@ export default function QcDashboard({ userName, dashboard }) {
             </div>
 
             {/* Pintasan Modul */}
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
                 {QUICK_MODULES.map((mod) => (
                     <Link
                         key={mod.href + mod.title}
@@ -399,7 +412,7 @@ export default function QcDashboard({ userName, dashboard }) {
                             </CardDescription>
                         </div>
                         <Button asChild variant="outline" size="sm" className="h-8 text-xs shrink-0">
-                            <Link href="/penerimaan-barang">Semua Penerimaan</Link>
+                            <Link href="/inspeksi-qc/pesanan-in-transit">Semua In Transit</Link>
                         </Button>
                     </CardHeader>
                     <CardContent className="flex-1">
@@ -458,7 +471,7 @@ export default function QcDashboard({ userName, dashboard }) {
                                             </div>
                                         </div>
                                         <Button asChild size="sm" className="h-8 text-xs shrink-0">
-                                            <Link href={`/penerimaan-barang?po=${po.uuid}`}>
+                                            <Link href={`/inspeksi-qc/create?po=${po.uuid}`}>
                                                 Inspeksi
                                             </Link>
                                         </Button>
@@ -479,7 +492,7 @@ export default function QcDashboard({ userName, dashboard }) {
                             </CardDescription>
                         </div>
                         <Button asChild variant="outline" size="sm" className="h-8 text-xs shrink-0">
-                            <Link href="/penerimaan-barang">Lihat Semua</Link>
+                            <Link href="/inspeksi-qc">Lihat Semua</Link>
                         </Button>
                     </CardHeader>
                     <CardContent className="flex-1">
@@ -531,7 +544,7 @@ export default function QcDashboard({ userName, dashboard }) {
                                             </div>
                                         </div>
                                         <Button asChild size="sm" variant="outline" className="h-8 text-xs shrink-0">
-                                            <Link href={`/penerimaan-barang/${receipt.uuid}`}>
+                                            <Link href={`/inspeksi-qc/${receipt.uuid}`}>
                                                 Detail
                                             </Link>
                                         </Button>

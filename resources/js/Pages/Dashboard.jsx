@@ -6,6 +6,7 @@ import OwnerDashboard from '@/Pages/Dashboard/OwnerDashboard';
 import SuperadminDashboard from '@/Pages/Dashboard/SuperadminDashboard';
 import BuyerDashboard from '@/Pages/Dashboard/BuyerDashboard';
 import QcDashboard from '@/Pages/Dashboard/QcDashboard';
+import VendorDashboard from '@/Pages/Dashboard/VendorDashboard';
 
 export default function Dashboard({
     user,
@@ -19,6 +20,8 @@ export default function Dashboard({
     buyer_dashboard = null,
     is_qc_gudang = false,
     qc_dashboard = null,
+    is_vendor = false,
+    vendor_dashboard = null,
 }) {
     const { auth } = usePage().props;
     const roleName = auth?.role?.name;
@@ -27,6 +30,7 @@ export default function Dashboard({
     const isOwnerRole = Boolean(is_owner) || roleName === 'owner';
     const isPurchasingRole = Boolean(is_purchasing) || roleName === 'purchasing';
     const isQcGudangRole = Boolean(is_qc_gudang) || roleName === 'qc_gudang';
+    const isVendorRole = Boolean(is_vendor) || roleName === 'vendor';
 
     const pageTitle = isSuperadminRole
         ? 'Dashboard Superadmin - PAGORA'
@@ -38,7 +42,9 @@ export default function Dashboard({
               ? 'Dashboard Purchasing - PAGORA'
               : isQcGudangRole
                 ? 'Dashboard QC Gudang - PAGORA'
-                : 'Dashboard - PAGORA';
+                : isVendorRole
+                  ? 'Dashboard Vendor - PAGORA'
+                  : 'Dashboard - PAGORA';
 
     return (
         <DashboardLayout>
@@ -68,6 +74,11 @@ export default function Dashboard({
                 <QcDashboard
                     userName={user?.name}
                     dashboard={qc_dashboard}
+                />
+            ) : isVendorRole && vendor_dashboard ? (
+                <VendorDashboard
+                    userName={user?.name}
+                    dashboard={vendor_dashboard}
                 />
             ) : (
                 <DashboardOverview userName={user?.name} />

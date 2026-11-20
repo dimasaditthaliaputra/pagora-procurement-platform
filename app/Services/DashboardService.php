@@ -26,6 +26,7 @@ class DashboardService
         $isOwner = $user !== null && $user->isOwner() && $user->tenant_id !== null;
         $isPurchasing = $user !== null && $user->isPurchasing() && $user->tenant_id !== null;
         $isQcGudang = $user !== null && $user->isQcGudang() && $user->tenant_id !== null;
+        $isVendor = $user !== null && $user->isVendor() && $user->vendor_id !== null;
 
         return [
             'user' => $user,
@@ -48,6 +49,10 @@ class DashboardService
             'is_qc_gudang' => $isQcGudang,
             'qc_dashboard' => $isQcGudang
                 ? $this->buildQcDashboard((int) $user->tenant_id)
+                : null,
+            'is_vendor' => $isVendor,
+            'vendor_dashboard' => $isVendor
+                ? $this->buildVendorDashboard((int) $user->vendor_id)
                 : null,
         ];
     }
@@ -155,6 +160,21 @@ class DashboardService
             'summary' => $this->dashboardRepository->getQcSummaryMetrics($tenantId),
             'pending_deliveries' => $this->dashboardRepository->getQcPendingDeliveries($tenantId, 5),
             'recent_inspections' => $this->dashboardRepository->getQcRecentInspections($tenantId, 5),
+        ];
+    }
+
+    /**
+     * Assemble vendor-centric dashboard covering orders, partnerships, and invoices (UC-13, UC-14, UC-16).
+     *
+     * @return array<string, mixed>
+     */
+    public function buildVendorDashboard(int $vendorId): array
+    {
+        return [
+            'summary' => $this->dashboardRepository->getVendorSummaryMetrics($vendorId),
+            'recent_orders' => $this->dashboardRepository->getVendorRecentOrders($vendorId, 5),
+            'partnerships' => $this->dashboardRepository->getVendorPartnerships($vendorId, 5),
+            'recent_invoices' => $this->dashboardRepository->getVendorRecentInvoices($vendorId, 5),
         ];
     }
 }

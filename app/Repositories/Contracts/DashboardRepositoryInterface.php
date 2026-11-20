@@ -203,4 +203,36 @@ interface DashboardRepositoryInterface
      * @return list<array<string, mixed>>
      */
     public function getQcRecentInspections(int $tenantId, int $limit = 5): array;
+
+    // -------------------------------------------------------------------------
+    // Vendor Dashboard
+    // -------------------------------------------------------------------------
+
+    /**
+     * Get KPI summary metrics for a Vendor user.
+     *
+     * @return array<string, array<string, int|float>>
+     */
+    public function getVendorSummaryMetrics(int $vendorId): array;
+
+    /**
+     * Get recent incoming Purchase Orders for the Vendor.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getVendorRecentOrders(int $vendorId, int $limit = 5): array;
+
+    /**
+     * Get active partnerships (agreed & pending) for the Vendor.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getVendorPartnerships(int $vendorId, int $limit = 5): array;
+
+    /**
+     * Get invoices issued by the Vendor ordered by most recent.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getVendorRecentInvoices(int $vendorId, int $limit = 5): array;
 }

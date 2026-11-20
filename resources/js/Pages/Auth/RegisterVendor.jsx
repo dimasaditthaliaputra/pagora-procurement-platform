@@ -220,6 +220,22 @@ export default function RegisterVendor({
         return () => clearInterval(interval);
     }, [otpSentAt, isGoogle]);
 
+    useEffect(() => {
+        if (!google_user || !google_user.email) {
+            setData((prev) => ({
+                ...prev,
+                google_id: '',
+                avatar: '',
+            }));
+        } else {
+            setData((prev) => ({
+                ...prev,
+                google_id: google_user.google_id || '',
+                avatar: google_user.avatar || '',
+            }));
+        }
+    }, [google_user]);
+
     const currentEmail = (data.email || data.contact_email || '').trim().toLowerCase();
     const isOtpVerified = isGoogle || Boolean(
         !isOtpExpired &&
@@ -852,6 +868,16 @@ export default function RegisterVendor({
             return;
         }
 
+        // Pastikan google_id dan avatar dibersihkan jika pendaftaran bukan registrasi Google murni
+        const curEmail = (data.email || data.contact_email || '').trim().toLowerCase();
+        const gEmail = (google_user?.email || '').trim().toLowerCase();
+        const isLegitGoogle = Boolean(isGoogle && google_user?.google_id && gEmail && curEmail === gEmail);
+
+        if (!isLegitGoogle) {
+            data.google_id = '';
+            data.avatar = '';
+        }
+
         post('/register/vendor', {
             forceFormData: true,
             onError: (errs) => {
@@ -1084,6 +1110,16 @@ export default function RegisterVendor({
                                         href="/auth/google/cancel"
                                         method="post"
                                         as="button"
+                                        onClick={() => {
+                                            setData((prev) => ({
+                                                ...prev,
+                                                name: '',
+                                                email: '',
+                                                contact_email: '',
+                                                google_id: '',
+                                                avatar: '',
+                                            }));
+                                        }}
                                         className="text-xs font-medium text-destructive hover:underline shrink-0 cursor-pointer"
                                     >
                                         Batalkan

@@ -1043,4 +1043,71 @@ class AuthenticationTest extends TestCase
             $this->assertMatchesRegularExpression('/^tenant_\d+_(npwp|nib|ktp)\.pdf$/', $filename);
         }
     }
+
+    public function test_manual_tenant_registration_clears_google_data_even_if_stale_google_session_was_present(): void
+    {
+        Storage::fake('local');
+        $otp = $this->requestOtp('manual.tenant@perusahaan.co.id');
+        $npwpFile = UploadedFile::fake()->create('scan_npwp.pdf', 500, 'application/pdf');
+
+        $googleSessionData = [
+            'name' => 'Stale Google User',
+            'email' => 'stale_google@gmail.com',
+            'google_id' => 'stale-google-id-12345',
+            'avatar' => 'https://lh3.googleusercontent.com/stale_avatar.jpg',
+        ];
+
+        $response = $this->withSession(['google_user' => $googleSessionData])
+            ->post('/register', [
+                'name' => 'Direktur Manual',
+                'email' => 'manual.tenant@perusahaan.co.id',
+                'otp' => $otp,
+                'password' => 'ManualPassword123#',
+                'password_confirmation' => 'ManualPassword123#',
+                'nama_perusahaan' => 'PT Manual Sukses Mandiri',
+                'nomor_npwp' => '07.678.901.2-345.000',
+                'telepon' => '081299998888',
+                'alamat' => 'Jl. Jenderal Sudirman No. 1, Jakarta',
+                'dokumen_npwp' => $npwpFile,
+                'google_id' => 'stale-google-id-12345',
+                'avatar' => 'https://lh3.googleusercontent.com/stale_avatar.jpg',
+            ]);
+
+        $response->assertRedirect(route('register.success'));
+
+        $user = User::where('email', 'manual.tenant@perusahaan.co.id')->firstOrFail();
+        $this->assertNull($user->google_id);
+        $this->assertNull($user->avatar);
+        $this->assertFalse(session()->has('google_user'));
+    }
+
+    public function test_google_callback_unlinks_mismatched_google_id_from_other_account(): void
+    {
+        // Existing user who mistakenly had google_id assigned
+        $corruptedUser = User::factory()->create([
+            'email' => 'manual.corrupted@bonuscable.com',
+            'google_id' => 'google-real-owner-id-999',
+            'avatar' => 'https://lh3.googleusercontent.com/corrupted.jpg',
+        ]);
+
+        $socialiteUser = Mockery::mock(SocialiteUser::class);
+        $socialiteUser->shouldReceive('getId')->andReturn('google-real-owner-id-999');
+        $socialiteUser->shouldReceive('getName')->andReturn('Real Google Owner');
+        $socialiteUser->shouldReceive('getEmail')->andReturn('real_google_owner@gmail.com');
+        $socialiteUser->shouldReceive('getAvatar')->andReturn('https://lh3.googleusercontent.com/real_owner.jpg');
+
+        $driver = Mockery::mock(Provider::class);
+        $driver->shouldReceive('user')->andReturn($socialiteUser);
+        Socialite::shouldReceive('driver')->with('google')->andReturn($driver);
+
+        $response = $this->withSession(['google_auth_flow' => 'tenant'])->get('/auth/google/callback');
+
+        // Mismatched google_id should be stripped from the corrupted user
+        $corruptedUser->refresh();
+        $this->assertNull($corruptedUser->google_id);
+
+        // Real google user should be directed to register with fresh session
+        $response->assertRedirect(route('register'));
+        $this->assertSame('real_google_owner@gmail.com', session('google_user.email'));
+    }
 }

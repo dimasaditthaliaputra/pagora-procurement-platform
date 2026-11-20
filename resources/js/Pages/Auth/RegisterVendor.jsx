@@ -236,6 +236,12 @@ export default function RegisterVendor({
         }
     }, [google_user]);
 
+    useEffect(() => {
+        if (isGoogle && status) {
+            notify.success(status, { duration: 10000 });
+        }
+    }, [isGoogle, status]);
+
     const currentEmail = (data.email || data.contact_email || '').trim().toLowerCase();
     const isOtpVerified = isGoogle || Boolean(
         !isOtpExpired &&
@@ -246,6 +252,7 @@ export default function RegisterVendor({
     );
 
     const scrollBodyToTop = () => {
+        window.scrollTo(0, 0);
         if (bodyScrollRef.current) {
             bodyScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -253,10 +260,26 @@ export default function RegisterVendor({
 
     const scrollToFirstError = () => {
         requestAnimationFrame(() => {
-            const firstInvalid = bodyScrollRef.current?.querySelector(
+            window.scrollTo(0, 0);
+            const container = bodyScrollRef.current;
+            if (!container) return;
+
+            const firstInvalid = container.querySelector(
                 '[aria-invalid="true"], [data-invalid="true"]'
             );
-            firstInvalid?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            if (firstInvalid) {
+                const containerRect = container.getBoundingClientRect();
+                const elemRect = firstInvalid.getBoundingClientRect();
+                const relativeTop = elemRect.top - containerRect.top + container.scrollTop;
+                const targetScroll = Math.max(0, relativeTop - 32);
+
+                container.scrollTo({ top: targetScroll, behavior: 'smooth' });
+
+                if (typeof firstInvalid.focus === 'function' && !firstInvalid.hasAttribute('disabled')) {
+                    firstInvalid.focus({ preventScroll: true });
+                }
+            }
         });
     };
 
@@ -1019,9 +1042,9 @@ export default function RegisterVendor({
                                     >
                                         <span
                                             className={cn(
-                                                'flex items-center justify-center size-5 rounded-full text-[11px] font-semibold shrink-0',
+                                                'flex items-center justify-center size-5 rounded-full text-[11px] font-semibold shrink-0 transition-all',
                                                 hasErr
-                                                    ? 'bg-destructive text-destructive-foreground'
+                                                    ? 'bg-destructive/15 text-destructive border border-destructive/40 shadow-2xs'
                                                     : isActive
                                                         ? 'bg-primary text-primary-foreground'
                                                         : isCompleted
@@ -1030,7 +1053,7 @@ export default function RegisterVendor({
                                             )}
                                         >
                                             {hasErr ? (
-                                                '!'
+                                                <AlertCircle className="size-4 shrink-0 stroke-[2.5]" />
                                             ) : isCompleted ? (
                                                 <CheckCircle2 className="size-3.5" />
                                             ) : (
@@ -1055,14 +1078,6 @@ export default function RegisterVendor({
                         className="flex-1 min-h-0 overflow-y-auto px-5 py-4 sm:px-8 sm:py-5"
                     >
                         <div className="w-full space-y-4 sm:space-y-5">
-                            {/* Status Sukses Banner */}
-                            {status && (
-                                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3 text-emerald-800 dark:text-emerald-300">
-                                    <CheckCircle2 className="size-5 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
-                                    <p className="text-sm font-medium">{status}</p>
-                                </div>
-                            )}
-
                             {/* Invalid / Expired Invitation Banner */}
                             {invitation_error && (
                                 <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/25 flex items-start gap-3 text-destructive">
@@ -1128,7 +1143,7 @@ export default function RegisterVendor({
                             )}
 
                             {/* STEP HEADER */}
-                            <div className="flex flex-col gap-1 text-center items-center">
+                            <div className="flex flex-col gap-1 text-center items-center pb-2 sm:pb-3">
                                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                                     {step === 1 && 'Registrasi Akun Vendor'}
                                     {step === 2 && 'Verifikasi Email Bisnis'}
@@ -1137,7 +1152,12 @@ export default function RegisterVendor({
                                 </h1>
                                 <p className="text-xs sm:text-sm text-muted-foreground">
                                     {step === 1 && 'Langkah 1 dari 4 - Profil akun penanggung jawab'}
-                                    {step === 2 && 'Langkah 2 dari 4 - Masukkan kode verifikasi OTP email bisnis'}
+                                    {step === 2 && (
+                                        <>
+                                            Langkah 2 dari 4 - Masukkan kode 6 digit yang kami kirimkan ke{' '}
+                                            <span className="font-semibold text-foreground">{data.email || data.contact_email}</span> untuk memverifikasi pendaftaran Anda
+                                        </>
+                                    )}
                                     {step === 3 && 'Langkah 3 dari 4 - Data perusahaan & kategori komoditas yang dipasok'}
                                     {step === 4 && 'Langkah 4 dari 4 - Nomor identitas & unggah berkas legalitas resmi'}
                                 </p>
@@ -1348,15 +1368,7 @@ export default function RegisterVendor({
 
                             {/* STEP 2: Verifikasi OTP Email Bisnis */}
                             {step === 2 && (
-                                <div className="space-y-6 max-w-lg mx-auto py-4">
-                                    <div className="flex flex-col gap-1.5 text-center">
-                                        <h1 className="text-2xl font-bold tracking-tight">Verifikasi Email Bisnis</h1>
-                                        <p className="text-muted-foreground text-sm text-balance">
-                                            Langkah 2 dari 4 - Masukkan kode 6 digit yang kami kirimkan ke{' '}
-                                            <span className="font-semibold text-foreground">{data.email}</span> untuk memverifikasi pendaftaran Anda.
-                                        </p>
-                                    </div>
-
+                                <div className="space-y-6 max-w-lg mx-auto py-2">
                                     {isOtpExpired && !errors.otp && (
                                         <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/25 flex items-start gap-3 text-destructive text-xs">
                                             <AlertCircle className="size-4 shrink-0 mt-0.5" />
@@ -1783,7 +1795,7 @@ export default function RegisterVendor({
                                                 <span className="text-destructive">*</span>
                                             </Label>
                                             <p className="text-xs text-muted-foreground mt-0.5">
-                                                Lengkapi berkas legalitas resmi perusahaan, status PKP, dan dokumen perizinan berformat PDF maksimal 5 MB per berkas.
+                                                Lengkapi berkas legalitas resmi perusahaan, status PKP, dan dokumen perizinan pendukung usaha Anda.
                                             </p>
                                         </div>
 
@@ -2057,7 +2069,7 @@ export default function RegisterVendor({
 
                                         {/* Dokumen Kondisional: SPPKP (Wajib jika PKP / PPN) */}
                                         {(data.pkp_status === 'ppn' || data.is_pkp === true) && (
-                                            <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-primary/40 bg-primary/5">
+                                            <div className="space-y-3 p-3.5 sm:p-4 rounded-xl border border-border bg-card/40">
                                                 <div className="flex items-center justify-between gap-2">
                                                     <Label
                                                         htmlFor="vendor_nomor_sppkp"
@@ -2065,14 +2077,11 @@ export default function RegisterVendor({
                                                             'text-xs font-semibold uppercase tracking-wider',
                                                             (errors.nomor_sppkp || errors.dokumen_sppkp || errors.file_sppkp)
                                                                 ? 'text-destructive'
-                                                                : 'text-primary'
+                                                                : 'text-muted-foreground'
                                                         )}
                                                     >
                                                         Dokumen SPPKP (Surat Pengukuhan Pengusaha Kena Pajak) <span className="text-destructive">*</span>
                                                     </Label>
-                                                    <Badge variant="default" className="text-[10px] font-medium">
-                                                        Wajib untuk PKP
-                                                    </Badge>
                                                 </div>
 
                                                 <p className="text-xs text-muted-foreground">
@@ -2104,13 +2113,14 @@ export default function RegisterVendor({
                                                         disabled={processing}
                                                         aria-invalid={!!errors.nomor_sppkp}
                                                         className={cn(
-                                                            'h-9 text-xs sm:text-sm bg-background',
+                                                            'h-9 text-xs sm:text-sm',
                                                             errors.nomor_sppkp && 'border-destructive focus-visible:ring-destructive'
                                                         )}
                                                     />
                                                     {errors.nomor_sppkp && (
-                                                        <p className="text-xs font-medium text-destructive">
-                                                            {errors.nomor_sppkp}
+                                                        <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                            <AlertCircle className="size-3.5 shrink-0" />
+                                                            <span>{errors.nomor_sppkp}</span>
                                                         </p>
                                                     )}
                                                 </div>
@@ -2160,13 +2170,10 @@ export default function RegisterVendor({
                                                         >
                                                             Dokumen Akta Pendirian Perusahaan <span className="text-destructive">*</span>
                                                         </Label>
-                                                        <Badge variant="default" className="text-[10px] font-medium">
-                                                            Wajib
-                                                        </Badge>
                                                     </div>
 
                                                     <p className="text-xs text-muted-foreground">
-                                                        Lampirkan berkas akta pendirian resmi perusahaan dari notaris berformat PDF maksimal 5 MB.
+                                                        Lampirkan berkas akta pendirian resmi perusahaan yang diterbitkan oleh notaris.
                                                     </p>
 
                                                     {/* Nomor Akta */}
@@ -2199,8 +2206,9 @@ export default function RegisterVendor({
                                                             )}
                                                         />
                                                         {errors.nomor_akta && (
-                                                            <p className="text-xs font-medium text-destructive">
-                                                                {errors.nomor_akta}
+                                                            <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                                <AlertCircle className="size-3.5 shrink-0" />
+                                                                <span>{errors.nomor_akta}</span>
                                                             </p>
                                                         )}
                                                     </div>
@@ -2245,13 +2253,10 @@ export default function RegisterVendor({
                                                         >
                                                             Dokumen SK Pengesahan Kemenkumham <span className="text-destructive">*</span>
                                                         </Label>
-                                                        <Badge variant="default" className="text-[10px] font-medium">
-                                                            Wajib
-                                                        </Badge>
                                                     </div>
 
                                                     <p className="text-xs text-muted-foreground">
-                                                        Lampirkan Surat Keputusan (SK) Pengesahan Badan Hukum dari Kementerian Hukum dan HAM RI berformat PDF maksimal 5 MB.
+                                                        Lampirkan Surat Keputusan (SK) Pengesahan Badan Hukum dari Kementerian Hukum dan HAM RI.
                                                     </p>
 
                                                     {/* Nomor SK Kemenkumham */}
@@ -2284,8 +2289,9 @@ export default function RegisterVendor({
                                                             )}
                                                         />
                                                         {errors.nomor_sk_kemenkumham && (
-                                                            <p className="text-xs font-medium text-destructive">
-                                                                {errors.nomor_sk_kemenkumham}
+                                                            <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                                <AlertCircle className="size-3.5 shrink-0" />
+                                                                <span>{errors.nomor_sk_kemenkumham}</span>
                                                             </p>
                                                         )}
                                                     </div>

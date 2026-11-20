@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -10,7 +10,7 @@ import { FlashHandler } from '@/Components/flash-handler';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react';
 import { isEmail } from '@/lib/validators';
 
 function OtpStep({ otp, status }) {
@@ -105,12 +105,19 @@ function OtpStep({ otp, status }) {
 }
 
 export default function Login({ status, otp = null }) {
+    const { errors: pageErrors } = usePage().props;
     const [isView, setIsView] = useState(false);
     const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
         email: '',
         password: '',
         remember: false,
     });
+
+    useEffect(() => {
+        if (pageErrors?.google) {
+            notify.error(pageErrors.google);
+        }
+    }, [pageErrors?.google]);
 
     useEffect(() => {
         const originalBodyOverflow = document.body.style.overflow;
@@ -297,12 +304,7 @@ export default function Login({ status, otp = null }) {
                                 <div>
                                     <a
                                         href="/auth/google/redirect?flow=login"
-                                        aria-invalid={errors.google ? 'true' : 'false'}
-                                        aria-describedby={errors.google ? 'google-error' : undefined}
-                                        className={cn(
-                                            'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all outline-none select-none border border-border bg-background hover:bg-muted hover:text-foreground h-10 px-4 w-full cursor-pointer',
-                                            errors.google && 'border-destructive text-destructive ring-1 ring-destructive/40 bg-destructive/5 hover:bg-destructive/10'
-                                        )}
+                                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all outline-none select-none border border-border bg-background hover:bg-muted hover:text-foreground h-10 px-4 w-full cursor-pointer"
                                     >
                                         <svg className="size-4 shrink-0" viewBox="0 0 24 24">
                                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -312,11 +314,6 @@ export default function Login({ status, otp = null }) {
                                         </svg>
                                         Masuk dengan Google
                                     </a>
-                                    {errors.google && (
-                                        <p id="google-error" className="text-xs font-medium text-destructive text-center mt-2">
-                                            {errors.google}
-                                        </p>
-                                    )}
                                 </div>
                             </div>
 

@@ -170,6 +170,12 @@ export default function Register({ google_user = null, status = null, acceptance
         }
     }, [google_user]);
 
+    useEffect(() => {
+        if (isGoogle && status) {
+            notify.success(status, { duration: 10000 });
+        }
+    }, [isGoogle, status]);
+
     const clearLegalDocumentErrors = () => {
         const docErrorKeys = Object.keys(errors).filter(
             (key) =>
@@ -451,7 +457,7 @@ export default function Register({ google_user = null, status = null, acceptance
             notify.validationFailed();
             requestAnimationFrame(() => {
                 const firstInvalid = document.querySelector('[aria-invalid="true"]');
-                firstInvalid?.focus();
+                firstInvalid?.focus({ preventScroll: true });
             });
             return false;
         }
@@ -549,7 +555,7 @@ export default function Register({ google_user = null, status = null, acceptance
             notify.validationFailed();
             requestAnimationFrame(() => {
                 const firstInvalid = document.querySelector('[aria-invalid="true"]');
-                firstInvalid?.focus();
+                firstInvalid?.focus({ preventScroll: true });
             });
             return false;
         }
@@ -614,7 +620,7 @@ export default function Register({ google_user = null, status = null, acceptance
             notify.validationFailed();
             requestAnimationFrame(() => {
                 const firstInvalid = document.querySelector('[aria-invalid="true"]');
-                firstInvalid?.focus();
+                firstInvalid?.focus({ preventScroll: true });
             });
             return false;
         }
@@ -723,7 +729,7 @@ export default function Register({ google_user = null, status = null, acceptance
                 }
                 requestAnimationFrame(() => {
                     const firstInvalid = document.querySelector('[aria-invalid="true"]');
-                    firstInvalid?.focus();
+                    firstInvalid?.focus({ preventScroll: true });
                 });
             },
         });
@@ -801,9 +807,9 @@ export default function Register({ google_user = null, status = null, acceptance
                                     >
                                         <span
                                             className={cn(
-                                                'flex items-center justify-center size-5 rounded-full text-[11px] font-semibold shrink-0',
+                                                'flex items-center justify-center size-5 rounded-full text-[11px] font-semibold shrink-0 transition-all',
                                                 hasErr
-                                                    ? 'bg-destructive text-destructive-foreground'
+                                                    ? 'bg-destructive/15 text-destructive border border-destructive/40 shadow-2xs'
                                                     : isActive
                                                         ? 'bg-primary text-primary-foreground'
                                                         : isCompleted
@@ -811,7 +817,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                                             : 'bg-muted-foreground/20 text-muted-foreground'
                                             )}
                                         >
-                                            {hasErr ? '!' : isCompleted ? <CheckCircle2 className="size-3.5" /> : item.id}
+                                            {hasErr ? <AlertCircle className="size-4 shrink-0 stroke-[2.5]" /> : isCompleted ? <CheckCircle2 className="size-3.5" /> : item.id}
                                         </span>
                                         <span className="truncate">
                                             {item.label}
@@ -873,7 +879,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                 }}
                                 className="flex flex-col gap-4"
                             >
-                                <div className="flex flex-col gap-1 text-center">
+                                <div className="flex flex-col gap-1 text-center pb-2 sm:pb-3">
                                     <h1 className="text-2xl font-bold tracking-tight">Daftar Akun Tenant</h1>
                                     <p className="text-muted-foreground text-xs text-balance">
                                         Langkah 1 dari 4 - Masukkan profil perwakilan penanggung jawab akun
@@ -961,7 +967,10 @@ export default function Register({ google_user = null, status = null, acceptance
                                             autoFocus={!isGoogle}
                                         />
                                         {errors.name && (
-                                            <p className="text-xs font-medium text-destructive">{errors.name}</p>
+                                            <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                <AlertCircle className="size-3.5 shrink-0" />
+                                                <span>{errors.name}</span>
+                                            </p>
                                         )}
                                     </div>
 
@@ -999,7 +1008,10 @@ export default function Register({ google_user = null, status = null, acceptance
                                             )}
                                         />
                                         {errors.email && (
-                                            <p className="text-xs font-medium text-destructive">{errors.email}</p>
+                                            <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                <AlertCircle className="size-3.5 shrink-0" />
+                                                <span>{errors.email}</span>
+                                            </p>
                                         )}
                                     </div>
 
@@ -1035,7 +1047,10 @@ export default function Register({ google_user = null, status = null, acceptance
                                                     disabled={sendingOtp}
                                                 />
                                                 {errors.password && (
-                                                    <p className="text-xs font-medium text-destructive">{errors.password}</p>
+                                                    <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                        <AlertCircle className="size-3.5 shrink-0" />
+                                                        <span>{errors.password}</span>
+                                                    </p>
                                                 )}
                                             </div>
 
@@ -1059,8 +1074,9 @@ export default function Register({ google_user = null, status = null, acceptance
                                                     disabled={sendingOtp}
                                                 />
                                                 {errors.password_confirmation && (
-                                                    <p className="text-xs font-medium text-destructive">
-                                                        {errors.password_confirmation}
+                                                    <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                        <AlertCircle className="size-3.5 shrink-0" />
+                                                        <span>{errors.password_confirmation}</span>
                                                     </p>
                                                 )}
                                             </div>
@@ -1131,7 +1147,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                 }}
                                 className="flex flex-col gap-5"
                             >
-                                <div className="flex flex-col gap-1.5 text-center">
+                                <div className="flex flex-col gap-1.5 text-center pb-2 sm:pb-3">
                                     <h1 className="text-2xl font-bold tracking-tight">Verifikasi Email Bisnis</h1>
                                     <p className="text-muted-foreground text-sm text-balance">
                                         Langkah 2 dari 4 - Masukkan kode 6 digit yang kami kirimkan ke{' '}
@@ -1225,7 +1241,7 @@ export default function Register({ google_user = null, status = null, acceptance
                                 className="flex flex-col gap-4"
                                 noValidate
                             >
-                                <div className="flex flex-col gap-1 text-center">
+                                <div className="flex flex-col gap-1 text-center pb-2 sm:pb-3">
                                     <h1 className="text-2xl font-bold tracking-tight">Profil Perusahaan</h1>
                                     <p className="text-muted-foreground text-xs text-balance">
                                         Langkah 3 dari 4 - Lengkapi profil perusahaan buyer yang akan didaftarkan
@@ -1258,7 +1274,10 @@ export default function Register({ google_user = null, status = null, acceptance
                                             autoFocus
                                         />
                                         {errors.nama_perusahaan && (
-                                            <p className="text-xs font-medium text-destructive">{errors.nama_perusahaan}</p>
+                                            <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                <AlertCircle className="size-3.5 shrink-0" />
+                                                <span>{errors.nama_perusahaan}</span>
+                                            </p>
                                         )}
                                     </div>
 
@@ -1295,7 +1314,10 @@ export default function Register({ google_user = null, status = null, acceptance
                                             )}
                                         />
                                         {errors.telepon && (
-                                            <p className="text-xs font-medium text-destructive">{errors.telepon}</p>
+                                            <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                <AlertCircle className="size-3.5 shrink-0" />
+                                                <span>{errors.telepon}</span>
+                                            </p>
                                         )}
                                     </div>
 
@@ -1323,7 +1345,10 @@ export default function Register({ google_user = null, status = null, acceptance
                                             )}
                                         />
                                         {errors.alamat && (
-                                            <p className="text-xs font-medium text-destructive">{errors.alamat}</p>
+                                            <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                <AlertCircle className="size-3.5 shrink-0" />
+                                                <span>{errors.alamat}</span>
+                                            </p>
                                         )}
                                     </div>
 
@@ -1360,10 +1385,10 @@ export default function Register({ google_user = null, status = null, acceptance
                         {/* STEP 4: Dokumen Legalitas Tenant */}
                         {step === 4 && (
                             <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-                                <div className="flex flex-col gap-1 text-center">
+                                <div className="flex flex-col gap-1 text-center pb-2 sm:pb-3">
                                     <h1 className="text-2xl font-bold tracking-tight">Dokumen Legalitas Perusahaan</h1>
                                     <p className="text-muted-foreground text-xs text-balance">
-                                        Langkah 4 dari 4 - Lengkapi nomor identitas dan unggah berkas legalitas resmi perusahaan berformat PDF maksimal 5 MB per berkas.
+                                        Langkah 4 dari 4 - Lengkapi nomor identitas dan unggah berkas legalitas resmi perusahaan.
                                     </p>
                                 </div>
 
@@ -1430,7 +1455,10 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 )}
                                             />
                                             {errors.nomor_npwp && (
-                                                <p className="text-xs font-medium text-destructive">{errors.nomor_npwp}</p>
+                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                    <AlertCircle className="size-3.5 shrink-0" />
+                                                    <span>{errors.nomor_npwp}</span>
+                                                </p>
                                             )}
                                         </div>
 
@@ -1515,8 +1543,9 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 )}
                                             />
                                             {errors.nomor_nib && (
-                                                <p className="text-xs font-medium text-destructive">
-                                                    {errors.nomor_nib}
+                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                    <AlertCircle className="size-3.5 shrink-0" />
+                                                    <span>{errors.nomor_nib}</span>
                                                 </p>
                                             )}
                                         </div>
@@ -1602,8 +1631,9 @@ export default function Register({ google_user = null, status = null, acceptance
                                                 )}
                                             />
                                             {errors.nomor_ktp && (
-                                                <p className="text-xs font-medium text-destructive">
-                                                    {errors.nomor_ktp}
+                                                <p className="text-xs font-medium text-destructive flex items-center gap-1.5 mt-1">
+                                                    <AlertCircle className="size-3.5 shrink-0" />
+                                                    <span>{errors.nomor_ktp}</span>
                                                 </p>
                                             )}
                                         </div>

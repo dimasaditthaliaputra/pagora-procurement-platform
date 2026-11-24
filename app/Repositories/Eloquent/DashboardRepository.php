@@ -66,6 +66,52 @@ class DashboardRepository implements DashboardRepositoryInterface
     }
 
     /**
+     * Safely execute an aggregate query that returns a single row/object.
+     *
+     * @param  callable(): mixed  $callback
+     */
+    private function safeFirst(callable $callback): ?object
+    {
+        try {
+            $result = $callback();
+
+            return is_object($result) ? $result : null;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Build a conditional COUNT expression: COUNT(*) FILTER (WHERE condition) in pgsql/sqlite,
+     * or COUNT(CASE WHEN condition THEN 1 END) in other drivers.
+     */
+    private function countFilter(string $condition): string
+    {
+        $driver = DB::connection()->getDriverName();
+
+        if (in_array($driver, ['pgsql', 'sqlite'], true)) {
+            return "COUNT(*) FILTER (WHERE {$condition})";
+        }
+
+        return "COUNT(CASE WHEN {$condition} THEN 1 END)";
+    }
+
+    /**
+     * Build a conditional SUM expression: SUM(column) FILTER (WHERE condition) in pgsql/sqlite,
+     * or SUM(CASE WHEN condition THEN column ELSE 0 END) in other drivers.
+     */
+    private function sumFilter(string $column, string $condition): string
+    {
+        $driver = DB::connection()->getDriverName();
+
+        if (in_array($driver, ['pgsql', 'sqlite'], true)) {
+            return "COALESCE(SUM({$column}) FILTER (WHERE {$condition}), 0)";
+        }
+
+        return "COALESCE(SUM(CASE WHEN {$condition} THEN {$column} ELSE 0 END), 0)";
+    }
+
+    /**
      * Get SQL expression for formatting date column to 'YYYY-MM' according to DB driver.
      */
     private function monthKeyExpression(string $column = 'created_at'): string
@@ -114,60 +160,29 @@ class DashboardRepository implements DashboardRepositoryInterface
      */
     public function getSuperadminSummaryMetrics(): array
     {
-        $tenantsTotal = $this->safeCount(static fn (): int => PerusahaanBuyer::query()->count());
-        $tenantsPending = $this->safeCount(
-            static fn (): int => PerusahaanBuyer::query()
-                ->where('verification_status', VerificationStatus::Pending->value)
-                ->count()
-        );
-        $tenantsApproved = $this->safeCount(
-            static fn (): int => PerusahaanBuyer::query()
-                ->where('verification_status', VerificationStatus::Approved->value)
-                ->count()
-        );
-        $tenantsRejected = $this->safeCount(
-            static fn (): int => PerusahaanBuyer::query()
-                ->where('verification_status', VerificationStatus::Rejected->value)
-                ->count()
-        );
-        $tenantsActive = $this->safeCount(
-            static fn (): int => PerusahaanBuyer::query()
-                ->where('verification_status', VerificationStatus::Approved->value)
-                ->where('is_active', true)
-                ->count()
+        $buyerAgg = $this->safeFirst(fn () => PerusahaanBuyer::query()
+            ->selectRaw("
+                COUNT(*) as total,
+                {$this->countFilter("verification_status = 'pending'")} as pending,
+                {$this->countFilter("verification_status = 'approved'")} as approved,
+                {$this->countFilter("verification_status = 'rejected'")} as rejected,
+                {$this->countFilter("verification_status = 'approved' AND is_active = true")} as active
+            ")
+            ->first()
         );
 
-        $vendorsTotal = $this->safeCount(static fn (): int => Vendor::query()->count());
-        $vendorsPending = $this->safeCount(
-            static fn (): int => Vendor::query()
-                ->where('verification_status', VerificationStatus::Pending->value)
-                ->count()
+        $vendorAgg = $this->safeFirst(fn () => Vendor::query()
+            ->selectRaw("
+                COUNT(*) as total,
+                {$this->countFilter("verification_status = 'pending'")} as pending,
+                {$this->countFilter("verification_status = 'approved'")} as approved,
+                {$this->countFilter("verification_status = 'rejected'")} as rejected,
+                {$this->countFilter('is_active = false OR blocked_at IS NOT NULL')} as blocked,
+                {$this->countFilter("verification_status = 'approved' AND is_active = true AND blocked_at IS NULL")} as active
+            ")
+            ->first()
         );
-        $vendorsApproved = $this->safeCount(
-            static fn (): int => Vendor::query()
-                ->where('verification_status', VerificationStatus::Approved->value)
-                ->count()
-        );
-        $vendorsRejected = $this->safeCount(
-            static fn (): int => Vendor::query()
-                ->where('verification_status', VerificationStatus::Rejected->value)
-                ->count()
-        );
-        $vendorsBlocked = $this->safeCount(
-            static fn (): int => Vendor::query()
-                ->where(function ($query): void {
-                    $query->where('is_active', false)
-                        ->orWhereNotNull('blocked_at');
-                })
-                ->count()
-        );
-        $vendorsActive = $this->safeCount(
-            static fn (): int => Vendor::query()
-                ->where('verification_status', VerificationStatus::Approved->value)
-                ->where('is_active', true)
-                ->whereNull('blocked_at')
-                ->count()
-        );
+
         $vendorPendingDocuments = $this->safeCount(
             static fn (): int => DokumenLegalitasVendor::query()
                 ->where('verification_status', VerificationStatus::Pending->value)
@@ -175,43 +190,45 @@ class DashboardRepository implements DashboardRepositoryInterface
                 ->count()
         );
 
-        $commoditiesTotal = $this->safeCount(static fn (): int => Komoditas::query()->count());
-        $commoditiesActive = $this->safeCount(
-            static fn (): int => Komoditas::query()->where('is_active', true)->count()
-        );
-        $commoditiesWithApiCode = $this->safeCount(
-            static fn (): int => Komoditas::query()
-                ->whereNotNull('api_reference_code')
-                ->where('api_reference_code', '!=', '')
-                ->count()
-        );
-        $categoriesTotal = $this->safeCount(static fn (): int => CommodityCategory::query()->count());
-        $categoriesActive = $this->safeCount(
-            static fn (): int => CommodityCategory::query()->where('is_active', true)->count()
+        $commodityAgg = $this->safeFirst(fn () => Komoditas::query()
+            ->selectRaw("
+                COUNT(*) as total,
+                {$this->countFilter('is_active = true')} as active,
+                {$this->countFilter("api_reference_code IS NOT NULL AND api_reference_code != ''")} as with_api_code
+            ")
+            ->first()
         );
 
-        $usersTotal = $this->safeCount(static fn (): int => User::query()->count());
-        $usersActive = $this->safeCount(
-            static fn (): int => User::query()->where('is_active', true)->count()
+        $categoryAgg = $this->safeFirst(fn () => CommodityCategory::query()
+            ->selectRaw("
+                COUNT(*) as total,
+                {$this->countFilter('is_active = true')} as active
+            ")
+            ->first()
         );
 
-        $partnershipsTotal = $this->safeCount(static fn (): int => KerjaSama::query()->count());
-        $partnershipsAgreed = $this->safeCount(
-            static fn (): int => KerjaSama::query()
-                ->where('status', StatusKerjaSama::Agreed->value)
-                ->count()
+        $userAgg = $this->safeFirst(fn () => User::query()
+            ->selectRaw("
+                COUNT(*) as total,
+                {$this->countFilter('is_active = true')} as active
+            ")
+            ->first()
         );
-        $partnershipsPending = $this->safeCount(
-            static fn (): int => KerjaSama::query()
-                ->where('status', StatusKerjaSama::Pending->value)
-                ->count()
+
+        $partnershipAgg = $this->safeFirst(fn () => KerjaSama::query()
+            ->selectRaw("
+                COUNT(*) as total,
+                {$this->countFilter("status = 'agreed'")} as agreed,
+                {$this->countFilter("status = 'pending'")} as pending
+            ")
+            ->first()
         );
 
         $purchaseOrdersTotal = $this->safeCount(static function (): int {
             try {
                 return PurchaseOrder::query()->count();
             } catch (Throwable) {
-                return DB::table('purchase_orders')->whereNull('deleted_at')->count();
+                return DB::table('purchase_order')->whereNull('deleted_at')->count();
             }
         });
 
@@ -225,30 +242,35 @@ class DashboardRepository implements DashboardRepositoryInterface
                 ->count();
         });
 
+        $commoditiesTotal = (int) ($commodityAgg->total ?? 0);
+        $commoditiesActive = (int) ($commodityAgg->active ?? 0);
+        $usersTotal = (int) ($userAgg->total ?? 0);
+        $usersActive = (int) ($userAgg->active ?? 0);
+
         return [
             'tenants' => [
-                'total' => $tenantsTotal,
-                'pending' => $tenantsPending,
-                'approved' => $tenantsApproved,
-                'rejected' => $tenantsRejected,
-                'active' => $tenantsActive,
+                'total' => (int) ($buyerAgg->total ?? 0),
+                'pending' => (int) ($buyerAgg->pending ?? 0),
+                'approved' => (int) ($buyerAgg->approved ?? 0),
+                'rejected' => (int) ($buyerAgg->rejected ?? 0),
+                'active' => (int) ($buyerAgg->active ?? 0),
             ],
             'vendors' => [
-                'total' => $vendorsTotal,
-                'pending' => $vendorsPending,
-                'approved' => $vendorsApproved,
-                'rejected' => $vendorsRejected,
-                'active' => $vendorsActive,
-                'blocked' => $vendorsBlocked,
+                'total' => (int) ($vendorAgg->total ?? 0),
+                'pending' => (int) ($vendorAgg->pending ?? 0),
+                'approved' => (int) ($vendorAgg->approved ?? 0),
+                'rejected' => (int) ($vendorAgg->rejected ?? 0),
+                'active' => (int) ($vendorAgg->active ?? 0),
+                'blocked' => (int) ($vendorAgg->blocked ?? 0),
                 'pending_documents' => $vendorPendingDocuments,
             ],
             'commodities' => [
                 'total' => $commoditiesTotal,
                 'active' => $commoditiesActive,
                 'inactive' => max(0, $commoditiesTotal - $commoditiesActive),
-                'with_api_code' => $commoditiesWithApiCode,
-                'categories_total' => $categoriesTotal,
-                'categories_active' => $categoriesActive,
+                'with_api_code' => (int) ($commodityAgg->with_api_code ?? 0),
+                'categories_total' => (int) ($categoryAgg->total ?? 0),
+                'categories_active' => (int) ($categoryAgg->active ?? 0),
             ],
             'users' => [
                 'total' => $usersTotal,
@@ -256,9 +278,9 @@ class DashboardRepository implements DashboardRepositoryInterface
                 'inactive' => max(0, $usersTotal - $usersActive),
             ],
             'ecosystem' => [
-                'partnerships_total' => $partnershipsTotal,
-                'partnerships_agreed' => $partnershipsAgreed,
-                'partnerships_pending' => $partnershipsPending,
+                'partnerships_total' => (int) ($partnershipAgg->total ?? 0),
+                'partnerships_agreed' => (int) ($partnershipAgg->agreed ?? 0),
+                'partnerships_pending' => (int) ($partnershipAgg->pending ?? 0),
                 'purchase_orders_total' => $purchaseOrdersTotal,
                 'disputes_open' => $disputesOpen,
             ],
@@ -704,42 +726,29 @@ class DashboardRepository implements DashboardRepositoryInterface
      */
     public function getManajemenSummaryMetrics(int $tenantId): array
     {
-        $disputesTotal = $this->countTenantDisputes($tenantId);
-        $disputesOpen = $this->countTenantDisputes($tenantId, [
-            StatusSengketa::Open->value,
-            'terbuka',
-        ]);
-        $disputesInMediation = $this->countTenantDisputes($tenantId, [
-            StatusSengketa::InMediation->value,
-            StatusSengketa::AwaitingResponse->value,
-            'dalam_mediasi',
-        ]);
-        $disputesResolved = $this->countTenantDisputes($tenantId, [
-            StatusSengketa::Resolved->value,
-            'selesai',
-        ]);
+        $disputeAgg = $this->safeFirst(fn () => Sengketa::query()
+            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
+            ->selectRaw("
+            COUNT(*) as total,
+            {$this->countFilter("status IN ('open', 'terbuka')")} as open,
+            {$this->countFilter("status IN ('in_mediation', 'awaiting_response', 'dalam_mediasi')")} as in_mediation,
+            {$this->countFilter("status IN ('resolved', 'selesai')")} as resolved
+        ")
+            ->first()
+        );
 
-        $partnershipsTotal = $this->safeCount(static fn (): int => KerjaSama::query()
+        $partnershipAgg = $this->safeFirst(fn () => KerjaSama::query()
             ->where('tenant_id', $tenantId)
-            ->count());
-        $partnershipsAgreed = $this->safeCount(static fn (): int => KerjaSama::query()
-            ->where('tenant_id', $tenantId)
-            ->where('status', StatusKerjaSama::Agreed->value)
-            ->count());
-        $partnershipsPendingIncoming = $this->safeCount(static fn (): int => KerjaSama::query()
-            ->where('tenant_id', $tenantId)
-            ->where('status', StatusKerjaSama::Pending->value)
-            ->where('requested_by', 'vendor')
-            ->count());
-        $partnershipsPendingOutgoing = $this->safeCount(static fn (): int => KerjaSama::query()
-            ->where('tenant_id', $tenantId)
-            ->where('status', StatusKerjaSama::Pending->value)
-            ->where('requested_by', 'tenant')
-            ->count());
-        $partnershipsBlocked = $this->safeCount(static fn (): int => KerjaSama::query()
-            ->where('tenant_id', $tenantId)
-            ->where('status', StatusKerjaSama::Blocked->value)
-            ->count());
+            ->selectRaw("
+            COUNT(*) as total,
+            {$this->countFilter("status = 'agreed'")} as agreed,
+            {$this->countFilter("status = 'pending' AND requested_by = 'vendor'")} as pending_incoming,
+            {$this->countFilter("status = 'pending' AND requested_by = 'tenant'")} as pending_outgoing,
+            {$this->countFilter("status = 'blocked'")} as blocked
+        ")
+            ->first()
+        );
+
         $invitationsPending = $this->safeCount(static fn (): int => UndanganVendor::query()
             ->where('tenant_id', $tenantId)
             ->where('status', StatusUndanganVendor::Pending->value)
@@ -751,68 +760,69 @@ class DashboardRepository implements DashboardRepositoryInterface
         $totalReceipts = $this->safeCount(static fn (): int => PenerimaanBarang::query()
             ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
             ->count());
-        $inTransitOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
+
+        $purchaseOrderAgg = $this->safeFirst(fn () => PurchaseOrder::query()
             ->where('perusahaan_buyer_id', $tenantId)
-            ->where('status', StatusPurchaseOrder::DalamPengiriman->value)
-            ->count());
-        $acceptedItems = $this->safeCount(static fn (): int => PenerimaanBarangItem::query()
-            ->where('status', StatusItemPenerimaan::Accepted->value)
+            ->selectRaw("
+            COUNT(*) as total,
+            {$this->countFilter("status = '".StatusPurchaseOrder::DalamPengiriman->value."'")} as in_transit
+        ")
+            ->first()
+        );
+
+        $qcItemsAgg = $this->safeFirst(fn () => PenerimaanBarangItem::query()
             ->whereHas('penerimaanBarang.purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->count());
-        $rejectedItems = $this->safeCount(static fn (): int => PenerimaanBarangItem::query()
-            ->where('status', StatusItemPenerimaan::Rejected->value)
-            ->whereHas('penerimaanBarang.purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->count());
+            ->selectRaw("
+            {$this->countFilter("status = 'accepted'")} as accepted_items,
+            {$this->countFilter("status = 'rejected'")} as rejected_items
+        ")
+            ->first()
+        );
 
         $globalActiveCommodities = $this->safeCount(static fn (): int => Komoditas::query()
             ->where('is_active', true)
             ->count());
-        $tenantActiveCommodities = $this->safeCount(static fn (): int => TenantCommodity::query()
+
+        $tenantCommodityAgg = $this->safeFirst(fn () => TenantCommodity::query()
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
-            ->count());
-        $customToleranceCount = $this->safeCount(static fn (): int => TenantCommodity::query()
-            ->where('tenant_id', $tenantId)
-            ->where('is_active', true)
-            ->whereNotNull('shrinkage_tolerance')
-            ->count());
-        $activePurchaseOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->count());
+            ->selectRaw("
+            COUNT(*) as tenant_active,
+            {$this->countFilter('shrinkage_tolerance IS NOT NULL')} as custom_tolerance_count
+        ")
+            ->first()
+        );
 
         return [
             'disputes' => [
-                'total' => $disputesTotal,
-                'open' => $disputesOpen,
-                'in_mediation' => $disputesInMediation,
-                'resolved' => $disputesResolved,
+                'total' => (int) ($disputeAgg->total ?? 0),
+                'open' => (int) ($disputeAgg->open ?? 0),
+                'in_mediation' => (int) ($disputeAgg->in_mediation ?? 0),
+                'resolved' => (int) ($disputeAgg->resolved ?? 0),
             ],
             'partnerships' => [
-                'total' => $partnershipsTotal,
-                'agreed' => $partnershipsAgreed,
-                'pending_incoming' => $partnershipsPendingIncoming,
-                'pending_outgoing' => $partnershipsPendingOutgoing,
-                'blocked' => $partnershipsBlocked,
+                'total' => (int) ($partnershipAgg->total ?? 0),
+                'agreed' => (int) ($partnershipAgg->agreed ?? 0),
+                'pending_incoming' => (int) ($partnershipAgg->pending_incoming ?? 0),
+                'pending_outgoing' => (int) ($partnershipAgg->pending_outgoing ?? 0),
+                'blocked' => (int) ($partnershipAgg->blocked ?? 0),
                 'invitations_pending' => $invitationsPending,
             ],
             'qc_inspections' => [
                 'total_receipts' => $totalReceipts,
-                'in_transit_orders' => $inTransitOrders,
-                'accepted_items' => $acceptedItems,
-                'rejected_items' => $rejectedItems,
+                'in_transit_orders' => (int) ($purchaseOrderAgg->in_transit ?? 0),
+                'accepted_items' => (int) ($qcItemsAgg->accepted_items ?? 0),
+                'rejected_items' => (int) ($qcItemsAgg->rejected_items ?? 0),
             ],
             'commodities' => [
                 'global_active_total' => $globalActiveCommodities,
-                'tenant_active' => $tenantActiveCommodities,
-                'custom_tolerance_count' => $customToleranceCount,
-                'active_purchase_orders' => $activePurchaseOrders,
+                'tenant_active' => (int) ($tenantCommodityAgg->tenant_active ?? 0),
+                'custom_tolerance_count' => (int) ($tenantCommodityAgg->custom_tolerance_count ?? 0),
+                'active_purchase_orders' => (int) ($purchaseOrderAgg->total ?? 0),
             ],
         ];
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getManajemenActiveDisputes(int $tenantId, int $limit = 5): array
     {
         try {
@@ -1047,53 +1057,32 @@ class DashboardRepository implements DashboardRepositoryInterface
      */
     public function getOwnerSummaryMetrics(int $tenantId): array
     {
-        $totalOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
+        // Agregasi statistik Purchase Order
+        $purchaseOrderAgg = $this->safeFirst(fn () => PurchaseOrder::query()
             ->where('perusahaan_buyer_id', $tenantId)
-            ->count());
+            ->selectRaw("
+            COUNT(*) as total,
+            {$this->countFilter("status IN ('".StatusPurchaseOrder::Draft->value."', '".StatusPurchaseOrder::MenungguTanggapan->value."', '".StatusPurchaseOrder::Negosiasi->value."')")} as draft_and_negotiation,
+            {$this->countFilter("status IN ('".StatusPurchaseOrder::Disepakati->value."', '".StatusPurchaseOrder::DalamPengiriman->value."', '".StatusPurchaseOrder::PartiallyReceived->value."', '".StatusPurchaseOrder::DiterimaGudang->value."')")} as in_execution,
+            {$this->countFilter("status IN ('".StatusPurchaseOrder::Ditagih->value."', '".StatusPurchaseOrder::ReadyToPay->value."')")} as invoiced_and_ready_to_pay,
+            {$this->countFilter("status = '".StatusPurchaseOrder::Lunas->value."'")} as completed_paid,
+            {$this->countFilter("status = '".StatusPurchaseOrder::Sengketa->value."'")} as disputed_orders,
+            {$this->countFilter("status = '".StatusPurchaseOrder::Dibatalkan->value."'")} as cancelled_orders
+        ")
+            ->first()
+        );
 
-        $draftAndNegotiation = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->whereIn('status', [
-                StatusPurchaseOrder::Draft->value,
-                StatusPurchaseOrder::MenungguTanggapan->value,
-                StatusPurchaseOrder::Negosiasi->value,
-            ])
-            ->count());
+        $totalOrders = (int) ($purchaseOrderAgg->total ?? 0);
+        $draftAndNegotiation = (int) ($purchaseOrderAgg->draft_and_negotiation ?? 0);
+        $inExecution = (int) ($purchaseOrderAgg->in_execution ?? 0);
+        $invoicedAndReadyToPay = (int) ($purchaseOrderAgg->invoiced_and_ready_to_pay ?? 0);
+        $completedPaid = (int) ($purchaseOrderAgg->completed_paid ?? 0);
+        $disputedOrders = (int) ($purchaseOrderAgg->disputed_orders ?? 0);
+        $cancelledOrders = (int) ($purchaseOrderAgg->cancelled_orders ?? 0);
 
-        $inExecution = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->whereIn('status', [
-                StatusPurchaseOrder::Disepakati->value,
-                StatusPurchaseOrder::DalamPengiriman->value,
-                StatusPurchaseOrder::PartiallyReceived->value,
-                StatusPurchaseOrder::DiterimaGudang->value,
-            ])
-            ->count());
-
-        $invoicedAndReadyToPay = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->whereIn('status', [
-                StatusPurchaseOrder::Ditagih->value,
-                StatusPurchaseOrder::ReadyToPay->value,
-            ])
-            ->count());
-
-        $completedPaid = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->where('status', StatusPurchaseOrder::Lunas->value)
-            ->count());
-
-        $disputedOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->where('status', StatusPurchaseOrder::Sengketa->value)
-            ->count());
-
-        $cancelledOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->where('status', StatusPurchaseOrder::Dibatalkan->value)
-            ->count());
-
+        // Agregasi nilai seluruh item PO yang sudah disepakati
         $totalAgreedValue = 0.0;
+
         try {
             $agreedStatuses = [
                 StatusPurchaseOrder::Disepakati->value,
@@ -1105,78 +1094,75 @@ class DashboardRepository implements DashboardRepositoryInterface
                 StatusPurchaseOrder::Lunas->value,
             ];
 
-            $items = PoItem::query()
+            $agreedValueAgg = PoItem::query()
                 ->whereHas('purchaseOrder', static fn ($q) => $q
                     ->where('perusahaan_buyer_id', $tenantId)
                     ->whereIn('status', $agreedStatuses))
-                ->get(['jumlah_pesanan', 'harga_satuan_po', 'estimated_unit_price', 'subtotal']);
+                ->selectRaw('
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN subtotal > 0 THEN subtotal
+                            ELSE COALESCE(jumlah_pesanan, 0)
+                                * COALESCE(harga_satuan_po, estimated_unit_price, 0)
+                        END
+                    ),
+                    0
+                ) as total_agreed_value
+            ')
+                ->first();
 
-            foreach ($items as $item) {
-                $subtotal = (float) ($item->subtotal ?? 0);
-                if ($subtotal > 0) {
-                    $totalAgreedValue += $subtotal;
-                } else {
-                    $qty = (float) ($item->jumlah_pesanan ?? 0);
-                    $unitPrice = (float) ($item->harga_satuan_po ?? $item->estimated_unit_price ?? 0);
-                    $totalAgreedValue += $qty * $unitPrice;
-                }
-            }
+            $totalAgreedValue = (float) ($agreedValueAgg->total_agreed_value ?? 0);
         } catch (Throwable) {
             $totalAgreedValue = 0.0;
         }
 
-        // Invoices & 3-Way Matching
-        $invoicesTotal = $this->safeCount(static fn (): int => Invoice::query()
+        // Agregasi invoice dan 3-Way Matching
+        $invoiceAgg = $this->safeFirst(fn () => Invoice::query()
             ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->count());
-        $invoicesPending = $this->safeCount(static fn (): int => Invoice::query()
-            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status_matching', StatusMatching::Pending->value)
-            ->count());
-        $invoicesMatched = $this->safeCount(static fn (): int => Invoice::query()
-            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status_matching', StatusMatching::Matched->value)
-            ->count());
-        $invoicesMismatched = $this->safeCount(static fn (): int => Invoice::query()
-            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status_matching', StatusMatching::Mismatched->value)
-            ->count());
+            ->selectRaw("
+            COUNT(*) as total,
+            {$this->countFilter("status_matching = '".StatusMatching::Pending->value."'")} as pending,
+            {$this->countFilter("status_matching = '".StatusMatching::Matched->value."'")} as matched,
+            {$this->countFilter("status_matching = '".StatusMatching::Mismatched->value."'")} as mismatched,
+            COALESCE(SUM(jumlah_tagihan), 0) as total_invoiced_amount,
+            COALESCE(SUM(CASE WHEN status_matching = '".StatusMatching::Matched->value."' THEN jumlah_tagihan ELSE 0 END), 0) as matched_amount
+        ")
+            ->first()
+        );
 
-        $totalInvoicedAmount = 0.0;
-        $matchedAmount = 0.0;
-        try {
-            $totalInvoicedAmount = (float) Invoice::query()
-                ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-                ->sum('jumlah_tagihan');
-            $matchedAmount = (float) Invoice::query()
-                ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-                ->where('status_matching', StatusMatching::Matched->value)
-                ->sum('jumlah_tagihan');
-        } catch (Throwable) {
-            $totalInvoicedAmount = 0.0;
-            $matchedAmount = 0.0;
-        }
+        $invoicesTotal = (int) ($invoiceAgg->total ?? 0);
+        $invoicesPending = (int) ($invoiceAgg->pending ?? 0);
+        $invoicesMatched = (int) ($invoiceAgg->matched ?? 0);
+        $invoicesMismatched = (int) ($invoiceAgg->mismatched ?? 0);
+        $totalInvoicedAmount = (float) ($invoiceAgg->total_invoiced_amount ?? 0);
+        $matchedAmount = (float) ($invoiceAgg->matched_amount ?? 0);
 
         // Internal Employees (UC-08)
         $employeesTotal = $this->safeCount(static fn (): int => User::query()
             ->where('tenant_id', $tenantId)
             ->count());
+
         $employeesActive = $this->safeCount(static fn (): int => User::query()
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->count());
+
         $ownerCount = $this->safeCount(static fn (): int => User::query()
             ->where('tenant_id', $tenantId)
             ->whereHas('role', static fn ($q) => $q->where('name', RoleName::Owner->value))
             ->count());
+
         $manajemenCount = $this->safeCount(static fn (): int => User::query()
             ->where('tenant_id', $tenantId)
             ->whereHas('role', static fn ($q) => $q->where('name', RoleName::Manajemen->value))
             ->count());
+
         $purchasingCount = $this->safeCount(static fn (): int => User::query()
             ->where('tenant_id', $tenantId)
             ->whereHas('role', static fn ($q) => $q->where('name', RoleName::Purchasing->value))
             ->count());
+
         $qcGudangCount = $this->safeCount(static fn (): int => User::query()
             ->where('tenant_id', $tenantId)
             ->whereHas('role', static fn ($q) => $q->where('name', RoleName::QcGudang->value))
@@ -1184,6 +1170,7 @@ class DashboardRepository implements DashboardRepositoryInterface
 
         // Reuse governance counts from Manajemen summary
         $manajemenSummary = $this->getManajemenSummaryMetrics($tenantId);
+
         $disputesOpen = (int) ($manajemenSummary['disputes']['open'] ?? 0);
         $disputesMediation = (int) ($manajemenSummary['disputes']['in_mediation'] ?? 0);
         $disputesResolved = (int) ($manajemenSummary['disputes']['resolved'] ?? 0);
@@ -1238,9 +1225,6 @@ class DashboardRepository implements DashboardRepositoryInterface
         ];
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getOwnerRecentPurchaseOrders(int $tenantId, int $limit = 5): array
     {
         try {
@@ -1465,71 +1449,31 @@ class DashboardRepository implements DashboardRepositoryInterface
      */
     public function getBuyerSummaryMetrics(int $tenantId): array
     {
-        $totalOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
+        // Agregasi statistik Purchase Order
+        $purchaseOrderAgg = $this->safeFirst(fn () => PurchaseOrder::query()
             ->where('perusahaan_buyer_id', $tenantId)
-            ->count());
+            ->selectRaw("
+            COUNT(*) as total,
+            {$this->countFilter("status IN ('".StatusPurchaseOrder::Draft->value."', '".StatusPurchaseOrder::MenungguTanggapan->value."', '".StatusPurchaseOrder::Negosiasi->value."')")} as draft_negotiation,
+            {$this->countFilter("status IN ('".StatusPurchaseOrder::Disepakati->value."', '".StatusPurchaseOrder::DalamPengiriman->value."', '".StatusPurchaseOrder::PartiallyReceived->value."', '".StatusPurchaseOrder::DiterimaGudang->value."')")} as in_execution,
+            {$this->countFilter("status IN ('".StatusPurchaseOrder::Ditagih->value."', '".StatusPurchaseOrder::ReadyToPay->value."')")} as pending_payment,
+            {$this->countFilter("status = '".StatusPurchaseOrder::Lunas->value."'")} as completed_paid,
+            {$this->countFilter("status = '".StatusPurchaseOrder::Sengketa->value."'")} as disputed
+        ")
+            ->first()
+        );
 
-        $draftNegotiation = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->whereIn('status', [
-                StatusPurchaseOrder::Draft->value,
-                StatusPurchaseOrder::MenungguTanggapan->value,
-                StatusPurchaseOrder::Negosiasi->value,
-            ])
-            ->count());
-
-        $inExecution = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->whereIn('status', [
-                StatusPurchaseOrder::Disepakati->value,
-                StatusPurchaseOrder::DalamPengiriman->value,
-                StatusPurchaseOrder::PartiallyReceived->value,
-                StatusPurchaseOrder::DiterimaGudang->value,
-            ])
-            ->count());
-
-        $pendingPayment = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->whereIn('status', [
-                StatusPurchaseOrder::Ditagih->value,
-                StatusPurchaseOrder::ReadyToPay->value,
-            ])
-            ->count());
-
-        $completedPaid = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->where('status', StatusPurchaseOrder::Lunas->value)
-            ->count());
-
-        $disputed = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('perusahaan_buyer_id', $tenantId)
-            ->where('status', StatusPurchaseOrder::Sengketa->value)
-            ->count());
-
-        // Invoices & 3-Way Matching
-        $invoicePending = $this->safeCount(static fn (): int => Invoice::query()
+        // Agregasi invoice dan 3-Way Matching
+        $invoiceAgg = $this->safeFirst(fn () => Invoice::query()
             ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status_matching', StatusMatching::Pending->value)
-            ->count());
-
-        $invoiceMatched = $this->safeCount(static fn (): int => Invoice::query()
-            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status_matching', StatusMatching::Matched->value)
-            ->count());
-
-        $invoiceMismatched = $this->safeCount(static fn (): int => Invoice::query()
-            ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status_matching', StatusMatching::Mismatched->value)
-            ->count());
-
-        $totalInvoicedAmount = 0.0;
-        try {
-            $totalInvoicedAmount = (float) Invoice::query()
-                ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-                ->sum('jumlah_tagihan');
-        } catch (Throwable) {
-            $totalInvoicedAmount = 0.0;
-        }
+            ->selectRaw("
+            {$this->countFilter("status_matching = '".StatusMatching::Pending->value."'")} as pending,
+            {$this->countFilter("status_matching = '".StatusMatching::Matched->value."'")} as matched,
+            {$this->countFilter("status_matching = '".StatusMatching::Mismatched->value."'")} as mismatched,
+            COALESCE(SUM(jumlah_tagihan), 0) as total_invoiced_amount
+        ")
+            ->first()
+        );
 
         // Active disputes
         $activeDisputes = $this->safeCount(static fn (): int => Sengketa::query()
@@ -1549,18 +1493,18 @@ class DashboardRepository implements DashboardRepositoryInterface
 
         return [
             'orders' => [
-                'total' => $totalOrders,
-                'draft_negotiation' => $draftNegotiation,
-                'in_execution' => $inExecution,
-                'pending_payment' => $pendingPayment,
-                'completed_paid' => $completedPaid,
-                'disputed' => $disputed,
+                'total' => (int) ($purchaseOrderAgg->total ?? 0),
+                'draft_negotiation' => (int) ($purchaseOrderAgg->draft_negotiation ?? 0),
+                'in_execution' => (int) ($purchaseOrderAgg->in_execution ?? 0),
+                'pending_payment' => (int) ($purchaseOrderAgg->pending_payment ?? 0),
+                'completed_paid' => (int) ($purchaseOrderAgg->completed_paid ?? 0),
+                'disputed' => (int) ($purchaseOrderAgg->disputed ?? 0),
             ],
             'invoices' => [
-                'pending' => $invoicePending,
-                'matched' => $invoiceMatched,
-                'mismatched' => $invoiceMismatched,
-                'total_invoiced_amount' => round($totalInvoicedAmount, 2),
+                'pending' => (int) ($invoiceAgg->pending ?? 0),
+                'matched' => (int) ($invoiceAgg->matched ?? 0),
+                'mismatched' => (int) ($invoiceAgg->mismatched ?? 0),
+                'total_invoiced_amount' => round((float) ($invoiceAgg->total_invoiced_amount ?? 0), 2),
             ],
             'disputes' => [
                 'active' => $activeDisputes,
@@ -1697,21 +1641,25 @@ class DashboardRepository implements DashboardRepositoryInterface
             ->where('status', StatusPurchaseOrder::DalamPengiriman->value)
             ->count());
 
-        $acceptedItems = $this->safeCount(static fn (): int => PenerimaanBarangItem::query()
+        $qcItemsAgg = $this->safeFirst(fn () => PenerimaanBarangItem::query()
             ->whereHas('penerimaanBarang.purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status', StatusItemPenerimaan::Accepted->value)
-            ->count());
+            ->selectRaw("
+            {$this->countFilter("status = '".StatusItemPenerimaan::Accepted->value."'")} as accepted_items,
+            {$this->countFilter("status = '".StatusItemPenerimaan::Rejected->value."'")} as rejected_items
+        ")
+            ->first()
+        );
 
-        $rejectedItems = $this->safeCount(static fn (): int => PenerimaanBarangItem::query()
-            ->whereHas('penerimaanBarang.purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-            ->where('status', StatusItemPenerimaan::Rejected->value)
-            ->count());
+        $acceptedItems = (int) ($qcItemsAgg->accepted_items ?? 0);
+        $rejectedItems = (int) ($qcItemsAgg->rejected_items ?? 0);
 
         $completedReceipts = $totalReceipts;
         $pendingReceipts = $inTransitOrders;
 
         $totalItems = $acceptedItems + $rejectedItems;
-        $acceptanceRate = $totalItems > 0 ? round(($acceptedItems / $totalItems) * 100, 1) : 0.0;
+        $acceptanceRate = $totalItems > 0
+            ? round(($acceptedItems / $totalItems) * 100, 1)
+            : 0.0;
 
         return [
             'inspections' => [
@@ -1727,9 +1675,6 @@ class DashboardRepository implements DashboardRepositoryInterface
         ];
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getQcPendingDeliveries(int $tenantId, int $limit = 5): array
     {
         try {
@@ -1833,90 +1778,67 @@ class DashboardRepository implements DashboardRepositoryInterface
      */
     public function getVendorSummaryMetrics(int $vendorId): array
     {
-        $totalOrders = $this->safeCount(static fn (): int => PurchaseOrder::query()
+        // Agregasi statistik Purchase Order vendor
+        $purchaseOrderAgg = $this->safeFirst(fn () => PurchaseOrder::query()
             ->where('vendor_id', $vendorId)
-            ->where('status', '!=', StatusPurchaseOrder::Draft->value)
-            ->count());
+            ->selectRaw("
+            {$this->countFilter("status != '".StatusPurchaseOrder::Draft->value."'")} as total,
+            {$this->countFilter("status IN ('".StatusPurchaseOrder::MenungguTanggapan->value."', '".StatusPurchaseOrder::Negosiasi->value."')")} as pending_response,
+            {$this->countFilter("status IN ('".StatusPurchaseOrder::Disepakati->value."', '".StatusPurchaseOrder::DalamPengiriman->value."', '".StatusPurchaseOrder::PartiallyReceived->value."', '".StatusPurchaseOrder::DiterimaGudang->value."')")} as in_execution,
+            {$this->countFilter("status = '".StatusPurchaseOrder::Lunas->value."'")} as completed_paid,
+            {$this->countFilter("status = '".StatusPurchaseOrder::Sengketa->value."'")} as disputed
+        ")
+            ->first()
+        );
 
-        $pendingResponse = $this->safeCount(static fn (): int => PurchaseOrder::query()
+        // Agregasi invoice dan pendapatan vendor
+        $invoiceAgg = $this->safeFirst(fn () => Invoice::query()
             ->where('vendor_id', $vendorId)
-            ->whereIn('status', [
-                StatusPurchaseOrder::MenungguTanggapan->value,
-                StatusPurchaseOrder::Negosiasi->value,
-            ])
-            ->count());
+            ->selectRaw("
+            COUNT(*) as total,
+            {$this->countFilter("status_matching = '".StatusMatching::Pending->value."'")} as pending,
+            {$this->countFilter("status_matching = '".StatusMatching::Matched->value."'")} as matched,
+            COALESCE(
+                SUM(
+                    CASE
+                        WHEN status_matching = '".StatusMatching::Matched->value."'
+                        THEN jumlah_tagihan
+                        ELSE 0
+                    END
+                ),
+                0
+            ) as total_revenue
+        ")
+            ->first()
+        );
 
-        $inExecution = $this->safeCount(static fn (): int => PurchaseOrder::query()
+        // Agregasi kerja sama vendor
+        $partnershipAgg = $this->safeFirst(fn () => KerjaSama::query()
             ->where('vendor_id', $vendorId)
-            ->whereIn('status', [
-                StatusPurchaseOrder::Disepakati->value,
-                StatusPurchaseOrder::DalamPengiriman->value,
-                StatusPurchaseOrder::PartiallyReceived->value,
-                StatusPurchaseOrder::DiterimaGudang->value,
-            ])
-            ->count());
-
-        $completedPaid = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('vendor_id', $vendorId)
-            ->where('status', StatusPurchaseOrder::Lunas->value)
-            ->count());
-
-        $disputed = $this->safeCount(static fn (): int => PurchaseOrder::query()
-            ->where('vendor_id', $vendorId)
-            ->where('status', StatusPurchaseOrder::Sengketa->value)
-            ->count());
-
-        $invoicesTotal = $this->safeCount(static fn (): int => Invoice::query()
-            ->where('vendor_id', $vendorId)
-            ->count());
-
-        $invoicesPending = $this->safeCount(static fn (): int => Invoice::query()
-            ->where('vendor_id', $vendorId)
-            ->where('status_matching', StatusMatching::Pending->value)
-            ->count());
-
-        $invoicesMatched = $this->safeCount(static fn (): int => Invoice::query()
-            ->where('vendor_id', $vendorId)
-            ->where('status_matching', StatusMatching::Matched->value)
-            ->count());
-
-        $totalRevenue = 0.0;
-        try {
-            $totalRevenue = (float) Invoice::query()
-                ->where('vendor_id', $vendorId)
-                ->where('status_matching', StatusMatching::Matched->value)
-                ->sum('jumlah_tagihan');
-        } catch (Throwable) {
-            $totalRevenue = 0.0;
-        }
-
-        $activePartnerships = $this->safeCount(static fn (): int => KerjaSama::query()
-            ->where('vendor_id', $vendorId)
-            ->where('status', StatusKerjaSama::Agreed->value)
-            ->count());
-
-        $pendingPartnerships = $this->safeCount(static fn (): int => KerjaSama::query()
-            ->where('vendor_id', $vendorId)
-            ->where('status', StatusKerjaSama::Pending->value)
-            ->count());
+            ->selectRaw("
+            {$this->countFilter("status = '".StatusKerjaSama::Agreed->value."'")} as active,
+            {$this->countFilter("status = '".StatusKerjaSama::Pending->value."'")} as pending
+        ")
+            ->first()
+        );
 
         return [
             'orders' => [
-                'total' => $totalOrders,
-                'pending_response' => $pendingResponse,
-                'in_execution' => $inExecution,
-                'completed_paid' => $completedPaid,
-                'disputed' => $disputed,
+                'total' => (int) ($purchaseOrderAgg->total ?? 0),
+                'pending_response' => (int) ($purchaseOrderAgg->pending_response ?? 0),
+                'in_execution' => (int) ($purchaseOrderAgg->in_execution ?? 0),
+                'completed_paid' => (int) ($purchaseOrderAgg->completed_paid ?? 0),
+                'disputed' => (int) ($purchaseOrderAgg->disputed ?? 0),
             ],
             'invoices' => [
-                'total' => $invoicesTotal,
-                'pending' => $invoicesPending,
-                'matched' => $invoicesMatched,
-                'total_revenue' => round($totalRevenue, 2),
+                'total' => (int) ($invoiceAgg->total ?? 0),
+                'pending' => (int) ($invoiceAgg->pending ?? 0),
+                'matched' => (int) ($invoiceAgg->matched ?? 0),
+                'total_revenue' => round((float) ($invoiceAgg->total_revenue ?? 0), 2),
             ],
             'partnerships' => [
-                'active' => $activePartnerships,
-                'pending' => $pendingPartnerships,
+                'active' => (int) ($partnershipAgg->active ?? 0),
+                'pending' => (int) ($partnershipAgg->pending ?? 0),
             ],
         ];
     }

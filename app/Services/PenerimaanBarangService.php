@@ -49,7 +49,17 @@ class PenerimaanBarangService
         protected readonly PenerimaanBarangRepositoryInterface $penerimaanRepository,
         protected readonly PurchaseOrderRepositoryInterface $purchaseOrderRepository,
         protected readonly NotificationService $notificationService,
+        private readonly ?DashboardService $dashboardService = null,
     ) {}
+
+    /**
+     * Invalidate dashboard caches after goods receipt and QC inspection changes.
+     */
+    private function invalidateReceiptDashboards(int $tenantId, int $vendorId): void
+    {
+        $this->dashboardService?->invalidateTenantDashboards($tenantId);
+        $this->dashboardService?->invalidateVendorDashboard($vendorId);
+    }
 
     /**
      * Paginate goods receipts scoped to the authenticated user's Tenant or Vendor.
@@ -520,6 +530,12 @@ class PenerimaanBarangService
 
             throw $e;
         }
+
+        // Invalidate cached dashboards after the transaction has committed successfully.
+        $this->invalidateReceiptDashboards(
+            (int) $po->perusahaan_buyer_id,
+            (int) $po->vendor_id
+        );
 
         $recipients = $this->penerimaanRepository->getInspectionNotificationRecipients(
             (int) $po->perusahaan_buyer_id,

@@ -39,7 +39,19 @@ class InvoiceService
         private readonly FileStorageService $fileStorage,
         private readonly SengketaRepositoryInterface $sengketaRepository,
         private readonly ?NotificationService $notificationService = null,
+        private readonly ?DashboardService $dashboardService = null,
     ) {}
+
+    /**
+     * Menghapus cache dashboard yang terdampak perubahan invoice.
+     */
+    private function invalidateInvoiceDashboards(
+        int $tenantId,
+        int $vendorId,
+    ): void {
+        $this->dashboardService?->invalidateTenantDashboards($tenantId);
+        $this->dashboardService?->invalidateVendorDashboard($vendorId);
+    }
 
     /**
      * Get the authenticated vendor's invoices.
@@ -84,9 +96,7 @@ class InvoiceService
         );
 
         if ($invoice === null) {
-            throw (new ModelNotFoundException)->setModel(
-                Invoice::class
-            );
+            throw (new ModelNotFoundException)->setModel(Invoice::class);
         }
 
         return $invoice;
@@ -102,9 +112,7 @@ class InvoiceService
         );
 
         if ($purchaseOrder === null) {
-            throw (new ModelNotFoundException)->setModel(
-                PurchaseOrder::class
-            );
+            throw (new ModelNotFoundException)->setModel(PurchaseOrder::class);
         }
 
         return $purchaseOrder;
@@ -164,6 +172,8 @@ class InvoiceService
             ]);
         }
 
+        $tenantId = (int) $purchaseOrder->perusahaan_buyer_id;
+
         $file = $data['file_invoice'] ?? null;
 
         if ($file !== null && ! $file instanceof UploadedFile) {
@@ -190,7 +200,6 @@ class InvoiceService
             ]);
         }
 
-        // Store the file before the database transaction.
         $filePath = $file instanceof UploadedFile
             ? $this->fileStorage->store(
                 $file,
@@ -200,7 +209,7 @@ class InvoiceService
             )
             : null;
 
-        return $this->fileStorage->rollbackOnFailure(
+        $invoice = $this->fileStorage->rollbackOnFailure(
             self::INVOICE_DISK,
             $filePath,
             fn (): Invoice => DB::transaction(function () use (
@@ -210,13 +219,11 @@ class InvoiceService
                 $invoiceDate,
                 $filePath
             ): Invoice {
-                // Serialize invoice creation for the same purchase order.
                 PurchaseOrder::query()
                     ->whereKey($purchaseOrder->getKey())
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                // Recalculate available quantities inside the transaction.
                 $availableItems = $this->invoiceRepository->getAvailableItems(
                     $purchaseOrder
                 );
@@ -244,24 +251,9 @@ class InvoiceService
 
                     $invoiceItems[] = [
                         'purchase_order_item_id' => $item->getKey(),
-                        'quantity' => number_format(
-                            $quantity,
-                            3,
-                            '.',
-                            ''
-                        ),
-                        'unit_price' => number_format(
-                            $unitPrice,
-                            2,
-                            '.',
-                            ''
-                        ),
-                        'subtotal' => number_format(
-                            $subtotal,
-                            2,
-                            '.',
-                            ''
-                        ),
+                        'quantity' => number_format($quantity, 3, '.', ''),
+                        'unit_price' => number_format($unitPrice, 2, '.', ''),
+                        'subtotal' => number_format($subtotal, 2, '.', ''),
                     ];
                 }
 
@@ -281,12 +273,7 @@ class InvoiceService
                         'purchase_order_id' => $purchaseOrder->getKey(),
                         'vendor_id' => $vendorId,
                         'nomor_invoice_vendor' => $invoiceNumber,
-                        'jumlah_tagihan' => number_format(
-                            $totalAmount,
-                            2,
-                            '.',
-                            ''
-                        ),
+                        'jumlah_tagihan' => number_format($totalAmount, 2, '.', ''),
                         'file_invoice' => $filePath,
                         'tanggal_invoice' => $invoiceDate,
                         'status_matching' => 'pending',
@@ -295,6 +282,11 @@ class InvoiceService
                 );
             })
         );
+
+        // Hapus cache hanya setelah invoice berhasil dibuat.
+        $this->invalidateInvoiceDashboards($tenantId, $vendorId);
+
+        return $invoice;
     }
 
     /**
@@ -388,7 +380,6 @@ class InvoiceService
             $poUnitPrice = (float) ($poItem?->harga_satuan_po ?? 0);
             $poSubtotal = (float) ($poItem?->subtotal ?? 0);
 
-            // Filter accepted QC items
             $acceptedReceiptItems = $poItem?->penerimaanBarangItems?->filter(function ($pbi) {
                 $statusVal = is_object($pbi->status) ? $pbi->status->value : $pbi->status;
 
@@ -414,7 +405,6 @@ class InvoiceService
             $priceMatched = true;
             $subtotalMatched = true;
 
-            // 1. Quantity comparison: Invoiced qty must equal accepted received qty, and cannot exceed PO qty
             if ($invQty > $acceptedQty + 0.0001) {
                 $qtyMatched = false;
                 $msg = "Kuantitas ditagih ({$invQty} {$unit}) melebihi kuantitas yang diterima di gudang ({$acceptedQty} {$unit}) untuk {$commodityName}.";
@@ -435,7 +425,6 @@ class InvoiceService
                 $discrepancyTypes['quantity_mismatch'] = true;
             }
 
-            // 2. Price comparison: Invoiced unit price must equal agreed PO unit price
             if (abs($invUnitPrice - $poUnitPrice) >= 0.01) {
                 $priceMatched = false;
                 $msg = 'Harga satuan ditagih (Rp '.number_format($invUnitPrice, 0, ',', '.').') tidak sesuai dengan harga kesepakatan PO (Rp '.number_format($poUnitPrice, 0, ',', '.').") untuk {$commodityName}.";
@@ -444,8 +433,8 @@ class InvoiceService
                 $discrepancyTypes['amount_mismatch'] = true;
             }
 
-            // 3. Subtotal comparison: Invoiced subtotal must equal rounded (invQty * poUnitPrice)
             $expectedSubtotal = round($invQty * $poUnitPrice, 2);
+
             if (abs($invSubtotal - $expectedSubtotal) >= 0.01) {
                 $subtotalMatched = false;
                 $msg = 'Subtotal ditagih (Rp '.number_format($invSubtotal, 0, ',', '.').') tidak sesuai dengan perhitungan kuantitas x harga PO (Rp '.number_format($expectedSubtotal, 0, ',', '.').") untuk {$commodityName}.";
@@ -483,6 +472,7 @@ class InvoiceService
 
         $headerTotal = (float) $invoice->jumlah_tagihan;
         $headerTotalMatched = abs($headerTotal - $totalInvoicedAmount) < 0.01;
+
         if (! $headerTotalMatched) {
             $msg = 'Total jumlah tagihan pada invoice (Rp '.number_format($headerTotal, 0, ',', '.').') berbeda dengan total rincian barang (Rp '.number_format($totalInvoicedAmount, 0, ',', '.').').';
             $mismatchNotes[] = $msg;
@@ -491,15 +481,16 @@ class InvoiceService
 
         $isOverallMatched = $headerTotalMatched && collect($itemsResult)->every(fn ($i) => $i['is_matched']);
 
-        // Re-verification after a dispute (PRD §9.1 "diverifikasi ulang dengan credit note"): the bill minus the
-        // confirmed credit notes must equal what was really received, at the agreed PO prices (BR-26).
         $confirmedCreditTotal = (float) $invoice->creditNotes
             ->filter(fn (CreditNote $note): bool => $note->status === CreditNoteStatus::Confirmed)
             ->sum('amount');
+
         $payableAmount = round($headerTotal - $confirmedCreditTotal, 2);
+
         $receivedValue = round((float) collect($itemsResult)->sum(
             fn (array $i): float => round(min($i['invoiced_quantity'], $i['received_quantity']) * $i['po_unit_price'], 2)
         ), 2);
+
         $settledByCreditNote = ! $isOverallMatched
             && $confirmedCreditTotal > 0
             && abs($payableAmount - $receivedValue) < 0.01;
@@ -541,7 +532,6 @@ class InvoiceService
 
         Gate::forUser($actor)->authorize('verify', $invoice);
 
-        // BR-13: an invoice with a dispute that is not resolved stays frozen.
         if ($this->sengketaRepository->hasOpenForInvoice((int) $invoice->id)) {
             throw ValidationException::withMessages([
                 'invoice' => 'Tagihan ini masih memiliki sengketa yang belum Selesai.',
@@ -552,7 +542,13 @@ class InvoiceService
         $isMatched = $matchingResult['is_matched'];
         $po = $invoice->purchaseOrder;
 
-        return DB::transaction(function () use ($invoice, $po, $actor, $matchingResult, $isMatched): array {
+        $result = DB::transaction(function () use (
+            $invoice,
+            $po,
+            $actor,
+            $matchingResult,
+            $isMatched
+        ): array {
             $dispute = null;
 
             if ($isMatched) {
@@ -563,14 +559,13 @@ class InvoiceService
                     'diverifikasi_pada' => now(),
                 ]);
 
-                // Transisi status PO ke ready_to_pay (Siap Dibayar) per PRD UC-17 step 5
                 $po->update([
                     'status' => StatusPurchaseOrder::ReadyToPay->value,
                 ]);
 
-                // Notifikasi in-app jika service tersedia
                 if ($this->notificationService !== null) {
                     $vendorUsers = User::query()->where('vendor_id', $invoice->vendor_id)->get();
+
                     $this->notificationService->sendToMany(
                         $vendorUsers,
                         'invoice',
@@ -597,7 +592,6 @@ class InvoiceService
                 ];
             }
 
-            // Gagal / Mismatched: Buka Sengketa + Log Sengketa otomatis
             $this->invoiceRepository->updateMatching($invoice, [
                 'status_matching' => StatusMatching::Mismatched->value,
                 'matching_result' => $matchingResult,
@@ -605,7 +599,6 @@ class InvoiceService
                 'diverifikasi_pada' => now(),
             ]);
 
-            // Status PO tidak berubah, namun PO dibekukan oleh sengketa (PRD BR-14, UC-17 step 4a)
             $triggerType = in_array('quantity_mismatch', $matchingResult['discrepancy_types'], true)
                 ? PemicuSengketa::QuantityMismatch->value
                 : PemicuSengketa::AmountMismatch->value;
@@ -640,6 +633,7 @@ class InvoiceService
 
             if ($this->notificationService !== null) {
                 $vendorUsers = User::query()->where('vendor_id', $invoice->vendor_id)->get();
+
                 $this->notificationService->sendToMany(
                     $vendorUsers,
                     'dispute',
@@ -665,6 +659,14 @@ class InvoiceService
                 'dispute' => $dispute,
             ];
         });
+
+        // Hapus cache setelah verifikasi dan perubahan status berhasil.
+        $this->invalidateInvoiceDashboards(
+            (int) $po->perusahaan_buyer_id,
+            (int) $invoice->vendor_id
+        );
+
+        return $result;
     }
 
     /**

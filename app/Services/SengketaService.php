@@ -34,6 +34,7 @@ class SengketaService
         protected readonly SengketaRepositoryInterface $sengketaRepository,
         protected readonly SengketaPdfExporter $pdfExporter,
         protected readonly NotificationService $notificationService,
+        private readonly ?DashboardService $dashboardService = null,
     ) {}
 
     /**
@@ -185,10 +186,41 @@ class SengketaService
             throw $e;
         }
 
+        if ($nextStatus !== null) {
+            $this->invalidateDisputeDashboards($sengketa);
+        }
+
         $updated = $this->sengketaRepository->findByUuidForActor($actor, $uuid) ?? $sengketa;
         $this->notifyStakeholdersOnReview($actor, $updated);
 
         return $updated;
+    }
+
+    /**
+     * Invalidate dashboard caches affected by a dispute status change.
+     */
+    private function invalidateDisputeDashboards(Sengketa $sengketa): void
+    {
+        if ($this->dashboardService === null) {
+            return;
+        }
+
+        $purchaseOrder = $sengketa->purchaseOrder;
+
+        if ($purchaseOrder === null) {
+            return;
+        }
+
+        $tenantId = (int) $purchaseOrder->perusahaan_buyer_id;
+        $vendorId = (int) $purchaseOrder->vendor_id;
+
+        if ($tenantId > 0) {
+            $this->dashboardService->invalidateTenantDashboards($tenantId);
+        }
+
+        if ($vendorId > 0) {
+            $this->dashboardService->invalidateVendorDashboard($vendorId);
+        }
     }
 
     /**

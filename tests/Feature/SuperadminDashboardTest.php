@@ -28,9 +28,13 @@ use App\Models\Sengketa;
 use App\Models\TenantCommodity;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Repositories\Contracts\DashboardRepositoryInterface;
+use App\Services\DashboardService;
+use App\Services\PengaturanService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -1609,5 +1613,122 @@ class SuperadminDashboardTest extends TestCase
                 ->has('buyer_dashboard.pending_invoices', 1)
                 ->where('buyer_dashboard.pending_invoices.0.invoice_number', 'INV-BUYER-01')
             );
+    }
+
+    public function test_owner_dashboard_uses_cache_on_second_call(): void
+    {
+        config(['cache.default' => 'array']);
+        Cache::flush();
+
+        $tenantId = 123;
+
+        $repository = \Mockery::mock(DashboardRepositoryInterface::class);
+
+        $repository->shouldReceive('getTenantProfileForManajemen')
+            ->once()
+            ->with($tenantId)
+            ->andReturn([]);
+
+        $repository->shouldReceive('getOwnerSummaryMetrics')
+            ->once()
+            ->with($tenantId)
+            ->andReturn(['total_orders' => 5]);
+
+        $repository->shouldReceive('getOwnerRecentPurchaseOrders')
+            ->once()
+            ->with($tenantId, 5)
+            ->andReturn([]);
+
+        $repository->shouldReceive('getOwnerRecentInvoices')
+            ->once()
+            ->with($tenantId, 5)
+            ->andReturn([]);
+
+        $repository->shouldReceive('getOwnerInternalTeam')
+            ->once()
+            ->with($tenantId, 6)
+            ->andReturn([]);
+
+        $repository->shouldReceive('getManajemenActiveDisputes')
+            ->once()
+            ->with($tenantId, 5)
+            ->andReturn([]);
+
+        $repository->shouldReceive('getOwnerMonthlyExecutionTrend')
+            ->once()
+            ->with($tenantId, 6)
+            ->andReturn([]);
+
+        $pengaturanService = \Mockery::mock(PengaturanService::class);
+
+        $service = new DashboardService($repository, $pengaturanService);
+
+        $firstCall = $service->buildOwnerDashboard($tenantId);
+        $secondCall = $service->buildOwnerDashboard($tenantId);
+
+        $this->assertSame($firstCall, $secondCall);
+        $this->assertSame(5, $secondCall['summary']['total_orders']);
+    }
+
+    public function test_tenant_dashboard_cache_is_refreshed_after_invalidation(): void
+    {
+        config(['cache.default' => 'array']);
+        Cache::flush();
+
+        $tenantId = 123;
+
+        $repository = \Mockery::mock(DashboardRepositoryInterface::class);
+
+        $repository->shouldReceive('getTenantProfileForManajemen')
+            ->twice()
+            ->with($tenantId)
+            ->andReturn([], []);
+
+        $repository->shouldReceive('getOwnerSummaryMetrics')
+            ->twice()
+            ->with($tenantId)
+            ->andReturn(
+                ['total_orders' => 5],
+                ['total_orders' => 6],
+            );
+
+        $repository->shouldReceive('getOwnerRecentPurchaseOrders')
+            ->twice()
+            ->with($tenantId, 5)
+            ->andReturn([], []);
+
+        $repository->shouldReceive('getOwnerRecentInvoices')
+            ->twice()
+            ->with($tenantId, 5)
+            ->andReturn([], []);
+
+        $repository->shouldReceive('getOwnerInternalTeam')
+            ->twice()
+            ->with($tenantId, 6)
+            ->andReturn([], []);
+
+        $repository->shouldReceive('getManajemenActiveDisputes')
+            ->twice()
+            ->with($tenantId, 5)
+            ->andReturn([], []);
+
+        $repository->shouldReceive('getOwnerMonthlyExecutionTrend')
+            ->twice()
+            ->with($tenantId, 6)
+            ->andReturn([], []);
+
+        $pengaturanService = \Mockery::mock(PengaturanService::class);
+
+        $service = new DashboardService($repository, $pengaturanService);
+
+        $firstCall = $service->buildOwnerDashboard($tenantId);
+
+        $this->assertSame(5, $firstCall['summary']['total_orders']);
+
+        $service->invalidateTenantDashboards($tenantId);
+
+        $secondCall = $service->buildOwnerDashboard($tenantId);
+
+        $this->assertSame(6, $secondCall['summary']['total_orders']);
     }
 }

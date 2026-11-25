@@ -66,6 +66,50 @@ class DashboardRepository implements DashboardRepositoryInterface
     }
 
     /**
+     * Get SQL expression for formatting date column to 'YYYY-MM' according to DB driver.
+     */
+    private function monthKeyExpression(string $column = 'created_at'): string
+    {
+        $driver = DB::connection()->getDriverName();
+
+        return match ($driver) {
+            'pgsql' => "to_char({$column}, 'YYYY-MM')",
+            'sqlite' => "strftime('%Y-%m', {$column})",
+            default => "DATE_FORMAT({$column}, '%Y-%m')",
+        };
+    }
+
+    /**
+     * Safely execute a grouped monthly count query, returning an array of ['YYYY-MM' => int].
+     *
+     * @param  callable(): array<string, int|numeric>  $callback
+     * @return array<string, int>
+     */
+    private function safeMonthlyCounts(callable $callback): array
+    {
+        try {
+            return (array) $callback();
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * Safely execute a grouped monthly metrics query, returning an iterable of rows.
+     *
+     * @param  callable(): mixed  $callback
+     * @return iterable<mixed>
+     */
+    private function safeMonthlyMetrics(callable $callback): iterable
+    {
+        try {
+            return $callback();
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function getSuperadminSummaryMetrics(): array
@@ -428,36 +472,34 @@ class DashboardRepository implements DashboardRepositoryInterface
         $safeMonths = max(1, min($months, 12));
         $startDate = Carbon::now()->startOfMonth()->subMonths($safeMonths - 1);
 
-        try {
-            $tenantDates = PerusahaanBuyer::query()
-                ->where('created_at', '>=', $startDate)
-                ->pluck('created_at');
-        } catch (Throwable) {
-            $tenantDates = collect();
-        }
+        $monthExpr = $this->monthKeyExpression('created_at');
 
-        try {
-            $vendorDates = Vendor::query()
+        $tenantCounts = $this->safeMonthlyCounts(
+            fn (): array => PerusahaanBuyer::query()
                 ->where('created_at', '>=', $startDate)
-                ->pluck('created_at');
-        } catch (Throwable) {
-            $vendorDates = collect();
-        }
+                ->selectRaw("{$monthExpr} as month_key, COUNT(*) as aggregate")
+                ->groupByRaw($monthExpr)
+                ->pluck('aggregate', 'month_key')
+                ->all()
+        );
 
-        try {
-            $poDates = PurchaseOrder::query()
+        $vendorCounts = $this->safeMonthlyCounts(
+            fn (): array => Vendor::query()
                 ->where('created_at', '>=', $startDate)
-                ->pluck('created_at');
-        } catch (Throwable) {
-            try {
-                $poDates = DB::table('purchase_orders')
-                    ->whereNull('deleted_at')
-                    ->where('created_at', '>=', $startDate)
-                    ->pluck('created_at');
-            } catch (Throwable) {
-                $poDates = collect();
-            }
-        }
+                ->selectRaw("{$monthExpr} as month_key, COUNT(*) as aggregate")
+                ->groupByRaw($monthExpr)
+                ->pluck('aggregate', 'month_key')
+                ->all()
+        );
+
+        $poCounts = $this->safeMonthlyCounts(
+            fn (): array => PurchaseOrder::query()
+                ->where('created_at', '>=', $startDate)
+                ->selectRaw("{$monthExpr} as month_key, COUNT(*) as aggregate")
+                ->groupByRaw($monthExpr)
+                ->pluck('aggregate', 'month_key')
+                ->all()
+        );
 
         $buckets = [];
         for ($i = 0; $i < $safeMonths; $i++) {
@@ -469,37 +511,10 @@ class DashboardRepository implements DashboardRepositoryInterface
             $buckets[$key] = [
                 'month_key' => $key,
                 'label' => $monthName.' '.$monthCursor->format('Y'),
-                'tenants_count' => 0,
-                'vendors_count' => 0,
-                'purchase_orders_count' => 0,
+                'tenants_count' => (int) ($tenantCounts[$key] ?? 0),
+                'vendors_count' => (int) ($vendorCounts[$key] ?? 0),
+                'purchase_orders_count' => (int) ($poCounts[$key] ?? 0),
             ];
-        }
-
-        foreach ($tenantDates as $dt) {
-            if ($dt !== null) {
-                $key = Carbon::parse($dt)->format('Y-m');
-                if (isset($buckets[$key])) {
-                    $buckets[$key]['tenants_count']++;
-                }
-            }
-        }
-
-        foreach ($vendorDates as $dt) {
-            if ($dt !== null) {
-                $key = Carbon::parse($dt)->format('Y-m');
-                if (isset($buckets[$key])) {
-                    $buckets[$key]['vendors_count']++;
-                }
-            }
-        }
-
-        foreach ($poDates as $dt) {
-            if ($dt !== null) {
-                $key = Carbon::parse($dt)->format('Y-m');
-                if (isset($buckets[$key])) {
-                    $buckets[$key]['purchase_orders_count']++;
-                }
-            }
         }
 
         return array_values($buckets);
@@ -975,32 +990,38 @@ class DashboardRepository implements DashboardRepositoryInterface
         $safeMonths = max(1, min($months, 12));
         $startDate = Carbon::now()->startOfMonth()->subMonths($safeMonths - 1);
 
-        try {
-            $poDates = PurchaseOrder::query()
+        $poMonthExpr = $this->monthKeyExpression('created_at');
+        $poCounts = $this->safeMonthlyCounts(
+            fn (): array => PurchaseOrder::query()
                 ->where('perusahaan_buyer_id', $tenantId)
                 ->where('created_at', '>=', $startDate)
-                ->pluck('created_at');
-        } catch (Throwable) {
-            $poDates = collect();
-        }
+                ->selectRaw("{$poMonthExpr} as month_key, COUNT(*) as aggregate")
+                ->groupByRaw($poMonthExpr)
+                ->pluck('aggregate', 'month_key')
+                ->all()
+        );
 
-        try {
-            $qcDates = PenerimaanBarang::query()
+        $qcMonthExpr = $this->monthKeyExpression('goods_receipts.created_at');
+        $qcCounts = $this->safeMonthlyCounts(
+            fn (): array => PenerimaanBarang::query()
                 ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-                ->where('created_at', '>=', $startDate)
-                ->pluck('created_at');
-        } catch (Throwable) {
-            $qcDates = collect();
-        }
+                ->where('goods_receipts.created_at', '>=', $startDate)
+                ->selectRaw("{$qcMonthExpr} as month_key, COUNT(*) as aggregate")
+                ->groupByRaw($qcMonthExpr)
+                ->pluck('aggregate', 'month_key')
+                ->all()
+        );
 
-        try {
-            $disputeDates = Sengketa::query()
+        $disputeMonthExpr = $this->monthKeyExpression('disputes.created_at');
+        $disputeCounts = $this->safeMonthlyCounts(
+            fn (): array => Sengketa::query()
                 ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-                ->where('created_at', '>=', $startDate)
-                ->pluck('created_at');
-        } catch (Throwable) {
-            $disputeDates = collect();
-        }
+                ->where('disputes.created_at', '>=', $startDate)
+                ->selectRaw("{$disputeMonthExpr} as month_key, COUNT(*) as aggregate")
+                ->groupByRaw($disputeMonthExpr)
+                ->pluck('aggregate', 'month_key')
+                ->all()
+        );
 
         $buckets = [];
         for ($i = 0; $i < $safeMonths; $i++) {
@@ -1012,37 +1033,10 @@ class DashboardRepository implements DashboardRepositoryInterface
             $buckets[$key] = [
                 'month_key' => $key,
                 'label' => $monthName.' '.$monthCursor->format('Y'),
-                'purchase_orders_count' => 0,
-                'qc_inspections_count' => 0,
-                'disputes_count' => 0,
+                'purchase_orders_count' => (int) ($poCounts[$key] ?? 0),
+                'qc_inspections_count' => (int) ($qcCounts[$key] ?? 0),
+                'disputes_count' => (int) ($disputeCounts[$key] ?? 0),
             ];
-        }
-
-        foreach ($poDates as $dt) {
-            if ($dt !== null) {
-                $key = Carbon::parse($dt)->format('Y-m');
-                if (isset($buckets[$key])) {
-                    $buckets[$key]['purchase_orders_count']++;
-                }
-            }
-        }
-
-        foreach ($qcDates as $dt) {
-            if ($dt !== null) {
-                $key = Carbon::parse($dt)->format('Y-m');
-                if (isset($buckets[$key])) {
-                    $buckets[$key]['qc_inspections_count']++;
-                }
-            }
-        }
-
-        foreach ($disputeDates as $dt) {
-            if ($dt !== null) {
-                $key = Carbon::parse($dt)->format('Y-m');
-                if (isset($buckets[$key])) {
-                    $buckets[$key]['disputes_count']++;
-                }
-            }
         }
 
         return array_values($buckets);
@@ -1404,76 +1398,59 @@ class DashboardRepository implements DashboardRepositoryInterface
             ];
         }
 
-        try {
-            $orders = PurchaseOrder::query()
-                ->where('perusahaan_buyer_id', $tenantId)
-                ->where('created_at', '>=', $startDate)
-                ->with('poItems:id,purchase_order_id,jumlah_pesanan,harga_satuan_po,estimated_unit_price,subtotal')
-                ->get(['id', 'status', 'created_at']);
+        $poMonthExpr = $this->monthKeyExpression('purchase_order.created_at');
+        $itemValueExpr = 'CASE WHEN po_item.subtotal IS NOT NULL AND po_item.subtotal > 0 THEN po_item.subtotal ELSE (COALESCE(po_item.jumlah_pesanan, 0) * COALESCE(po_item.harga_satuan_po, po_item.estimated_unit_price, 0)) END';
 
-            foreach ($orders as $order) {
-                if ($order->created_at === null) {
-                    continue;
-                }
-                $key = Carbon::parse($order->created_at)->format('Y-m');
-                if (! isset($buckets[$key])) {
-                    continue;
-                }
-                $buckets[$key]['purchase_orders_count']++;
+        $poTrends = $this->safeMonthlyMetrics(
+            fn () => PurchaseOrder::query()
+                ->leftJoin('po_item', 'po_item.purchase_order_id', '=', 'purchase_order.id')
+                ->where('purchase_order.perusahaan_buyer_id', $tenantId)
+                ->where('purchase_order.created_at', '>=', $startDate)
+                ->selectRaw("{$poMonthExpr} as month_key, COUNT(DISTINCT purchase_order.id) as orders_count, COALESCE(SUM({$itemValueExpr}), 0) as po_value")
+                ->groupByRaw($poMonthExpr)
+                ->get()
+        );
 
-                foreach ($order->poItems as $item) {
-                    $sub = (float) ($item->subtotal ?? 0);
-                    if ($sub > 0) {
-                        $buckets[$key]['po_value'] += $sub;
-                    } else {
-                        $qty = (float) ($item->jumlah_pesanan ?? 0);
-                        $price = (float) ($item->harga_satuan_po ?? $item->estimated_unit_price ?? 0);
-                        $buckets[$key]['po_value'] += $qty * $price;
-                    }
-                }
+        foreach ($poTrends as $row) {
+            $key = (string) $row->month_key;
+            if (isset($buckets[$key])) {
+                $buckets[$key]['purchase_orders_count'] = (int) $row->orders_count;
+                $buckets[$key]['po_value'] = round((float) $row->po_value, 2);
             }
-        } catch (Throwable) {
-            // Skip if unavailable
         }
 
-        try {
-            $invoiceDates = Invoice::query()
+        $invoiceMonthExpr = $this->monthKeyExpression('invoice.created_at');
+        $invoiceCounts = $this->safeMonthlyCounts(
+            fn (): array => Invoice::query()
                 ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-                ->where('created_at', '>=', $startDate)
-                ->pluck('created_at');
+                ->where('invoice.created_at', '>=', $startDate)
+                ->selectRaw("{$invoiceMonthExpr} as month_key, COUNT(*) as aggregate")
+                ->groupByRaw($invoiceMonthExpr)
+                ->pluck('aggregate', 'month_key')
+                ->all()
+        );
 
-            foreach ($invoiceDates as $dt) {
-                if ($dt !== null) {
-                    $key = Carbon::parse($dt)->format('Y-m');
-                    if (isset($buckets[$key])) {
-                        $buckets[$key]['invoices_count']++;
-                    }
-                }
+        foreach ($invoiceCounts as $monthKey => $count) {
+            if (isset($buckets[$monthKey])) {
+                $buckets[$monthKey]['invoices_count'] = (int) $count;
             }
-        } catch (Throwable) {
-            // Skip if unavailable
         }
 
-        try {
-            $qcDates = PenerimaanBarang::query()
+        $qcMonthExpr = $this->monthKeyExpression('goods_receipts.created_at');
+        $qcCounts = $this->safeMonthlyCounts(
+            fn (): array => PenerimaanBarang::query()
                 ->whereHas('purchaseOrder', static fn ($q) => $q->where('perusahaan_buyer_id', $tenantId))
-                ->where('created_at', '>=', $startDate)
-                ->pluck('created_at');
+                ->where('goods_receipts.created_at', '>=', $startDate)
+                ->selectRaw("{$qcMonthExpr} as month_key, COUNT(*) as aggregate")
+                ->groupByRaw($qcMonthExpr)
+                ->pluck('aggregate', 'month_key')
+                ->all()
+        );
 
-            foreach ($qcDates as $dt) {
-                if ($dt !== null) {
-                    $key = Carbon::parse($dt)->format('Y-m');
-                    if (isset($buckets[$key])) {
-                        $buckets[$key]['qc_inspections_count']++;
-                    }
-                }
+        foreach ($qcCounts as $monthKey => $count) {
+            if (isset($buckets[$monthKey])) {
+                $buckets[$monthKey]['qc_inspections_count'] = (int) $count;
             }
-        } catch (Throwable) {
-            // Skip if unavailable
-        }
-
-        foreach ($buckets as $key => $bucket) {
-            $buckets[$key]['po_value'] = round($bucket['po_value'], 2);
         }
 
         return array_values($buckets);

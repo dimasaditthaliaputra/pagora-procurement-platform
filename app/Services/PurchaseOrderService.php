@@ -31,7 +31,17 @@ class PurchaseOrderService
         protected readonly NotificationService $notificationService,
         protected readonly PricePredictionService $pricePredictionService,
         protected readonly NegotiationService $negotiationService,
+        protected readonly DashboardService $dashboardService,
     ) {}
+
+    /**
+     * Menghapus cache dashboard tenant dan vendor setelah perubahan PO.
+     */
+    private function invalidatePurchaseOrderDashboards(int $tenantId, int $vendorId): void
+    {
+        $this->dashboardService->invalidateTenantDashboards($tenantId);
+        $this->dashboardService->invalidateVendorDashboard($vendorId);
+    }
 
     /**
      * Paginate purchase orders for the authenticated user based on role (Tenant or Vendor).
@@ -97,9 +107,7 @@ class PurchaseOrderService
     }
 
     /**
-     * Retrieve options for creating / editing a Purchase Order:
-     * - partner vendors (mitra agreed & tidak diblokir)
-     * - active commodities for the tenant with reference ceiling prices.
+     * Retrieve options for creating / editing a Purchase Order.
      *
      * @return array{vendor_options: list<array{value: string, label: string}>, komoditas_options: list<array{value: string, label: string, satuan: string, harga_pagu: float|null}>}
      */
@@ -109,7 +117,6 @@ class PurchaseOrderService
 
         $tenantId = (int) $actor->tenant_id;
 
-        // 1. Partner Vendors: status agreed, vendor active, not blocked
         $vendorPartners = KerjaSama::query()
             ->where('tenant_id', $tenantId)
             ->where('status', StatusKerjaSama::Agreed->value)
@@ -124,7 +131,6 @@ class PurchaseOrderService
             ->values()
             ->all();
 
-        // 2. Active Commodities for Tenant
         $tenantCommodityIds = TenantCommodity::query()
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
@@ -172,14 +178,13 @@ class PurchaseOrderService
 
         $tenantId = (int) $actor->tenant_id;
 
-        // Resolve vendor
         /** @var Vendor|null $vendor */
         $vendor = Vendor::where('uuid', $validated['vendor_uuid'])->first();
+
         if (! $vendor) {
             throw ValidationException::withMessages(['vendor_uuid' => 'Vendor yang dipilih tidak ditemukan.']);
         }
 
-        // Verify active partnership
         $isPartner = KerjaSama::query()
             ->where('tenant_id', $tenantId)
             ->where('vendor_id', $vendor->id)
@@ -193,7 +198,6 @@ class PurchaseOrderService
             ]);
         }
 
-        // Resolve commodity items
         $itemsData = $this->prepareItemsData($validated['items']);
         $totalPaguAcuan = $itemsData['total_pagu'];
         $firstPrediksiId = $itemsData['prediksi_harga_id'];
@@ -201,7 +205,7 @@ class PurchaseOrderService
         $year = (int) date('Y', strtotime((string) $validated['tanggal_po']));
         $nomorPo = $this->purchaseOrderRepository->getNextPoNumber($year);
 
-        return DB::transaction(function () use ($actor, $tenantId, $vendor, $validated, $nomorPo, $totalPaguAcuan, $firstPrediksiId, $itemsData) {
+        $po = DB::transaction(function () use ($actor, $tenantId, $vendor, $validated, $nomorPo, $totalPaguAcuan, $firstPrediksiId, $itemsData) {
             $po = $this->purchaseOrderRepository->create([
                 'uuid' => (string) Str::uuid(),
                 'nomor_po' => $nomorPo,
@@ -219,6 +223,10 @@ class PurchaseOrderService
 
             return $this->purchaseOrderRepository->findByUuid($po->uuid, $tenantId) ?? $po;
         });
+
+        $this->invalidatePurchaseOrderDashboards($tenantId, (int) $vendor->id);
+
+        return $po;
     }
 
     /**
@@ -242,14 +250,13 @@ class PurchaseOrderService
 
         $tenantId = (int) $actor->tenant_id;
 
-        // Resolve vendor
         /** @var Vendor|null $vendor */
         $vendor = Vendor::where('uuid', $validated['vendor_uuid'])->first();
+
         if (! $vendor) {
             throw ValidationException::withMessages(['vendor_uuid' => 'Vendor yang dipilih tidak ditemukan.']);
         }
 
-        // Verify active partnership
         $isPartner = KerjaSama::query()
             ->where('tenant_id', $tenantId)
             ->where('vendor_id', $vendor->id)
@@ -265,8 +272,9 @@ class PurchaseOrderService
 
         $itemsData = $this->prepareItemsData($validated['items']);
         $totalPaguAcuan = $itemsData['total_pagu'];
+        $oldVendorId = (int) $po->vendor_id;
 
-        return DB::transaction(function () use ($po, $vendor, $validated, $totalPaguAcuan, $itemsData, $tenantId) {
+        $updatedPo = DB::transaction(function () use ($po, $vendor, $validated, $totalPaguAcuan, $itemsData, $tenantId) {
             $this->purchaseOrderRepository->update($po, [
                 'vendor_id' => $vendor->id,
                 'tanggal_po' => $validated['tanggal_po'],
@@ -278,6 +286,11 @@ class PurchaseOrderService
 
             return $this->purchaseOrderRepository->findByUuid($po->uuid, $tenantId) ?? $po;
         });
+
+        $this->invalidatePurchaseOrderDashboards($tenantId, $oldVendorId);
+        $this->invalidatePurchaseOrderDashboards($tenantId, (int) $vendor->id);
+
+        return $updatedPo;
     }
 
     /**
@@ -297,7 +310,16 @@ class PurchaseOrderService
             ]);
         }
 
-        return $this->purchaseOrderRepository->delete($po);
+        $tenantId = (int) $po->perusahaan_buyer_id;
+        $vendorId = (int) $po->vendor_id;
+
+        $deleted = $this->purchaseOrderRepository->delete($po);
+
+        if ($deleted) {
+            $this->invalidatePurchaseOrderDashboards($tenantId, $vendorId);
+        }
+
+        return $deleted;
     }
 
     /**
@@ -317,14 +339,21 @@ class PurchaseOrderService
             ]);
         }
 
+        $tenantId = (int) $po->perusahaan_buyer_id;
+        $vendorId = (int) $po->vendor_id;
+
         DB::transaction(function () use ($po, $actor): void {
             $this->purchaseOrderRepository->update($po, [
                 'status' => StatusPurchaseOrder::Negosiasi->value,
             ]);
+
             $this->negotiationService->recordStart($actor, $po);
         });
 
-        $vendorUsers = $this->getVendorPoNotificationRecipients((int) $po->vendor_id);
+        $this->invalidatePurchaseOrderDashboards($tenantId, $vendorId);
+
+        $vendorUsers = $this->getVendorPoNotificationRecipients($vendorId);
+
         $this->notificationService->sendToMany(
             $vendorUsers,
             'purchase_order',
@@ -345,6 +374,7 @@ class PurchaseOrderService
     public function batalkanPo(User $actor, string $uuid, string $alasan): PurchaseOrder
     {
         $alasan = trim($alasan);
+
         if ($alasan === '') {
             throw ValidationException::withMessages([
                 'alasan' => 'Alasan pembatalan Purchase Order wajib diisi.',
@@ -361,15 +391,22 @@ class PurchaseOrderService
             ]);
         }
 
+        $tenantId = (int) $po->perusahaan_buyer_id;
+        $vendorId = (int) $po->vendor_id;
+
         DB::transaction(function () use ($po, $actor, $alasan): void {
             $this->purchaseOrderRepository->update($po, [
                 'status' => StatusPurchaseOrder::Dibatalkan->value,
                 'alasan_pembatalan' => $alasan,
             ]);
+
             $this->negotiationService->recordCancellation($actor, $po, $alasan);
         });
 
-        $vendorUsers = $this->getVendorPoNotificationRecipients((int) $po->vendor_id);
+        $this->invalidatePurchaseOrderDashboards($tenantId, $vendorId);
+
+        $vendorUsers = $this->getVendorPoNotificationRecipients($vendorId);
+
         $this->notificationService->sendToMany(
             $vendorUsers,
             'purchase_order',
@@ -439,12 +476,10 @@ class PurchaseOrderService
 
             $qty = (float) $item['jumlah_pesanan'];
 
-            // The snapshot is only meaningful when every item has a Harga Pagu (UC-11 2b otherwise).
             $totalPagu = $ceiling !== null && $totalPagu !== null
                 ? $totalPagu + ($qty * (float) $ceiling->recommended_ceiling_price)
                 : null;
 
-            // The form field `harga_satuan_po` is the Purchasing budget estimate (BR-05).
             $items[] = [
                 'komoditas_id' => $commodity->id,
                 'jumlah_pesanan' => $qty,
